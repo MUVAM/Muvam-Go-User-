@@ -1,0 +1,30 @@
+class ConstImages {
+  static const String avatar = 'assets/images/avatar.png';
+  static const String car = 'assets/images/car.png';
+  static const String comingSoon = 'assets/images/coming_soon.png';
+  static const String locationPin = 'assets/images/location_pin.png';
+  static const String locationTime = 'assets/images/location_time.png';
+  static const String maps = 'assets/images/maps.png';
+  static const String onboardCar = 'assets/images/onboard_car.png';
+  static const String otp = 'assets/images/otp.png';
+  static const String serviceEscort = 'assets/images/service_escort.png';
+  static const String serviceShop = 'assets/images/service_shop.png';
+  static const String onboardBackground = 'assets/images/onboard_background.png';
+  static const String phoneCall = 'assets/images/phone-call.png';
+  static const String whatsapp = 'assets/images/whatsapp.png';
+  static const String homeIcon = 'assets/images/homeIcon.png';
+  static const String services = 'assets/images/services.png';
+  static const String activities = 'assets/images/activities.png';
+  static const String back = 'assets/images/back.png';
+  static const String add = 'assets/images/Add.png';
+  static const String food = 'assets/images/Bike.png';
+  static const String bike = 'assets/images/Food.png';
+  static const String wallet = 'assets/images/wallet.png';
+  static const String tip = 'assets/images/tip.png';
+  static const String code = 'assets/images/code.png';
+  static const String referral = 'assets/images/referral.png';
+  static const String faq = 'assets/images/faq.png';
+  static const String about = 'assets/images/about.png';
+  static const String onboardCar1 = 'assets/images/onboard_car1.png';
+  static const String locationIcon = 'assets/images/locationicon.png';
+}

@@ -10,7 +10,7 @@ class RideService {
     return prefs.getString('auth_token');
   }
 
-  Future<RideEstimateResponse> estimateRide(RideEstimateRequest request) async {
+  Future<RideEstimateResponse> estimateRide(RideEstimateRequest request, String vehicleType) async {
     final token = await _getToken();
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideEstimate}'),
@@ -25,7 +25,7 @@ class RideService {
     print('Estimate Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
-      return RideEstimateResponse.fromJson(jsonDecode(response.body));
+      return RideEstimateResponse.fromJson(jsonDecode(response.body), vehicleType);
     } else {
       throw Exception('Failed to estimate ride: ${response.body}');
     }

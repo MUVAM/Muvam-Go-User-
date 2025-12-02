@@ -918,12 +918,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
                     try {
                       await _estimateRide();
-                      Navigator.pop(context);
-                      _showBookingDetails();
+                      if (mounted) {
+                        Navigator.pop(context);
+                        _showBookingDetails();
+                      }
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to estimate ride price')),
-                      );
+                      print('Estimate error: $e');
+                      if (mounted) {
+                        Navigator.pop(context);
+                        _showBookingDetails();
+                      }
                     } finally {
                       if (mounted) {
                         setModalState(() {
@@ -1227,23 +1231,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
                     try {
                       _currentRideResponse = await _requestRide();
-                      print('=== WEBSOCKET SEND DEBUG ===');
-                      print('Ride Response ID: ${_currentRideResponse!.id}');
-                      print('Ride Response Data: ${_currentRideResponse!.toJson()}');
                       
                       final wsProvider = Provider.of<WebSocketProvider>(context, listen: false);
-                      final wsMessage = {
+                      wsProvider.sendMessage({
                         'type': 'ride_request',
-                        'ride_id': _currentRideResponse!.id,
                         'data': _currentRideResponse!.toJson(),
-                      };
-                      print('WebSocket Message to Send: $wsMessage');
-                      print('WebSocket Connected: ${wsProvider.isConnected}');
+                        'timestamp': DateTime.now().toIso8601String(),
+                      });
                       
-                      wsProvider.sendMessage(wsMessage);
-                      print('WebSocket Message Sent Successfully');
                       if (mounted) {
-                        // Clear form fields
                         fromController.clear();
                         toController.clear();
                         setState(() {
@@ -3222,7 +3218,7 @@ class _HomeScreenState extends State<HomeScreen> {
       vehicleType: vehicleType,
     );
     
-    _currentEstimate = await _rideService.estimateRide(request);
+    _currentEstimate = await _rideService.estimateRide(request, vehicleType);
     setState(() {});
   }
 

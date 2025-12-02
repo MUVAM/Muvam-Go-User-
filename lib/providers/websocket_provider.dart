@@ -19,6 +19,10 @@ class WebSocketProvider with ChangeNotifier {
     _webSocketService.sendMessage(message);
   }
 
+  void sendRideRequest(Map<String, dynamic> rideData) {
+    _webSocketService.sendRideRequest(rideData);
+  }
+
   void disconnect() {
     _webSocketService.disconnect();
     notifyListeners();

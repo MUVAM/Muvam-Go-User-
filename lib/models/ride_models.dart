@@ -39,15 +39,22 @@ class RideEstimateResponse {
     required this.vehicleType,
   });
 
-  factory RideEstimateResponse.fromJson(Map<String, dynamic> json) => 
-      RideEstimateResponse(
-        currency: json['currency'],
-        distanceKm: json['distance_km'].toDouble(),
-        durationMin: json['duration_min'],
-        price: json['price'].toDouble(),
-        serviceType: json['service_type'],
-        vehicleType: json['vehicle_type'],
-      );
+  factory RideEstimateResponse.fromJson(Map<String, dynamic> json, String selectedVehicleType) {
+    final priceList = json['price'] as List;
+    final selectedPrice = priceList.firstWhere(
+      (p) => p['vehicle_type'] == selectedVehicleType,
+      orElse: () => priceList.first,
+    );
+    
+    return RideEstimateResponse(
+      currency: json['currency'],
+      distanceKm: json['distance_km'].toDouble(),
+      durationMin: json['duration_min'],
+      price: selectedPrice['total_fare'].toDouble(),
+      serviceType: json['service_type'],
+      vehicleType: selectedPrice['vehicle_type'],
+    );
+  }
 }
 
 class RideRequest {

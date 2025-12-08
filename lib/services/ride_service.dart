@@ -10,7 +10,7 @@ class RideService {
     return prefs.getString('auth_token');
   }
 
-  Future<RideEstimateResponse> estimateRide(RideEstimateRequest request, String vehicleType) async {
+  Future<RideEstimateResponse> estimateRide(RideEstimateRequest request) async {
     final token = await _getToken();
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideEstimate}'),
@@ -25,7 +25,7 @@ class RideService {
     print('Estimate Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
-      return RideEstimateResponse.fromJson(jsonDecode(response.body), vehicleType);
+      return RideEstimateResponse.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to estimate ride: ${response.body}');
     }
@@ -49,6 +49,27 @@ class RideService {
       return RideResponse.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to request ride: ${response.body}');
+    }
+  }
+
+  Future<List<dynamic>> getNearbyRides() async {
+    final token = await _getToken();
+    print('Using token for nearby rides: ${token?.substring(0, 20)}...');
+    
+    final response = await http.get(
+      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.nearbyRides}'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Nearby Rides Response Status: ${response.statusCode}');
+    print('Nearby Rides Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get nearby rides: ${response.body}');
     }
   }
 }

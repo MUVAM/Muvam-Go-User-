@@ -95,7 +95,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           location: _locationPoint,
                         );
                         
-                        print('Registration request: ${request.toJson()}');
+                        final requestJson = request.toJson();
+                        requestJson['service_type'] = 'taxi'; // Force add service_type
+                        print('Registration request from screen: $requestJson');
+                        print('Service type in request: ${requestJson['service_type']}');
                         
                         final success = await authProvider.registerUser(request);
                         

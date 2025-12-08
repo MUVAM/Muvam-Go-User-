@@ -62,18 +62,22 @@ class AuthService {
   }
 
   Future<RegisterUserResponse> registerUser(RegisterUserRequest request) async {
+    final requestBody = request.toJson();
+    requestBody['service_type'] = 'taxi'; // Force add service_type
+    print('Registration request: $requestBody');
+    
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.registerUser}'),
       headers: {
         'Content-Type': 'application/json',
       },
-      body: jsonEncode(request.toJson()),
+      body: jsonEncode(requestBody),
     );
 
     print('Register User Response Status: ${response.statusCode}');
     print('Register User Response Body: ${response.body}');
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       final result = RegisterUserResponse.fromJson(jsonDecode(response.body));
       await _saveToken(result.token);
       return result;

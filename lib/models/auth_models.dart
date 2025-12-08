@@ -39,6 +39,7 @@ class RegisterUserRequest {
       "last_name": lastName,
       "phone": phone,
       "role": role,
+      "service_type": "taxi",
     };
     if (location != null) {
       json["location"] = location!;

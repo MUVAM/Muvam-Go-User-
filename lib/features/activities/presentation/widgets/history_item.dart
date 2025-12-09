@@ -4,6 +4,7 @@ import 'package:muvam/features/trips/presentation/screens/history_cancelled_scre
 import 'package:muvam/features/trips/presentation/screens/history_completed_screen.dart';
 
 class HistoryItem extends StatelessWidget {
+  final int rideId;
   final String time;
   final String date;
   final String destination;
@@ -11,6 +12,8 @@ class HistoryItem extends StatelessWidget {
   final String? price;
 
   const HistoryItem({
+    super.key,
+    required this.rideId,
     required this.time,
     required this.date,
     required this.destination,
@@ -26,13 +29,15 @@ class HistoryItem extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => HistoryCompletedScreen(price: price ?? ''),
+              builder: (context) => HistoryCompletedScreen(rideId: rideId),
             ),
           );
         } else {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => HistoryCancelledScreen()),
+            MaterialPageRoute(
+              builder: (context) => HistoryCancelledScreen(rideId: rideId),
+            ),
           );
         }
       },
@@ -143,6 +148,8 @@ class HistoryItem extends StatelessWidget {
                     fontSize: 14.sp,
                     color: Colors.black,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

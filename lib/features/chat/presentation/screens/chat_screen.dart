@@ -1,36 +1,170 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
+import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'call_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:muvam/core/services/socket_service.dart';
+import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/features/chat/data/models/chat_model.dart';
+import 'package:muvam/features/chat/data/providers/chat_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../widgets/chat_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final int rideId;
+  final String driverName;
+  final String? driverImage;
+
+  const ChatScreen({
+    super.key,
+    required this.rideId,
+    required this.driverName,
+    this.driverImage,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController messageController = TextEditingController();
-  List<ChatMessage> messages = [
-    ChatMessage(
-      text: "Hello! I'm on my way to pick you up.",
-      isMe: false,
-      time: "10:30 AM",
-    ),
-    ChatMessage(
-      text: "Great! I'll be waiting outside.",
-      isMe: true,
-      time: "10:31 AM",
-    ),
-    ChatMessage(
-      text: "I'm about 5 minutes away.",
-      isMe: false,
-      time: "10:35 AM",
-    ),
-  ];
+  late final SocketService socketService;
+  bool isLoading = true;
+  bool isConnected = false;
+  String? currentUserId;
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSocket();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    socketService.disconnect();
+    super.dispose();
+  }
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  void _initializeSocket() async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        setState(() {
+          isLoading = false;
+        });
+        _showError('Authentication token not found');
+        return;
+      }
+
+      socketService = SocketService(token);
+      await socketService.connect();
+
+      setState(() {
+        isConnected = true;
+        isLoading = false;
+      });
+
+      socketService.listenToMessages((data) {
+        _handleIncomingMessage(data);
+      });
+
+      AppLogger.log('WebSocket initialized for ride: ${widget.rideId}');
+    } catch (e) {
+      AppLogger.log('Initialization error: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          isConnected = false;
+        });
+        _showError('Failed to connect to chat');
+      }
+    }
+  }
+
+  void _handleIncomingMessage(Map<String, dynamic> data) {
+    try {
+      AppLogger.log('Received data: $data');
+
+      if (data['type'] == 'chat') {
+        final messageData = data['data'] as Map<String, dynamic>;
+        final rideId = messageData['ride_id'] as int?;
+
+        // Only process messages for current ride
+        if (rideId == widget.rideId) {
+          final message = ChatMessageModel(
+            message: messageData['message'] ?? '',
+            timestamp: data['timestamp'] ?? DateTime.now().toIso8601String(),
+            rideId: rideId,
+            userId: messageData['user_id']?.toString(),
+          );
+
+          if (mounted) {
+            context.read<ChatProvider>().addMessage(widget.rideId, message);
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.log('Error processing message: $e');
+    }
+  }
+
+  void _sendMessage() {
+    if (!isConnected) {
+      _showError('Not connected to chat');
+      return;
+    }
+
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    try {
+      socketService.sendMessage(widget.rideId, text);
+
+      // Add message locally for immediate UI update
+      final message = ChatMessageModel(
+        message: text,
+        timestamp: DateTime.now().toIso8601String(),
+        rideId: widget.rideId,
+        userId: currentUserId,
+      );
+
+      context.read<ChatProvider>().addMessage(widget.rideId, message);
+      _messageController.clear();
+    } catch (e) {
+      AppLogger.log('Error sending message: $e');
+      _showError('Failed to send message');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  String _extractTime(String timestamp) {
+    try {
+      final dt = DateTime.parse(timestamp);
+      return DateFormat('hh:mm a').format(dt);
+    } catch (e) {
+      return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,12 +190,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   SizedBox(width: 15.w),
                   CircleAvatar(
                     radius: 15.r,
-                    backgroundImage: AssetImage(ConstImages.avatar),
+                    backgroundImage:
+                        widget.driverImage != null &&
+                            widget.driverImage!.isNotEmpty
+                        ? NetworkImage(widget.driverImage!)
+                        : AssetImage(ConstImages.avatar) as ImageProvider,
                   ),
                   SizedBox(width: 10.w),
                   Expanded(
                     child: Text(
-                      'John Driver',
+                      widget.driverName,
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 18.sp,
@@ -72,9 +210,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _showCallOptionsSheet(),
-                    child: Icon(Icons.call, size: 24.sp, color: Colors.black),
+                  Container(
+                    width: 8.w,
+                    height: 8.h,
+                    decoration: BoxDecoration(
+                      color: isConnected ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ],
               ),
@@ -82,18 +224,58 @@ class _ChatScreenState extends State<ChatScreen> {
             SizedBox(height: 10.h),
             Divider(thickness: 1, color: Colors.grey.shade300),
             Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.all(20.w),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final message = messages[index];
-                  return ChatBubble(
-                    text: message.text,
-                    isMe: message.isMe,
-                    time: message.time,
-                  );
-                },
-              ),
+              child: isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Color(ConstColors.mainColor),
+                      ),
+                    )
+                  : Consumer<ChatProvider>(
+                      builder: (context, provider, child) {
+                        final messages = provider.getMessagesForRide(
+                          widget.rideId,
+                        );
+
+                        if (messages.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.w),
+                              child: Text(
+                                "No messages yet. Start the conversation!",
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: EdgeInsets.all(20.w),
+                          reverse: true,
+                          itemCount: messages.length,
+                          controller: _scrollController,
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+                            // Determine if message is from current user
+                            // You might need to compare with actual user ID
+                            final isMe =
+                                message.userId == currentUserId ||
+                                message.userId == null;
+                            final time = _extractTime(message.timestamp);
+
+                            return ChatBubble(
+                              text: message.message,
+                              isMe: isMe,
+                              time: time,
+                            );
+                          },
+                        );
+                      },
+                    ),
             ),
             Container(
               margin: EdgeInsets.all(20.w),
@@ -109,7 +291,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderRadius: BorderRadius.circular(15.r),
                       ),
                       child: TextField(
-                        controller: messageController,
+                        controller: _messageController,
                         decoration: InputDecoration(
                           hintText: 'Send message',
                           hintStyle: TextStyle(
@@ -123,29 +305,24 @@ class _ChatScreenState extends State<ChatScreen> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(vertical: 15.h),
                         ),
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                   ),
                   SizedBox(width: 10.w),
                   GestureDetector(
-                    onTap: () {
-                      if (messageController.text.isNotEmpty) {
-                        setState(() {
-                          messages.add(
-                            ChatMessage(
-                              text: messageController.text,
-                              isMe: true,
-                              time: "Now",
-                            ),
-                          );
-                          messageController.clear();
-                        });
-                      }
-                    },
-                    child: Container(
-                      width: 21.w,
-                      height: 21.h,
-                      child: Icon(Icons.send, size: 21.sp, color: Colors.black),
+                    onTap: isConnected ? _sendMessage : null,
+                    child: Opacity(
+                      opacity: isConnected ? 1.0 : 0.4,
+                      child: Container(
+                        width: 21.w,
+                        height: 21.h,
+                        child: Icon(
+                          Icons.send,
+                          size: 21.sp,
+                          color: Colors.black,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -156,98 +333,4 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
-  void _showCallOptionsSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Call John Driver',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            ListTile(
-              title: Text(
-                'Call via app',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                ),
-              ),
-              trailing: Icon(Icons.phone, size: 24.sp, color: Colors.black),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const CallScreen(driverName: 'John Driver'),
-                  ),
-                );
-              },
-            ),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            ListTile(
-              title: Text(
-                'Call via phone',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                ),
-              ),
-              trailing: Icon(Icons.phone, size: 24.sp, color: Colors.black),
-              onTap: () async {
-                Navigator.pop(context);
-                final Uri phoneUri = Uri(scheme: 'tel', path: '+1234567890');
-                if (await canLaunchUrl(phoneUri)) {
-                  await launchUrl(phoneUri);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ChatMessage {
-  final String text;
-  final bool isMe;
-  final String time;
-
-  ChatMessage({required this.text, required this.isMe, required this.time});
 }

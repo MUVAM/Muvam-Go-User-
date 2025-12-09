@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:provider/provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,11 +32,25 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.forward().then((_) {
+      _initializeApp();
+    });
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      await context.read<WalletProvider>().checkVirtualAccount();
+      print('here get called...');
+    } catch (e) {
+      AppLogger.log('Failed to check virtual account: $e');
+    }
+    print('++++++++++...');
+
+    if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const OnboardingScreen()),
       );
-    });
+    }
   }
 
   @override

@@ -2,12 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../constants/colors.dart';
 import '../constants/images.dart';
-import '../constants/text_styles.dart';
+import '../models/ride_models.dart';
+import '../services/websocket_service.dart';
 import 'call_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final Driver driver;
+  final String rideId;
+  final String currentUserId;
+
+  const ChatScreen({
+    super.key,
+    required this.driver,
+    required this.rideId,
+    required this.currentUserId,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -15,11 +25,35 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController messageController = TextEditingController();
-  List<ChatMessage> messages = [
-    ChatMessage(text: "Hello! I'm on my way to pick you up.", isMe: false, time: "10:30 AM"),
-    ChatMessage(text: "Great! I'll be waiting outside.", isMe: true, time: "10:31 AM"),
-    ChatMessage(text: "I'm about 5 minutes away.", isMe: false, time: "10:35 AM"),
-  ];
+  final WebSocketService _webSocketService = WebSocketService();
+  List<ChatMessage> messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeChat();
+  }
+
+  void _initializeChat() async {
+    await _webSocketService.connect();
+    _listenToMessages();
+  }
+
+  void _listenToMessages() {
+    _webSocketService.onChatMessage = (chatMessage) {
+      if (!chatMessage.isMe) {
+        setState(() {
+          messages.add(chatMessage);
+        });
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,17 +71,23 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.arrow_back, size: 24.sp, color: Colors.black),
+                    child: Icon(
+                      Icons.arrow_back,
+                      size: 24.sp,
+                      color: Colors.black,
+                    ),
                   ),
                   SizedBox(width: 15.w),
                   CircleAvatar(
                     radius: 15.r,
-                    backgroundImage: AssetImage(ConstImages.avatar),
+                    backgroundImage: widget.driver.profilePicture.isNotEmpty
+                        ? NetworkImage(widget.driver.profilePicture)
+                        : AssetImage(ConstImages.avatar) as ImageProvider,
                   ),
                   SizedBox(width: 10.w),
                   Expanded(
                     child: Text(
-                      'John Driver',
+                      widget.driver.name,
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 18.sp,
@@ -67,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             SizedBox(height: 10.h),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            
+
             // Chat Messages
             Expanded(
               child: ListView.builder(
@@ -79,7 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ),
-            
+
             // Message Input
             Container(
               margin: EdgeInsets.all(20.w),
@@ -116,14 +156,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   GestureDetector(
                     onTap: () {
                       if (messageController.text.isNotEmpty) {
-                        setState(() {
-                          messages.add(ChatMessage(
-                            text: messageController.text,
-                            isMe: true,
-                            time: "Now",
-                          ));
-                          messageController.clear();
-                        });
+                        _sendMessage(messageController.text);
                       }
                     },
                     child: Container(
@@ -141,6 +174,40 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _sendMessage(String text) {
+    final message = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      message: text,
+      senderId: widget.currentUserId,
+      senderType: 'user',
+      timestamp: DateTime.now(),
+      isMe: true,
+    );
+
+    setState(() {
+      messages.add(message);
+      messageController.clear();
+    });
+
+    // Send message via WebSocket
+    _webSocketService.sendChatMessage(text, widget.rideId);
+  }
+
+  String _formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${timestamp.day}/${timestamp.month} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
   Widget _buildChatBubble(ChatMessage message) {
     return Align(
       alignment: message.isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -152,7 +219,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: message.isMe 
+          color: message.isMe
               ? Color(ConstColors.mainColor)
               : Color(0xFFB1B1B1).withOpacity(0.5),
           borderRadius: BorderRadius.only(
@@ -166,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              message.text,
+              message.message,
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 14.sp,
@@ -176,7 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             SizedBox(height: 5.h),
             Text(
-              message.time,
+              _formatTime(message.timestamp),
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 8.sp,
@@ -219,7 +286,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Call John Driver',
+                'Call ${widget.driver.name}',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 18.sp,
@@ -246,7 +313,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const CallScreen(driverName: 'John Driver'),
+                    builder: (context) =>
+                        CallScreen(driverName: widget.driver.name),
                   ),
                 );
               },
@@ -265,7 +333,10 @@ class _ChatScreenState extends State<ChatScreen> {
               trailing: Icon(Icons.phone, size: 24.sp, color: Colors.black),
               onTap: () async {
                 Navigator.pop(context);
-                final Uri phoneUri = Uri(scheme: 'tel', path: '+1234567890');
+                final Uri phoneUri = Uri(
+                  scheme: 'tel',
+                  path: widget.driver.phoneNumber,
+                );
                 if (await canLaunchUrl(phoneUri)) {
                   await launchUrl(phoneUri);
                 }
@@ -276,16 +347,4 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-}
-
-class ChatMessage {
-  final String text;
-  final bool isMe;
-  final String time;
-
-  ChatMessage({
-    required this.text,
-    required this.isMe,
-    required this.time,
-  });
 }

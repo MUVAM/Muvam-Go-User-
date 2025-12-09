@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:provider/provider.dart';
+<<<<<<< HEAD
+=======
+import 'package:shared_preferences/shared_preferences.dart';
+>>>>>>> master
 import '../constants/colors.dart';
 import '../constants/images.dart';
 import '../constants/text_styles.dart';
@@ -123,6 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 SizedBox(height: 95.h),
+<<<<<<< HEAD
                 GestureDetector(
                   onTap: _isValidPhone() ? () {
                     final fullPhone = countryCode + phoneController.text;
@@ -153,6 +158,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
+=======
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    return GestureDetector(
+                      onTap: _isValidPhone() && !authProvider.isLoading ? () async {
+                        final fullPhone = countryCode + phoneController.text;
+                        final success = await authProvider.sendOtp(fullPhone);
+                        
+                        if (success) {
+                          // Store phone number for registration
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('user_phone', fullPhone);
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OtpScreen(phoneNumber: fullPhone),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(authProvider.errorMessage ?? 'Failed to send OTP'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } : null,
+                      child: Container(
+                        width: 353.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: _isValidPhone() && !authProvider.isLoading
+                              ? Color(ConstColors.mainColor)
+                              : Color(ConstColors.fieldColor),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Center(
+                          child: authProvider.isLoading
+                              ? SizedBox(
+                                  width: 20.w,
+                                  height: 20.h,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Continue',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+>>>>>>> master
                 ),
                 SizedBox(height: 20.h),
               ],

@@ -7,6 +7,10 @@ import '../constants/images.dart';
 import '../constants/text_styles.dart';
 import '../providers/auth_provider.dart';
 import 'create_account_screen.dart';
+<<<<<<< HEAD
+=======
+import 'home_screen.dart';
+>>>>>>> master
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -162,6 +166,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       }),
                     ),
                     SizedBox(height: 30.h),
+<<<<<<< HEAD
                     GestureDetector(
                       onTap: _countdown == 0 ? () {
                         setState(() {
@@ -181,6 +186,34 @@ class _OtpScreenState extends State<OtpScreen> {
                               )
                             : ConstTextStyles.lightSubtitle,
                       ),
+=======
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GestureDetector(
+                          onTap: _countdown == 0 && !authProvider.isLoading ? () async {
+                            final success = await authProvider.resendOtp(widget.phoneNumber);
+                            if (success) {
+                              setState(() {
+                                _countdown = 20;
+                              });
+                              startTimer();
+                            }
+                          } : null,
+                          child: Text(
+                            _countdown > 0 
+                                ? 'Didn\'t receive code? Resend code in: 0:${_countdown.toString().padLeft(2, '0')}'
+                                : 'Resend code',
+                            style: _countdown == 0 
+                                ? TextStyle(
+                                    color: Color(ConstColors.mainColor),
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w500,
+                                  )
+                                : ConstTextStyles.lightSubtitle,
+                          ),
+                        );
+                      },
+>>>>>>> master
                     ),
                     SizedBox(height: 20.h),
                     GestureDetector(
@@ -197,6 +230,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                     ),
                     SizedBox(height: 40.h),
+<<<<<<< HEAD
                     GestureDetector(
                       onTap: isOtpComplete ? () {
                         Navigator.push(
@@ -224,6 +258,72 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                         ),
                       ),
+=======
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GestureDetector(
+                          onTap: isOtpComplete && !authProvider.isLoading ? () async {
+                            final otpCode = otpControllers.map((c) => c.text).join();
+                            final success = await authProvider.verifyOtp(otpCode, widget.phoneNumber);
+                            
+                            if (success) {
+                              final response = authProvider.verifyOtpResponse!;
+                              print('User data: ${response.user}');
+                              print('Token: ${response.token}');
+                              print('IsNew: ${response.isNew}');
+                              
+                              if (response.isNew) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
+                                );
+                              } else {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                );
+                              }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(authProvider.errorMessage ?? 'Invalid OTP'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } : null,
+                          child: Container(
+                            width: 353.w,
+                            height: 48.h,
+                            decoration: BoxDecoration(
+                              color: isOtpComplete && !authProvider.isLoading
+                                  ? Color(ConstColors.mainColor)
+                                  : Color(ConstColors.fieldColor),
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+                            child: Center(
+                              child: authProvider.isLoading
+                                  ? SizedBox(
+                                      width: 20.w,
+                                      height: 20.h,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Continue',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        );
+                      },
+>>>>>>> master
                     ),
                     SizedBox(height: 20.h),
                   ],

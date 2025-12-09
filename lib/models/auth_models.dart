@@ -21,6 +21,10 @@ class RegisterUserRequest {
   final String lastName;
   final String phone;
   final String role;
+<<<<<<< HEAD
+=======
+  final String? location;
+>>>>>>> master
 
   RegisterUserRequest({
     required this.email,
@@ -28,6 +32,7 @@ class RegisterUserRequest {
     required this.lastName,
     required this.phone,
     required this.role,
+<<<<<<< HEAD
   });
 
   Map<String, dynamic> toJson() => {
@@ -37,6 +42,25 @@ class RegisterUserRequest {
     "phone": phone,
     "role": role,
   };
+=======
+    this.location,
+  });
+
+  Map<String, dynamic> toJson() {
+    final json = {
+      "email": email,
+      "first_name": firstName,
+      "last_name": lastName,
+      "phone": phone,
+      "role": role,
+      "service_type": "taxi",
+    };
+    if (location != null) {
+      json["location"] = location!;
+    }
+    return json;
+  }
+>>>>>>> master
 }
 
 class ApiResponse {
@@ -51,14 +75,24 @@ class ApiResponse {
 class VerifyOtpResponse {
   final bool isNew;
   final String message;
+<<<<<<< HEAD
   final String token;
   final Map<String, dynamic> user;
+=======
+  final String? token;
+  final Map<String, dynamic>? user;
+>>>>>>> master
 
   VerifyOtpResponse({
     required this.isNew,
     required this.message,
+<<<<<<< HEAD
     required this.token,
     required this.user,
+=======
+    this.token,
+    this.user,
+>>>>>>> master
   });
 
   factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) => 
@@ -72,13 +106,24 @@ class VerifyOtpResponse {
 
 class RegisterUserResponse {
   final String message;
+<<<<<<< HEAD
   final Map<String, dynamic> user;
 
   RegisterUserResponse({required this.message, required this.user});
+=======
+  final String token;
+  final Map<String, dynamic> user;
+
+  RegisterUserResponse({required this.message, required this.token, required this.user});
+>>>>>>> master
 
   factory RegisterUserResponse.fromJson(Map<String, dynamic> json) => 
       RegisterUserResponse(
         message: json['message'],
+<<<<<<< HEAD
+=======
+        token: json['token'],
+>>>>>>> master
         user: json['user'],
       );
 }

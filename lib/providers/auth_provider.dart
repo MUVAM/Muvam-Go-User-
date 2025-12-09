@@ -113,6 +113,10 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> checkTokenValidity() async {
+    return await _authService.isTokenValid();
+  }
+
   Future<void> logout() async {
     await _authService.clearToken();
     _verifyOtpResponse = null;

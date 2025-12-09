@@ -8,17 +8,11 @@ environment:
   sdk: ^3.9.2
 
 dependencies:
+  country_picker: ^2.0.26
+  cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.8
-  country_picker: ^2.0.26
   flutter_screenutil: ^5.9.3
-  url_launcher: ^6.2.4
-  provider: ^6.1.2
-  http: ^1.2.1
-  shared_preferences: ^2.2.3
-  image_picker: ^1.0.7
   flutter_svg: ^2.2.3
   logger: ^2.6.2
   flutter_dotenv: ^6.0.0

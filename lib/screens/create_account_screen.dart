@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+<<<<<<< HEAD
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
+=======
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import '../constants/colors.dart';
+import '../constants/text_styles.dart';
+import '../providers/auth_provider.dart';
+import '../models/auth_models.dart';
+>>>>>>> master
 import 'home_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
@@ -15,10 +26,34 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController middleNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
+<<<<<<< HEAD
   final TextEditingController dobController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController referralController = TextEditingController();
+=======
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
+  final TextEditingController referralController = TextEditingController();
+  String? _locationPoint;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkToken();
+  }
+
+  void _checkToken() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final token = await authProvider.checkTokenValidity();
+    print('Token valid in create account: $token');
+    
+    // Also check stored token directly
+    final prefs = await SharedPreferences.getInstance();
+    final storedToken = prefs.getString('auth_token');
+    print('Stored token in create account: $storedToken');
+  }
+>>>>>>> master
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +85,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 SizedBox(height: 20.h),
                 _buildTextField('Last Name', lastNameController, ConstColors.formFieldColor),
                 SizedBox(height: 20.h),
+<<<<<<< HEAD
                 _buildTextField('Date of Birth', dobController, ConstColors.formFieldColor, isDateField: true),
                 SizedBox(height: 20.h),
                 _buildTextField('Email Address', emailController, ConstColors.formFieldColor),
@@ -83,6 +119,82 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       ),
                     ),
                   ),
+=======
+                _buildTextField('Email Address', emailController, ConstColors.formFieldColor),
+                SizedBox(height: 20.h),
+                _buildLocationField(),
+                SizedBox(height: 20.h),
+                _buildTextField('Referral Code (Optional)', referralController, ConstColors.formFieldColor),
+                SizedBox(height: 40.h),
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    return GestureDetector(
+                      onTap: !authProvider.isLoading ? () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final phone = prefs.getString('user_phone') ?? '+2341234567890';
+                        
+                        final request = RegisterUserRequest(
+                          email: emailController.text,
+                          firstName: firstNameController.text,
+                          lastName: lastNameController.text,
+                          phone: phone,
+                          role: 'passenger',
+                          location: _locationPoint,
+                        );
+                        
+                        final requestJson = request.toJson();
+                        requestJson['service_type'] = 'taxi'; // Force add service_type
+                        print('Registration request from screen: $requestJson');
+                        print('Service type in request: ${requestJson['service_type']}');
+                        
+                        final success = await authProvider.registerUser(request);
+                        
+                        if (success) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const HomeScreen()),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(authProvider.errorMessage ?? 'Failed to register user'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } : null,
+                      child: Container(
+                        width: 353.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: !authProvider.isLoading
+                              ? Color(ConstColors.mainColor)
+                              : Color(ConstColors.fieldColor),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Center(
+                          child: authProvider.isLoading
+                              ? SizedBox(
+                                  width: 20.w,
+                                  height: 20.h,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Continue',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+>>>>>>> master
                 ),
                 SizedBox(height: 20.h),
               ],
@@ -93,7 +205,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildTextField(String label, TextEditingController controller, int backgroundColor, {bool isDateField = false, bool hasDropdown = false}) {
+=======
+  Widget _buildTextField(String label, TextEditingController controller, int backgroundColor) {
+>>>>>>> master
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -109,10 +225,43 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             color: Color(backgroundColor),
             borderRadius: BorderRadius.circular(8.r),
           ),
+<<<<<<< HEAD
+=======
+          child: TextField(
+            controller: controller,
+            style: ConstTextStyles.inputText,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 15.h),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Location',
+          style: ConstTextStyles.fieldLabel,
+        ),
+        SizedBox(height: 8.h),
+        Container(
+          width: 353.w,
+          height: 50.h,
+          decoration: BoxDecoration(
+            color: Color(ConstColors.formFieldColor),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+>>>>>>> master
           child: Row(
             children: [
               Expanded(
                 child: TextField(
+<<<<<<< HEAD
                   controller: controller,
                   readOnly: isDateField,
                   style: ConstTextStyles.inputText,
@@ -128,6 +277,26 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   padding: EdgeInsets.only(right: 12.w),
                   child: Icon(Icons.arrow_drop_down, size: 20.sp),
                 ),
+=======
+                  controller: locationController,
+                  style: ConstTextStyles.inputText,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Tap to get current location',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 15.h),
+                  ),
+                  readOnly: true,
+                  onTap: _getCurrentLocation,
+                ),
+              ),
+              GestureDetector(
+                onTap: _getCurrentLocation,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 12.w),
+                  child: Icon(Icons.my_location, size: 20.sp, color: Color(ConstColors.mainColor)),
+                ),
+              ),
+>>>>>>> master
             ],
           ),
         ),
@@ -135,6 +304,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
+<<<<<<< HEAD
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -144,6 +314,42 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
     if (picked != null) {
       controller.text = "${picked.day}/${picked.month}/${picked.year}";
+=======
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Location permission denied')),
+          );
+          return;
+        }
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address = '${place.street}, ${place.locality}, ${place.administrativeArea}';
+        locationController.text = address;
+        _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
+        print('Location Point: $_locationPoint');
+      }
+    } catch (e) {
+      print('Error getting location: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to get location')),
+      );
+>>>>>>> master
     }
   }
 }

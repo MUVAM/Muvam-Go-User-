@@ -8,6 +8,7 @@ class TransactionItem extends StatelessWidget {
   final Color statusColor;
 
   const TransactionItem({
+    super.key,
     required this.amount,
     required this.dateTime,
     required this.status,

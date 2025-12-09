@@ -28,4 +28,8 @@ class ConstImages {
   static const String about = 'assets/images/about.png';
   static const String onboardCar1 = 'assets/images/onboard_car1.png';
   static const String timeStreamline = 'assets/svg/time_streamline.svg';
+  static const String walletIcon = 'assets/svg/wallet-icon.svg';
+  static const String carIcon = 'assets/svg/car.svg';
+  static const String calenddarIcon = 'assets/svg/calendar.svg';
+  static const String clockCircleIcon = 'assets/svg/clock-circle.svg';
 }

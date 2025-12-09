@@ -9,6 +9,8 @@ import 'package:muvam/features/profile/presentation/screens/profile_screen.dart'
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
 import 'package:muvam/features/services/presentation/screens/services_screen.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -46,6 +48,47 @@ class _HomeScreenState extends State<HomeScreen> {
         listen: false,
       ).loadFavouriteLocations();
     });
+  }
+
+  void _navigateToWallet() async {
+    Navigator.pop(context);
+
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+      ),
+    );
+
+    // Check if user has virtual account
+    final hasAccount = await walletProvider.checkVirtualAccount();
+
+    // Close loading indicator
+    if (mounted) {
+      Navigator.pop(context);
+    }
+
+    print('Navigate to appropriate screen');
+    // Navigate to appropriate screen
+    if (mounted) {
+      if (hasAccount) {
+        print('Navigate to appropriate WalletScreen');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WalletScreen()),
+        );
+      } else {
+        print('Navigate to appropriate WalletEmptyScreen');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
+        );
+      }
+    }
   }
 
   void _showContactBottomSheet() {
@@ -1264,13 +1307,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildDrawerItem(
             'Wallet',
             ConstImages.wallet,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => WalletScreen()),
-              );
-            },
+            onTap: _navigateToWallet,
           ),
           _buildDrawerItem('Drive with us', ConstImages.car),
           _buildDrawerItem(
@@ -2134,12 +2171,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ChatScreen(),
-                            ),
-                          );
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => const ChatScreen(),
+                          //   ),
+                          // );
                         },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,

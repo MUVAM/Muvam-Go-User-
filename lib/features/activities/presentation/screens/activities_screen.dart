@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/activities/presentation/widgets/active_tab.dart';
 import 'package:muvam/features/activities/presentation/widgets/history_tab.dart';
 import 'package:muvam/features/activities/presentation/widgets/prebooking_tab.dart';
+import 'package:provider/provider.dart';
 
 class ActivitiesScreen extends StatefulWidget {
   const ActivitiesScreen({super.key});
@@ -14,6 +16,20 @@ class ActivitiesScreen extends StatefulWidget {
 
 class ActivitiesScreenState extends State<ActivitiesScreen> {
   int _selectedTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RidesProvider>().startAutoRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    context.read<RidesProvider>().stopAutoRefresh();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/location_provider.dart';
 import 'screens/splash_screen.dart';
+import 'package:muvam/features/activities/data/providers/rides_provider.dart';
+import 'package:muvam/features/chat/data/providers/chat_provider.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -23,13 +26,14 @@ class MyApp extends StatelessWidget {
           providers: [
             ChangeNotifierProvider(create: (_) => AuthProvider()),
             ChangeNotifierProvider(create: (_) => LocationProvider()),
+            ChangeNotifierProvider(create: (_) => WalletProvider()),
+            ChangeNotifierProvider(create: (_) => RidesProvider()),
+            ChangeNotifierProvider(create: (_) => ChatProvider()),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Muvam',
-            theme: ThemeData(
-              useMaterial3: true,
-            ),
+            theme: ThemeData(useMaterial3: true),
             home: const SplashScreen(),
           ),
         );

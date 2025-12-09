@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:muvam/core/services/auth_service.dart';
 import '../models/auth_models.dart';
-import '../services/auth_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();

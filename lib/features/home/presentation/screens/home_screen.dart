@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
@@ -72,17 +73,17 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.pop(context);
     }
 
-    print('Navigate to appropriate screen');
+    AppLogger.log('Navigate to appropriate screen');
     // Navigate to appropriate screen
     if (mounted) {
       if (hasAccount) {
-        print('Navigate to appropriate WalletScreen');
+        AppLogger.log('Navigate to appropriate WalletScreen');
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const WalletScreen()),
         );
       } else {
-        print('Navigate to appropriate WalletEmptyScreen');
+        AppLogger.log('Navigate to appropriate WalletEmptyScreen');
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),

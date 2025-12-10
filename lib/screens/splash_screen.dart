@@ -4,6 +4,8 @@ import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:muvam/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -69,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (e) {
       AppLogger.log('Initialization error: $e');
-      // On error, navigate to onboarding
+      // On error, navigate to onboarding as fallback
       if (mounted) {
         Navigator.pushReplacement(
           context,

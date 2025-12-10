@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:muvam/core/utils/app_logger.dart';
 
 class SocketService {

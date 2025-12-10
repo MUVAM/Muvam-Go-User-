@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/url_constants.dart';
 import '../models/auth_models.dart';
@@ -38,7 +39,7 @@ class AuthService {
 
   Future<VerifyOtpResponse> verifyOtp(String code, String phone) async {
     final requestBody = VerifyOtpRequest(code: code, phone: phone).toJson();
-    print('Verify OTP Request Body: $requestBody');
+    AppLogger.log('Verify OTP Request Body: $requestBody');
 
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.verifyOtp}'),
@@ -46,8 +47,8 @@ class AuthService {
       body: jsonEncode(requestBody),
     );
 
-    print('Verify OTP Response Status: ${response.statusCode}');
-    print('Verify OTP Response Body: ${response.body}');
+    AppLogger.log('Verify OTP Response Status: ${response.statusCode}');
+    AppLogger.log('Verify OTP Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       final result = VerifyOtpResponse.fromJson(jsonDecode(response.body));
@@ -56,7 +57,7 @@ class AuthService {
       }
       return result;
     } else {
-      print('Verify OTP Error: ${response.body}');
+      AppLogger.log('Verify OTP Error: ${response.body}');
       throw Exception('Failed to verify OTP: ${response.body}');
     }
   }
@@ -64,7 +65,7 @@ class AuthService {
   Future<RegisterUserResponse> registerUser(RegisterUserRequest request) async {
     final requestBody = request.toJson();
     requestBody['service_type'] = 'taxi'; // Force add service_type
-    print('Registration request: $requestBody');
+    AppLogger.log('Registration request: $requestBody');
 
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.registerUser}'),
@@ -72,15 +73,15 @@ class AuthService {
       body: jsonEncode(requestBody),
     );
 
-    print('Register User Response Status: ${response.statusCode}');
-    print('Register User Response Body: ${response.body}');
+    AppLogger.log('Register User Response Status: ${response.statusCode}');
+    AppLogger.log('Register User Response Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final result = RegisterUserResponse.fromJson(jsonDecode(response.body));
       await _saveToken(result.token);
       return result;
     } else {
-      print('Register User Error: ${response.body}');
+      AppLogger.log('Register User Error: ${response.body}');
       throw Exception('Failed to register user: ${response.body}');
     }
   }
@@ -99,15 +100,15 @@ class AuthService {
     final token = prefs.getString(_tokenKey);
     final timestamp = prefs.getInt('token_timestamp');
 
-    print('Stored token: $token');
-    print('Token timestamp: $timestamp');
+    AppLogger.log('Stored token: $token');
+    AppLogger.log('Token timestamp: $timestamp');
 
     if (token != null && timestamp != null) {
       final tokenAge = DateTime.now().millisecondsSinceEpoch - timestamp;
-      print('Token age: ${tokenAge / 1000} seconds');
+      AppLogger.log('Token age: ${tokenAge / 1000} seconds');
       if (tokenAge > 7200000) {
         // 2 hours in milliseconds
-        print('Token expired, clearing...');
+        AppLogger.log('Token expired, clearing...');
         await clearToken();
         return null;
       }

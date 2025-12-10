@@ -21,10 +21,7 @@ class RegisterUserRequest {
   final String lastName;
   final String phone;
   final String role;
-<<<<<<< HEAD
-=======
   final String? location;
->>>>>>> master
 
   RegisterUserRequest({
     required this.email,
@@ -32,17 +29,6 @@ class RegisterUserRequest {
     required this.lastName,
     required this.phone,
     required this.role,
-<<<<<<< HEAD
-  });
-
-  Map<String, dynamic> toJson() => {
-    "email": email,
-    "first_name": firstName,
-    "last_name": lastName,
-    "phone": phone,
-    "role": role,
-  };
-=======
     this.location,
   });
 
@@ -60,7 +46,6 @@ class RegisterUserRequest {
     }
     return json;
   }
->>>>>>> master
 }
 
 class ApiResponse {
@@ -68,34 +53,24 @@ class ApiResponse {
 
   ApiResponse({required this.message});
 
-  factory ApiResponse.fromJson(Map<String, dynamic> json) => 
+  factory ApiResponse.fromJson(Map<String, dynamic> json) =>
       ApiResponse(message: json['message']);
 }
 
 class VerifyOtpResponse {
   final bool isNew;
   final String message;
-<<<<<<< HEAD
-  final String token;
-  final Map<String, dynamic> user;
-=======
   final String? token;
   final Map<String, dynamic>? user;
->>>>>>> master
 
   VerifyOtpResponse({
     required this.isNew,
     required this.message,
-<<<<<<< HEAD
-    required this.token,
-    required this.user,
-=======
     this.token,
     this.user,
->>>>>>> master
   });
 
-  factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) => 
+  factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) =>
       VerifyOtpResponse(
         isNew: json['isNew'],
         message: json['message'],
@@ -106,24 +81,19 @@ class VerifyOtpResponse {
 
 class RegisterUserResponse {
   final String message;
-<<<<<<< HEAD
-  final Map<String, dynamic> user;
-
-  RegisterUserResponse({required this.message, required this.user});
-=======
   final String token;
   final Map<String, dynamic> user;
 
-  RegisterUserResponse({required this.message, required this.token, required this.user});
->>>>>>> master
+  RegisterUserResponse({
+    required this.message,
+    required this.token,
+    required this.user,
+  });
 
-  factory RegisterUserResponse.fromJson(Map<String, dynamic> json) => 
+  factory RegisterUserResponse.fromJson(Map<String, dynamic> json) =>
       RegisterUserResponse(
         message: json['message'],
-<<<<<<< HEAD
-=======
         token: json['token'],
->>>>>>> master
         user: json['user'],
       );
 }

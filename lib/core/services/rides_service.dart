@@ -3,10 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/data/models/ride_user.dart';
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RidesService {
   Future<String?> _getToken() async {
-    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjUxMzgxOTgsInN1YiI6NX0.HispBhE01b9NHTZatZiL5Re1twhjAbe33W88I70EN0c';
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
   }
 
   Future<List<Ride>> getRides({String? status}) async {

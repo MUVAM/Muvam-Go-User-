@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'referral_rules_screen.dart';
 
 class ReferralScreen extends StatelessWidget {
@@ -222,6 +223,6 @@ class ReferralScreen extends StatelessWidget {
 
     // This is a placeholder - in a real app you would use url_launcher or share_plus
     // For demonstration, we'll show the system share if available
-    print('Sharing: $referralMessage');
+    AppLogger.log('Sharing: $referralMessage');
   }
 }

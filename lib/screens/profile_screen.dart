@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -7,10 +8,11 @@ import '../constants/colors.dart';
 import '../constants/images.dart';
 import '../providers/auth_provider.dart';
 import '../models/auth_models.dart';
-import 'edit_full_name_screen.dart';
 import 'delete_account_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -33,9 +35,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.loadUserData();
     final userData = authProvider.userData;
-    
-    if (userData['first_name'] != null) firstNameController.text = userData['first_name']!;
-    if (userData['last_name'] != null) lastNameController.text = userData['last_name']!;
+
+    if (userData['first_name'] != null)
+      firstNameController.text = userData['first_name']!;
+    if (userData['last_name'] != null)
+      lastNameController.text = userData['last_name']!;
     if (userData['email'] != null) emailController.text = userData['email']!;
   }
 
@@ -66,10 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 'Edit Profile',
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
               ),
               SizedBox(height: 20.h),
               GestureDetector(
@@ -83,10 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: _profileImage != null
                       ? ClipOval(
-                          child: Image.file(
-                            _profileImage!,
-                            fit: BoxFit.cover,
-                          ),
+                          child: Image.file(_profileImage!, fit: BoxFit.cover),
                         )
                       : Icon(Icons.camera_alt, size: 30.sp),
                 ),
@@ -103,32 +101,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
                   return GestureDetector(
-                    onTap: !authProvider.isLoading ? () async {
-                      final request = CompleteProfileRequest(
-                        firstName: firstNameController.text,
-                        middleName: middleNameController.text.isEmpty ? null : middleNameController.text,
-                        lastName: lastNameController.text,
-                        email: emailController.text,
-                        profilePhotoPath: _profileImage?.path,
-                      );
-                      
-                      final success = await authProvider.completeProfile(request);
-                      
-                      if (success) {
-                        Navigator.pop(context);
-                        setState(() {});
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Profile updated successfully')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(authProvider.errorMessage ?? 'Failed to update profile'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } : null,
+                    onTap: !authProvider.isLoading
+                        ? () async {
+                            final request = CompleteProfileRequest(
+                              firstName: firstNameController.text,
+                              middleName: middleNameController.text.isEmpty
+                                  ? null
+                                  : middleNameController.text,
+                              lastName: lastNameController.text,
+                              email: emailController.text,
+                              profilePhotoPath: _profileImage?.path,
+                            );
+
+                            final success = await authProvider.completeProfile(
+                              request,
+                            );
+
+                            if (success) {
+                              Navigator.pop(context);
+                              setState(() {});
+                              CustomFlushbar.showSuccess(
+                                context: context,
+                                message: 'Profile updated successfully',
+                              );
+                            } else {
+                              CustomFlushbar.showError(
+                                context: context,
+                                message:
+                                    authProvider.errorMessage ??
+                                    'Failed to update profile',
+                              );
+                            }
+                          }
+                        : null,
                     child: Container(
                       width: double.infinity,
                       height: 48.h,
@@ -165,10 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 5.h),
         TextField(
@@ -177,7 +179,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8.r),
             ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12.w,
+              vertical: 10.h,
+            ),
           ),
         ),
       ],
@@ -256,11 +261,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Color(ConstColors.mainColor),
                         borderRadius: BorderRadius.circular(100.r),
                       ),
-                      child: Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 12.sp,
-                      ),
+                      child: Icon(Icons.add, color: Colors.white, size: 12.sp),
                     ),
                   ),
                 ],
@@ -279,18 +280,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         return Column(
                           children: [
                             _buildProfileField(
-                              'Full name', 
+                              'Full name',
                               '${userData['first_name'] ?? 'Not set'} ${userData['last_name'] ?? ''}',
                               hasEdit: true,
                               onTap: _showEditProfileSheet,
                             ),
                             SizedBox(height: 15.h),
-                            _buildProfileField('Phone number', '+234 123 456 7890'),
-                            SizedBox(height: 15.h),
-                            _buildProfileField('Date of birth', 'January 1, 1990'),
+                            _buildProfileField(
+                              'Phone number',
+                              '+234 123 456 7890',
+                            ),
                             SizedBox(height: 15.h),
                             _buildProfileField(
-                              'Email address', 
+                              'Date of birth',
+                              'January 1, 1990',
+                            ),
+                            SizedBox(height: 15.h),
+                            _buildProfileField(
+                              'Email address',
                               userData['email'] ?? 'Not set',
                             ),
                             SizedBox(height: 15.h),
@@ -327,7 +334,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => DeleteAccountScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => DeleteAccountScreen(),
+                            ),
                           );
                         },
                         child: Text(
@@ -352,7 +361,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileField(String label, String value, {bool hasEdit = false, VoidCallback? onTap}) {
+  Widget _buildProfileField(
+    String label,
+    String value, {
+    bool hasEdit = false,
+    VoidCallback? onTap,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

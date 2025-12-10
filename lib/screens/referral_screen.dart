@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import '../constants/colors.dart';
 import '../constants/images.dart';
 import 'referral_rules_screen.dart';
@@ -47,7 +48,9 @@ class ReferralScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ReferralRulesScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => ReferralRulesScreen(),
+                        ),
                       );
                     },
                     child: Text(
@@ -112,11 +115,7 @@ class ReferralScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 15.h),
-                    Container(
-                      width: 320.w,
-                      height: 1.h,
-                      color: Colors.white,
-                    ),
+                    Container(width: 320.w, height: 1.h, color: Colors.white),
                     SizedBox(height: 15.h),
                     Text(
                       'MUV123',
@@ -217,10 +216,11 @@ class ReferralScreen extends StatelessWidget {
   void _shareReferralCode() {
     // This will open the native share dialog with WhatsApp, Email, etc.
     // For now, we'll use a simple implementation that works across platforms
-    final String referralMessage = 'Join Muvam using my referral code: MUV123 and get amazing rides!';
-    
+    final String referralMessage =
+        'Join Muvam using my referral code: MUV123 and get amazing rides!';
+
     // This is a placeholder - in a real app you would use url_launcher or share_plus
     // For demonstration, we'll show the system share if available
-    print('Sharing: $referralMessage');
+    AppLogger.log('Sharing: $referralMessage');
   }
 }

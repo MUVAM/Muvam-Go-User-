@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:provider/provider.dart';
-<<<<<<< HEAD
-=======
 import 'package:shared_preferences/shared_preferences.dart';
->>>>>>> master
 import '../constants/colors.dart';
 import '../constants/images.dart';
 import '../constants/text_styles.dart';
@@ -23,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String countryCode = '+234';
   String countryFlag = '🇳🇬';
   final TextEditingController phoneController = TextEditingController();
-  
+
   bool _isValidPhone() {
     return phoneController.text.length == 10;
   }
@@ -95,12 +93,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(countryFlag, style: TextStyle(fontSize: 14.sp)),
+                              Text(
+                                countryFlag,
+                                style: TextStyle(fontSize: 14.sp),
+                              ),
                               SizedBox(width: 2.w),
                               Flexible(
                                 child: Text(
-                                  countryCode, 
-                                  style: ConstTextStyles.inputText.copyWith(fontSize: 14.sp),
+                                  countryCode,
+                                  style: ConstTextStyles.inputText.copyWith(
+                                    fontSize: 14.sp,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -119,7 +122,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             hintText: 'Phone number',
                             border: InputBorder.none,
                             counterText: '',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 15.h),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12.w,
+                              vertical: 15.h,
+                            ),
                           ),
                         ),
                       ),
@@ -127,65 +133,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 SizedBox(height: 95.h),
-<<<<<<< HEAD
-                GestureDetector(
-                  onTap: _isValidPhone() ? () {
-                    final fullPhone = countryCode + phoneController.text;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OtpScreen(phoneNumber: fullPhone),
-                      ),
-                    );
-                  } : null,
-                  child: Container(
-                    width: 353.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: _isValidPhone()
-                          ? Color(ConstColors.mainColor)
-                          : Color(ConstColors.fieldColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Continue',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-=======
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
                     return GestureDetector(
-                      onTap: _isValidPhone() && !authProvider.isLoading ? () async {
-                        final fullPhone = countryCode + phoneController.text;
-                        final success = await authProvider.sendOtp(fullPhone);
-                        
-                        if (success) {
-                          // Store phone number for registration
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('user_phone', fullPhone);
-                          
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OtpScreen(phoneNumber: fullPhone),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(authProvider.errorMessage ?? 'Failed to send OTP'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } : null,
+                      onTap: _isValidPhone() && !authProvider.isLoading
+                          ? () async {
+                              final fullPhone =
+                                  countryCode + phoneController.text;
+                              final success = await authProvider.sendOtp(
+                                fullPhone,
+                              );
+
+                              if (success) {
+                                // Store phone number for registration
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString('user_phone', fullPhone);
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OtpScreen(phoneNumber: fullPhone),
+                                  ),
+                                );
+                              } else {
+                                CustomFlushbar.showError(
+                                  context: context,
+                                  message:
+                                      authProvider.errorMessage ??
+                                      'Failed to send OTP',
+                                );
+                              }
+                            }
+                          : null,
                       child: Container(
                         width: 353.w,
                         height: 48.h,
@@ -217,7 +198,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     );
                   },
->>>>>>> master
                 ),
                 SizedBox(height: 20.h),
               ],

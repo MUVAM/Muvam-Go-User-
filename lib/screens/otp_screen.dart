@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../constants/colors.dart';
@@ -7,10 +9,7 @@ import '../constants/images.dart';
 import '../constants/text_styles.dart';
 import '../providers/auth_provider.dart';
 import 'create_account_screen.dart';
-<<<<<<< HEAD
-=======
 import 'home_screen.dart';
->>>>>>> master
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -21,7 +20,10 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  List<TextEditingController> otpControllers = List.generate(6, (index) => TextEditingController());
+  List<TextEditingController> otpControllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
   List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
   Timer? _timer;
   int _countdown = 20;
@@ -89,11 +91,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: Column(
                   children: [
                     SizedBox(height: 60.h),
-                    Image.asset(
-                      ConstImages.otp,
-                      width: 426.w,
-                      height: 426.h,
-                    ),
+                    Image.asset(ConstImages.otp, width: 426.w, height: 426.h),
                     // SizedBox(height: 30.h),
                     Text(
                       'Phone Verification',
@@ -123,7 +121,7 @@ class _OtpScreenState extends State<OtpScreen> {
                             decoration: InputDecoration(
                               border: UnderlineInputBorder(
                                 borderSide: BorderSide(
-                                  color: otpControllers[index].text.isNotEmpty 
+                                  color: otpControllers[index].text.isNotEmpty
                                       ? Color(ConstColors.mainColor)
                                       : Colors.grey.shade300,
                                   width: 2,
@@ -145,9 +143,14 @@ class _OtpScreenState extends State<OtpScreen> {
                             ),
                             onChanged: (value) {
                               if (value.length > 1) {
-                                otpControllers[index].text = value.substring(value.length - 1);
-                                otpControllers[index].selection = TextSelection.fromPosition(
-                                  TextPosition(offset: otpControllers[index].text.length),
+                                otpControllers[index].text = value.substring(
+                                  value.length - 1,
+                                );
+                                otpControllers[index]
+                                    .selection = TextSelection.fromPosition(
+                                  TextPosition(
+                                    offset: otpControllers[index].text.length,
+                                  ),
                                 );
                               }
                               if (value.isNotEmpty && index < 5) {
@@ -157,53 +160,39 @@ class _OtpScreenState extends State<OtpScreen> {
                               }
                             },
                             onTap: () {
-                              otpControllers[index].selection = TextSelection.fromPosition(
-                                TextPosition(offset: otpControllers[index].text.length),
-                              );
+                              otpControllers[index].selection =
+                                  TextSelection.fromPosition(
+                                    TextPosition(
+                                      offset: otpControllers[index].text.length,
+                                    ),
+                                  );
                             },
                           ),
                         );
                       }),
                     ),
                     SizedBox(height: 30.h),
-<<<<<<< HEAD
-                    GestureDetector(
-                      onTap: _countdown == 0 ? () {
-                        setState(() {
-                          _countdown = 20;
-                        });
-                        startTimer();
-                      } : null,
-                      child: Text(
-                        _countdown > 0 
-                            ? 'Didn\'t receive code? Resend code in: 0:${_countdown.toString().padLeft(2, '0')}'
-                            : 'Resend code',
-                        style: _countdown == 0 
-                            ? TextStyle(
-                                color: Color(ConstColors.mainColor),
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w500,
-                              )
-                            : ConstTextStyles.lightSubtitle,
-                      ),
-=======
                     Consumer<AuthProvider>(
                       builder: (context, authProvider, child) {
                         return GestureDetector(
-                          onTap: _countdown == 0 && !authProvider.isLoading ? () async {
-                            final success = await authProvider.resendOtp(widget.phoneNumber);
-                            if (success) {
-                              setState(() {
-                                _countdown = 20;
-                              });
-                              startTimer();
-                            }
-                          } : null,
+                          onTap: _countdown == 0 && !authProvider.isLoading
+                              ? () async {
+                                  final success = await authProvider.resendOtp(
+                                    widget.phoneNumber,
+                                  );
+                                  if (success) {
+                                    setState(() {
+                                      _countdown = 20;
+                                    });
+                                    startTimer();
+                                  }
+                                }
+                              : null,
                           child: Text(
-                            _countdown > 0 
+                            _countdown > 0
                                 ? 'Didn\'t receive code? Resend code in: 0:${_countdown.toString().padLeft(2, '0')}'
                                 : 'Resend code',
-                            style: _countdown == 0 
+                            style: _countdown == 0
                                 ? TextStyle(
                                     color: Color(ConstColors.mainColor),
                                     fontSize: 14.sp,
@@ -213,7 +202,6 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                         );
                       },
->>>>>>> master
                     ),
                     SizedBox(height: 20.h),
                     GestureDetector(
@@ -230,68 +218,55 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                     ),
                     SizedBox(height: 40.h),
-<<<<<<< HEAD
-                    GestureDetector(
-                      onTap: isOtpComplete ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
-                        );
-                      } : null,
-                      child: Container(
-                        width: 353.w,
-                        height: 48.h,
-                        decoration: BoxDecoration(
-                          color: isOtpComplete 
-                              ? Color(ConstColors.mainColor)
-                              : Color(ConstColors.fieldColor),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Continue',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-=======
                     Consumer<AuthProvider>(
                       builder: (context, authProvider, child) {
                         return GestureDetector(
-                          onTap: isOtpComplete && !authProvider.isLoading ? () async {
-                            final otpCode = otpControllers.map((c) => c.text).join();
-                            final success = await authProvider.verifyOtp(otpCode, widget.phoneNumber);
-                            
-                            if (success) {
-                              final response = authProvider.verifyOtpResponse!;
-                              print('User data: ${response.user}');
-                              print('Token: ${response.token}');
-                              print('IsNew: ${response.isNew}');
-                              
-                              if (response.isNew) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
-                                );
-                              } else {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                                );
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(authProvider.errorMessage ?? 'Invalid OTP'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } : null,
+                          onTap: isOtpComplete && !authProvider.isLoading
+                              ? () async {
+                                  final otpCode = otpControllers
+                                      .map((c) => c.text)
+                                      .join();
+                                  final success = await authProvider.verifyOtp(
+                                    otpCode,
+                                    widget.phoneNumber,
+                                  );
+
+                                  if (success) {
+                                    final response =
+                                        authProvider.verifyOtpResponse!;
+                                    AppLogger.log(
+                                      'User data: ${response.user}',
+                                    );
+                                    AppLogger.log('Token: ${response.token}');
+                                    AppLogger.log('IsNew: ${response.isNew}');
+
+                                    if (response.isNew) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const CreateAccountScreen(),
+                                        ),
+                                      );
+                                    } else {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const HomeScreen(),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    CustomFlushbar.showOtpResent(
+                                      context: context,
+                                      message:
+                                          authProvider.errorMessage ??
+                                          'Invalid OTP',
+                                    );
+                                  }
+                                }
+                              : null,
                           child: Container(
                             width: 353.w,
                             height: 48.h,
@@ -323,7 +298,6 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                         );
                       },
->>>>>>> master
                     ),
                     SizedBox(height: 20.h),
                   ],

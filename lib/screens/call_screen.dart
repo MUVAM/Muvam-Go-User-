@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../constants/colors.dart';
 import '../constants/images.dart';
 
 class CallScreen extends StatefulWidget {
   final String driverName;
-  
+
   const CallScreen({super.key, required this.driverName});
 
   @override
@@ -37,7 +36,11 @@ class _CallScreenState extends State<CallScreen> {
                     ),
                     child: GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: Icon(Icons.arrow_back, size: 20.sp, color: Colors.black),
+                      child: Icon(
+                        Icons.arrow_back,
+                        size: 20.sp,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
                 ),
@@ -75,9 +78,9 @@ class _CallScreenState extends State<CallScreen> {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 50.h),
-            
+
             // Centered Driver Image
             Center(
               child: Container(
@@ -89,9 +92,9 @@ class _CallScreenState extends State<CallScreen> {
                 ),
               ),
             ),
-            
+
             Spacer(),
-            
+
             // Control Buttons
             Container(
               width: 353.w,
@@ -122,7 +125,12 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  Widget _buildCallButton(IconData icon, Color iconColor, VoidCallback onTap, {bool isEndCall = false}) {
+  Widget _buildCallButton(
+    IconData icon,
+    Color iconColor,
+    VoidCallback onTap, {
+    bool isEndCall = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -132,7 +140,11 @@ class _CallScreenState extends State<CallScreen> {
           color: isEndCall ? Colors.red : Colors.transparent,
           borderRadius: isEndCall ? BorderRadius.circular(200.r) : null,
         ),
-        child: Icon(icon, size: 38.sp, color: isEndCall ? Colors.white : iconColor),
+        child: Icon(
+          icon,
+          size: 38.sp,
+          color: isEndCall ? Colors.white : iconColor,
+        ),
       ),
     );
   }

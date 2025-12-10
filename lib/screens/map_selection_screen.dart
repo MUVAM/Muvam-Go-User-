@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../constants/colors.dart';
-import '../constants/images.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   final bool isFromField;
@@ -43,8 +41,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
         setState(() {
-          _selectedAddress = '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}'
-              .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+          _selectedAddress =
+              '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}'
+                  .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
         });
       }
     } catch (e) {
@@ -151,7 +150,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.isFromField ? 'Pickup Location' : 'Destination',
+                              widget.isFromField
+                                  ? 'Pickup Location'
+                                  : 'Destination',
                               style: TextStyle(
                                 fontSize: 12.sp,
                                 color: Colors.grey[600],

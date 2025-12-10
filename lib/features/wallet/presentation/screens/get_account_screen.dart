@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/account_created_screen.dart';
 import 'package:provider/provider.dart';
@@ -41,22 +42,15 @@ class _GetAccountScreenState extends State<GetAccountScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Navigate to success screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const AccountCreatedScreen()),
       );
     } else {
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
+      CustomFlushbar.showError(
+        context: context,
+        message:
             walletProvider.errorMessage ?? 'Failed to create virtual account',
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
       );
     }
   }

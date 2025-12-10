@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-<<<<<<< HEAD
-import '../constants/colors.dart';
-import '../constants/images.dart';
-import '../constants/text_styles.dart';
-=======
 import 'package:geolocator/geolocator.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import '../constants/colors.dart';
 import '../constants/images.dart';
 import '../constants/text_styles.dart';
 import '../services/places_service.dart';
->>>>>>> master
 
 class AddHomeScreen extends StatefulWidget {
   const AddHomeScreen({super.key});
@@ -25,9 +20,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
     'Holy ghost Enugu',
     'Abakpa, Enugu',
   ];
-<<<<<<< HEAD
-=======
-  
+
   final PlacesService _placesService = PlacesService();
   final TextEditingController _searchController = TextEditingController();
   List<PlacePrediction> _locationSuggestions = [];
@@ -47,7 +40,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      
+
       if (permission != LocationPermission.denied) {
         Position position = await Geolocator.getCurrentPosition();
         setState(() {
@@ -55,7 +48,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
         });
       }
     } catch (e) {
-      print('Error getting location: $e');
+      AppLogger.log('Error getting location: $e');
     }
   }
 
@@ -70,19 +63,19 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
 
     try {
       _sessionToken ??= DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       final predictions = await _placesService.getPlacePredictions(
         query,
         sessionToken: _sessionToken,
         currentLocation: _currentLocation,
       );
-      
+
       setState(() {
         _locationSuggestions = predictions;
         _showSuggestions = predictions.isNotEmpty;
       });
     } catch (e) {
-      print('Error searching locations: $e');
+      AppLogger.log('Error searching locations: $e');
       setState(() {
         _locationSuggestions = [];
         _showSuggestions = false;
@@ -98,7 +91,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
       _sessionToken = null;
     });
   }
->>>>>>> master
 
   @override
   Widget build(BuildContext context) {
@@ -116,20 +108,17 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
-                      ConstImages.back, // Using avatar as placeholder for back icon
+                      ConstImages
+                          .back, // Using avatar as placeholder for back icon
                       width: 24.w,
                       height: 24.h,
                     ),
                   ),
-                 
                 ],
               ),
             ),
-            SizedBox(height:15.h),
-             Text(
-                    '    Add home',
-                    style: ConstTextStyles.addHomeTitle,
-                  ),
+            SizedBox(height: 15.h),
+            Text('    Add home', style: ConstTextStyles.addHomeTitle),
             SizedBox(height: 30.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -141,22 +130,20 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: TextField(
-<<<<<<< HEAD
-=======
                   controller: _searchController,
                   onChanged: _searchLocations,
->>>>>>> master
                   decoration: InputDecoration(
                     hintText: 'Search an address',
                     prefixIcon: Icon(Icons.search, size: 20.sp),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 8.h,
+                    ),
                   ),
                 ),
               ),
             ),
-<<<<<<< HEAD
-=======
             if (_showSuggestions && _locationSuggestions.isNotEmpty)
               Container(
                 margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
@@ -176,15 +163,16 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _locationSuggestions.length,
-                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade200),
+                  separatorBuilder: (context, index) =>
+                      Divider(height: 1, color: Colors.grey.shade200),
                   itemBuilder: (context, index) {
                     final prediction = _locationSuggestions[index];
                     return ListTile(
                       dense: true,
                       leading: Icon(
-                        Icons.location_on, 
-                        size: 20.sp, 
-                        color: Color(ConstColors.mainColor)
+                        Icons.location_on,
+                        size: 20.sp,
+                        color: Color(ConstColors.mainColor),
                       ),
                       title: Text(
                         prediction.mainText,
@@ -193,27 +181,30 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      subtitle: prediction.secondaryText.isNotEmpty ? Text(
-                        prediction.secondaryText,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Colors.grey[600],
-                        ),
-                      ) : null,
-                      trailing: prediction.distance != null ? Text(
-                        prediction.distance!,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ) : null,
+                      subtitle: prediction.secondaryText.isNotEmpty
+                          ? Text(
+                              prediction.secondaryText,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey[600],
+                              ),
+                            )
+                          : null,
+                      trailing: prediction.distance != null
+                          ? Text(
+                              prediction.distance!,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )
+                          : null,
                       onTap: () => _selectLocation(prediction),
                     );
                   },
                 ),
               ),
->>>>>>> master
             SizedBox(height: 30.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -229,7 +220,8 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
             Expanded(
               child: ListView.separated(
                 itemCount: recentLocations.length,
-                separatorBuilder: (context, index) => Divider(thickness: 1, color: Colors.grey.shade300),
+                separatorBuilder: (context, index) =>
+                    Divider(thickness: 1, color: Colors.grey.shade300),
                 itemBuilder: (context, index) {
                   return ListTile(
                     leading: Image.asset(

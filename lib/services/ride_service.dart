@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/url_constants.dart';
 import '../models/ride_models.dart';
@@ -21,8 +22,8 @@ class RideService {
       body: jsonEncode(request.toJson()),
     );
 
-    print('Estimate Response Status: ${response.statusCode}');
-    print('Estimate Response Body: ${response.body}');
+    AppLogger.log('Estimate Response Status: ${response.statusCode}');
+    AppLogger.log('Estimate Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       return RideEstimateResponse.fromJson(jsonDecode(response.body));
@@ -42,8 +43,8 @@ class RideService {
       body: jsonEncode(request.toJson()),
     );
 
-    print('Ride Request Response Status: ${response.statusCode}');
-    print('Ride Request Response Body: ${response.body}');
+    AppLogger.log('Ride Request Response Status: ${response.statusCode}');
+    AppLogger.log('Ride Request Response Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return RideResponse.fromJson(jsonDecode(response.body));
@@ -54,17 +55,17 @@ class RideService {
 
   Future<List<dynamic>> getNearbyRides() async {
     final token = await _getToken();
-    print('Using token for nearby rides: ${token?.substring(0, 20)}...');
-    
-    final response = await http.get(
-      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.nearbyRides}'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+    AppLogger.log(
+      'Using token for nearby rides: ${token?.substring(0, 20)}...',
     );
 
-    print('Nearby Rides Response Status: ${response.statusCode}');
-    print('Nearby Rides Response Body: ${response.body}');
+    final response = await http.get(
+      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.nearbyRides}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    AppLogger.log('Nearby Rides Response Status: ${response.statusCode}');
+    AppLogger.log('Nearby Rides Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

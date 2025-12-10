@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../constants/colors.dart';
 import '../constants/images.dart';
-import '../constants/text_styles.dart';
 
 class ComingSoonScreen extends StatelessWidget {
   const ComingSoonScreen({super.key});
@@ -27,10 +26,7 @@ class ComingSoonScreen extends StatelessWidget {
                 padding: EdgeInsets.all(10.w),
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: Image.asset(
-                    ConstImages.back,
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.asset(ConstImages.back, fit: BoxFit.contain),
                 ),
               ),
             ),

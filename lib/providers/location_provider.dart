@@ -88,4 +88,10 @@ class LocationProvider with ChangeNotifier {
       return false;
     }
   }
+
+  Future<void> deleteRecentLocation(String name) async {
+    await _locationService.deleteRecentLocation(name);
+    await _loadRecentLocations();
+    notifyListeners();
+  }
 }

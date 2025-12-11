@@ -1117,6 +1117,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: Colors.grey,
                                     ),
                                   ),
+                                  trailing: GestureDetector(
+                                    onTap: () async {
+                                      await locationProvider.deleteRecentLocation(recent.name);
+                                    },
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 20.sp,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                                   onTap: () {
                                     toController.text = recent.name;
                                     if (fromController.text.isNotEmpty) {

@@ -70,14 +70,14 @@ class RideRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    "dest": dest,
-    "dest_address": destAddress,
-    "payment_method": paymentMethod,
     "pickup": pickup,
+    "dest": dest,
     "pickup_address": pickupAddress,
+    "dest_address": destAddress,
+    "stop_address": stopAddress ?? "No stops",
     "service_type": serviceType,
     "vehicle_type": vehicleType,
-    if (stopAddress != null && stopAddress!.isNotEmpty) "stop_address": stopAddress,
+    "payment_method": paymentMethod,
   };
 }
 

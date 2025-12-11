@@ -12,4 +12,5 @@ class UrlConstants {
   static const String rideEstimate = "/rides/estimate";
   static const String rideRequest = "/rides/request";
   static const String nearbyRides = "/rides/nearby";
+  static const String activeRides = "/rides";
 }

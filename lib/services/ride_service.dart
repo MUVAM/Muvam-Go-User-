@@ -33,17 +33,26 @@ class RideService {
 
   Future<RideResponse> requestRide(RideRequest request) async {
     final token = await _getToken();
+    final requestBody = request.toJson();
+    
+    print('=== RIDE REQUEST DEBUG ===');
+    print('Request URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
+    print('Request Headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"}');
+    print('Request Body: ${jsonEncode(requestBody)}');
+    
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideRequest}'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode(request.toJson()),
+      body: jsonEncode(requestBody),
     );
 
-    print('Ride Request Response Status: ${response.statusCode}');
-    print('Ride Request Response Body: ${response.body}');
+    print('=== RIDE REQUEST RESPONSE ===');
+    print('Response Status: ${response.statusCode}');
+    print('Response Headers: ${response.headers}');
+    print('Response Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return RideResponse.fromJson(jsonDecode(response.body));
@@ -70,6 +79,39 @@ class RideService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to get nearby rides: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getActiveRides() async {
+    final token = await _getToken();
+    print('=== CHECKING ACTIVE RIDES ===');
+    print('Token: ${token?.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.activeRides}'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'status': 'active',
+      }),
+    );
+
+    print('Active Rides Response Status: ${response.statusCode}');
+    print('Active Rides Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {
+        'success': true,
+        'data': data,
+      };
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to get active rides: ${response.body}',
+      };
     }
   }
 }

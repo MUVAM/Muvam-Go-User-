@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dart';
 import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
@@ -26,13 +27,9 @@ class _WalletScreenState extends State<WalletScreen> {
 
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Account number copied!'),
-        backgroundColor: Color(ConstColors.mainColor),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+    CustomFlushbar.showInfo(
+      context: context,
+      message: 'Account number copied!',
     );
   }
 

@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/features/auth/data/models/auth_models.dart';
-import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/models/auth_models.dart';
+import 'package:muvam/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class EditProfileSheet extends StatelessWidget {
@@ -89,20 +90,16 @@ class EditProfileSheet extends StatelessWidget {
                           if (success) {
                             Navigator.pop(context);
                             onUpdate();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Profile updated successfully'),
-                              ),
+                            CustomFlushbar.showSuccess(
+                              context: context,
+                              message: 'Profile updated successfully',
                             );
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
+                            CustomFlushbar.showError(
+                              context: context,
+                              message:
                                   authProvider.errorMessage ??
-                                      'Failed to update profile',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
+                                  'Failed to update profile',
                             );
                           }
                         }
@@ -116,7 +113,7 @@ class EditProfileSheet extends StatelessWidget {
                     ),
                     child: Center(
                       child: authProvider.isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
                               'Update Profile',
                               style: TextStyle(

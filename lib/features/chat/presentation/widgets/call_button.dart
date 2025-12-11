@@ -8,6 +8,7 @@ class CallButton extends StatelessWidget {
   final bool isEndCall;
 
   const CallButton({
+    super.key,
     required this.icon,
     required this.iconColor,
     required this.onTap,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/trips/data/models/location_models.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
@@ -98,22 +99,15 @@ class _AddFavouriteScreenState extends State<AddFavouriteScreen> {
 
                               if (success) {
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
+                                CustomFlushbar.showSuccess(
+                                  context: context,
+                                  message:
                                       'Favourite location added successfully',
-                                    ),
-                                  ),
                                 );
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      locationProvider.errorMessage ??
-                                          'Failed to add favourite location',
-                                    ),
-                                    backgroundColor: Colors.red,
-                                  ),
+                                CustomFlushbar.showError(
+                                  context: context,
+                                  message: 'Failed to add favourite location',
                                 );
                               }
                             }

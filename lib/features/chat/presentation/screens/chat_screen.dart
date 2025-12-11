@@ -5,6 +5,7 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/services/socket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:provider/provider.dart';
@@ -62,7 +63,10 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           isLoading = false;
         });
-        _showError('Authentication token not found');
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Authentication token not found',
+        );
         return;
       }
 
@@ -86,7 +90,10 @@ class _ChatScreenState extends State<ChatScreen> {
           isLoading = false;
           isConnected = false;
         });
-        _showError('Failed to connect to chat');
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Failed to connect to chat',
+        );
       }
     }
   }
@@ -120,7 +127,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _sendMessage() {
     if (!isConnected) {
-      _showError('Not connected to chat');
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Not connected to chat',
+      );
       return;
     }
 
@@ -142,19 +152,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _messageController.clear();
     } catch (e) {
       AppLogger.log('Error sending message: $e');
-      _showError('Failed to send message');
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Failed to send message',
+      );
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
-      ),
-    );
   }
 
   String _extractTime(String timestamp) {

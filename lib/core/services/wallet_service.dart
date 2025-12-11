@@ -7,10 +7,9 @@ import 'package:muvam/core/constants/url_constants.dart';
 
 class WalletService {
   Future<String?> _getToken() async {
-    // final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     // FIXED: Use 'auth_token' as the key, not the actual token value
-    // return prefs.getString('auth_token');
-    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjUxMzgxOTgsInN1YiI6NX0.HispBhE01b9NHTZatZiL5Re1twhjAbe33W88I70EN0c';
+    return prefs.getString('auth_token');
   }
 
   Future<CreateVirtualAccountResponse> createVirtualAccount(

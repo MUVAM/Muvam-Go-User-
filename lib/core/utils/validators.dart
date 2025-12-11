@@ -1,5 +1,4 @@
 class Validators {
-  // Email validation
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
@@ -16,7 +15,6 @@ class Validators {
     return null;
   }
 
-  // Phone number validation
   static String? validatePhoneNumber(String? value) {
     if (value == null || value.isEmpty) {
       return 'Phone number is required';
@@ -31,7 +29,6 @@ class Validators {
     return null;
   }
 
-  // Name validation
   static String? validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';
@@ -48,7 +45,6 @@ class Validators {
     return null;
   }
 
-  // Password validation
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -73,7 +69,6 @@ class Validators {
     return null;
   }
 
-  // Promo code validation
   static String? validatePromoCode(String? value) {
     if (value == null || value.isEmpty) {
       return 'Promo code is required';
@@ -86,7 +81,6 @@ class Validators {
     return null;
   }
 
-  // OTP validation
   static String? validateOTP(String? value, {int length = 6}) {
     if (value == null || value.isEmpty) {
       return 'OTP is required';
@@ -103,7 +97,6 @@ class Validators {
     return null;
   }
 
-  // Amount validation
   static String? validateAmount(String? value, {double? min, double? max}) {
     if (value == null || value.isEmpty) {
       return 'Amount is required';

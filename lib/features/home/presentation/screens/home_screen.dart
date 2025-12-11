@@ -4,6 +4,10 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+<<<<<<< HEAD
+=======
+import 'package:muvam/core/utils/custom_flushbar.dart';
+>>>>>>> develop
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
@@ -550,14 +554,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       fav.id,
                                                     );
                                             if (success) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Favourite removed',
-                                                  ),
-                                                ),
+                                              CustomFlushbar.showInfo(
+                                                context: context,
+                                                message: 'Favourite removed',
                                               );
                                             }
                                           },

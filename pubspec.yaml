@@ -50,6 +50,7 @@ flutter:
   assets:
     - assets/images/
     - assets/svg/
+    - .env
 
   fonts:
     - family: Inter

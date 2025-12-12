@@ -12,6 +12,7 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/features/auth/presentation/widgets/account_text_field.dart';
 import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:muvam/screens/home_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});

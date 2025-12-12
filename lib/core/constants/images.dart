@@ -3,6 +3,7 @@ class ConstImages {
   static const String car = 'assets/images/car.png';
   static const String comingSoon = 'assets/images/coming_soon.png';
   static const String locationPin = 'assets/images/location_pin.png';
+  static const String locationIcon = 'assets/images/location_pin.png';
   static const String locationTime = 'assets/images/location_time.png';
   static const String maps = 'assets/images/maps.png';
   static const String onboardCar = 'assets/images/onboard_car.png';
@@ -32,4 +33,5 @@ class ConstImages {
   static const String carIcon = 'assets/svg/car.svg';
   static const String calenddarIcon = 'assets/svg/calendar.svg';
   static const String clockCircleIcon = 'assets/svg/clock-circle.svg';
+  static const String locationIconPin = 'assets/images/location_pin.png';
 }

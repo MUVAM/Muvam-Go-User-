@@ -1,24 +1,58 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
-import 'package:muvam/core/utils/app_logger.dart';
-import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/core/services/favourite_location_service.dart';
+import 'package:muvam/core/services/places_service.dart';
+import 'package:muvam/core/services/ride_service.dart';
+import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
+import 'package:muvam/features/home/data/models/favourite_location_models.dart';
+// import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
+import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
 import 'package:muvam/features/services/presentation/screens/services_screen.dart';
-import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
+import 'package:muvam/services/directions_service.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
-import 'add_home_screen.dart';
+
+// import '../constants/colors.dart';
+// import '../constants/images.dart';
+// import '../constants/text_styles.dart';
+// import '../models/favourite_location_models.dart';
+// import '../models/ride_models.dart';
+// import '../providers/location_provider.dart';
+// import '../services/directions_service.dart';
+// import '../services/favourite_location_service.dart';
+// import '../services/places_service.dart';
+// import '../services/ride_service.dart';
+// import '../services/websocket_service.dart';
+// import 'activities_screen.dart';
 import 'add_favourite_screen.dart';
+import 'add_home_screen.dart';
+// import 'chat_screen.dart';
+import 'map_selection_screen.dart';
+// import 'profile_screen.dart';
+// import 'promo_code_screen.dart';
+// import 'referral_screen.dart';
+// import 'services_screen.dart';
+// import 'tip_screen.dart';
+// import 'wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,98 +71,630 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedPaymentMethod = 'Pay in car';
   final TextEditingController fromController = TextEditingController();
   final TextEditingController toController = TextEditingController();
+  final TextEditingController stopController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = TimeOfDay.now();
   int? selectedCancelReason;
-  
+  GoogleMapController? _mapController;
+  LatLng _currentLocation = LatLng(6.8720015, 7.4069943); // Default location
+  BitmapDescriptor? _driverIcon;
+  BitmapDescriptor? _currentLocationIcon;
+  BitmapDescriptor? _pickupIcon;
+  BitmapDescriptor? _destinationIcon;
+  LatLng? _pickupCoordinates;
+  LatLng? _destinationCoordinates;
+  Set<Marker> _mapMarkers = {};
+  Set<Polyline> _mapPolylines = {};
+  final String _estimatedTime = '5';
+  bool _isRideAccepted = false;
+  bool _isDriverAssigned = false;
+  String _driverArrivalTime = "5";
+  bool _isInCar = false;
+  final String _driverDistance = "5 min";
+  String _pickupLocation = "Your current location";
+  String _dropoffLocation = "Destination";
+  LatLng? _driverLocation;
+  final RideService _rideService = RideService();
+  final DirectionsService _directionsService = DirectionsService();
+  List<PlacePrediction> _locationSuggestions = [];
+  bool _showSuggestions = false;
+  bool _isFromFieldFocused = false;
+  final PlacesService _placesService = PlacesService();
+  String? _sessionToken;
+  Position? _userCurrentLocation;
+  bool _isFromFieldEditable = false;
+  bool _showMapTooltip = false;
+  bool _isLocationLoaded = false;
+  RideEstimateResponse? _currentEstimate;
+  final bool _isLoadingEstimate = false;
+  bool _isBookingRide = false;
+  RideResponse? _currentRideResponse;
+  Driver? _assignedDriver;
+  final WebSocketService _webSocketService = WebSocketService();
+  final FavouriteLocationService _favouriteService = FavouriteLocationService();
+  List<FavouriteLocation> _favouriteLocations = [];
+  Map<String, dynamic>? _activeRide;
+  Timer? _activeRideCheckTimer;
+  bool _isActiveRideSheetVisible = false;
+  bool _hasUserDismissedSheet = false;
+
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation();
+    _createDriverIcon();
+    _createCurrentLocationIcon();
+    _createPickupIcon();
+    _createDestinationIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(
         context,
         listen: false,
       ).loadFavouriteLocations();
+      _loadFavouriteLocations();
+      _webSocketService.connect();
+      _listenToWebSocketMessages();
+      _checkActiveRides();
+      _startActiveRideChecking();
     });
   }
 
-// class HomeScreen extends StatefulWidget {
-//   const HomeScreen({super.key});
+  Future<void> _createDriverIcon() async {
+    _driverIcon = await BitmapDescriptor.fromAssetImage(
+      ImageConfiguration(size: Size(48, 48)),
+      ConstImages.locationPin,
+    );
+    setState(() {});
+  }
 
-//   @override
-//   State<HomeScreen> createState() => _HomeScreenState();
-// }
+  Future<void> _createCurrentLocationIcon() async {
+    _currentLocationIcon = await BitmapDescriptor.fromAssetImage(
+      ImageConfiguration(size: Size(48, 48)),
+      ConstImages.locationPin,
+    );
+    setState(() {});
+  }
 
-// class _HomeScreenState extends State<HomeScreen> {
-//   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-//   bool _isBottomSheetVisible = true;
-//   bool _showDestinationField = false;
-//   int _currentIndex = 0;
-//   int? selectedVehicle;
-//   int? selectedDelivery;
-//   String selectedPaymentMethod = 'Pay in car';
-//   final TextEditingController fromController = TextEditingController();
-//   final TextEditingController toController = TextEditingController();
-//   final TextEditingController noteController = TextEditingController();
-//   DateTime selectedDate = DateTime.now();
-//   TimeOfDay selectedTime = TimeOfDay.now();
-//   int? selectedCancelReason;
-//   @override
-//   void initState() {
-//     super.initState();
-//     WidgetsBinding.instance.addPostFrameCallback((_) {
-//       Provider.of<LocationProvider>(
-//         context,
-//         listen: false,
-//       ).loadFavouriteLocations();
-//     });
-//   }
+  Future<void> _createPickupIcon() async {
+    _pickupIcon = await BitmapDescriptor.fromAssetImage(
+      ImageConfiguration(size: Size(48, 48)),
+      ConstImages.locationIconPin,
+    );
+    setState(() {});
+  }
 
-<<<<<<< Updated upstream
-  void _navigateToWallet() async {
-    Navigator.pop(context);
+  Future<void> _createDestinationIcon() async {
+    _destinationIcon = await BitmapDescriptor.fromAssetImage(
+      ImageConfiguration(size: Size(48, 48)),
+      ConstImages.locationPin,
+    );
+    setState(() {});
+  }
 
-    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(
-        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+  // Method to convert widget to BitmapDescriptor
+  Future<BitmapDescriptor> _createBitmapDescriptorFromWidget(
+    Widget widget, {
+    Size? size,
+  }) async {
+    final GlobalKey globalKey = GlobalKey();
+    
+    final Widget wrappedWidget = MediaQuery(
+      data: MediaQueryData(),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepaintBoundary(
+          key: globalKey,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: size?.width,
+              height: size?.height,
+              child: widget,
+            ),
+          ),
+        ),
       ),
     );
 
-    // Check if user has virtual account
-    final hasAccount = await walletProvider.checkVirtualAccount();
-
-    // Close loading indicator
-    if (mounted) {
-      Navigator.pop(context);
-    }
-
-    AppLogger.log('Navigate to appropriate screen');
-    // Navigate to appropriate screen
-    if (mounted) {
-      if (hasAccount) {
-        AppLogger.log('Navigate to appropriate WalletScreen');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletScreen()),
+    // Create a temporary overlay to render the widget
+    late OverlayEntry overlayEntry;
+    final Completer<BitmapDescriptor> completer = Completer<BitmapDescriptor>();
+    
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: -1000, // Position off-screen
+        top: -1000,
+        child: wrappedWidget,
+      ),
+    );
+    
+    Overlay.of(context).insert(overlayEntry);
+    
+    // Wait for the widget to be rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Future.delayed(Duration(milliseconds: 100));
+        
+        final RenderRepaintBoundary boundary = globalKey.currentContext!
+            .findRenderObject() as RenderRepaintBoundary;
+        
+        final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+        final ByteData? byteData = await image.toByteData(
+          format: ui.ImageByteFormat.png,
         );
-      } else {
-        AppLogger.log('Navigate to appropriate WalletEmptyScreen');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
-        );
+        final Uint8List pngBytes = byteData!.buffer.asUint8List();
+        
+        overlayEntry.remove();
+        completer.complete(BitmapDescriptor.fromBytes(pngBytes));
+      } catch (e) {
+        overlayEntry.remove();
+        completer.completeError(e);
       }
+    });
+    
+    return completer.future;
+  }
+
+  // Widget for pickup marker
+  Widget _buildPickupMarkerWidget() {
+    return Container(
+      width: 247.w,
+      height: 50.h,
+      padding: EdgeInsets.only(right: 12.w, top: 4.h, bottom: 4.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50.w,
+            height: 50.h,
+            decoration: BoxDecoration(
+              color: Color(ConstColors.mainColor),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _estimatedTime,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.0,
+                    ),
+                  ),
+                  Text(
+                    "MIN",
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Pick up',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.41,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  fromController.text.isNotEmpty
+                      ? fromController.text
+                      : 'Current location',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.41,
+                    color: Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget for drop-off marker
+  Widget _buildDropoffMarkerWidget() {
+    return Container(
+      width: 242.w,
+      height: 48.h,
+      padding: EdgeInsets.fromLTRB(10.w, 7.h, 10.w, 7.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30.w,
+            height: 30.h,
+            decoration: BoxDecoration(
+              color:Color( ConstColors.mainColor),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.location_on,
+              color: Colors.white,
+              size: 20.sp,
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Drop off',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.41,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  toController.text.isNotEmpty
+                      ? toController.text
+                      : 'Destination',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.41,
+                    color: Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadFavouriteLocations() async {
+    print('🔄 Loading favourite locations on home screen...');
+    try {
+      _favouriteLocations = await _favouriteService.getFavouriteLocations();
+      print('✅ Loaded ${_favouriteLocations.length} favourite locations:');
+      for (final fav in _favouriteLocations) {
+        print('  - ${fav.name}: ${fav.destAddress}');
+      }
+      setState(() {});
+    } catch (e) {
+      print('❌ Error loading favourite locations: $e');
     }
   }
 
+  void _listenToWebSocketMessages() {
+    // Set up WebSocket callbacks
+    _webSocketService.onRideAccepted = (data) {
+      print('🎉 Ride accepted callback triggered!');
+      print('Driver data: $data');
+
+      // Extract driver information from WebSocket data
+      final driverData = data['driver'] ?? {};
+      _assignedDriver = Driver(
+        id: driverData['id']?.toString() ?? 'driver_123',
+        name: driverData['name']?.toString() ?? 'Driver',
+        profilePicture: driverData['profile_picture']?.toString() ?? '',
+        phoneNumber: driverData['phone_number']?.toString() ?? '',
+        rating: (driverData['rating'] ?? 4.5).toDouble(),
+        vehicleModel: driverData['vehicle_model']?.toString() ?? 'Vehicle',
+        plateNumber: driverData['plate_number']?.toString() ?? 'ABC-123',
+      );
+
+      setState(() {
+        _isDriverAssigned = true;
+        _isRideAccepted = true;
+        _driverArrivalTime = data['estimated_arrival']?.toString() ?? '5';
+        _pickupLocation =
+            _currentRideResponse?.pickupAddress ?? "Your current location";
+        _dropoffLocation = _currentRideResponse?.destAddress ?? "Destination";
+
+        // Set driver location if provided
+        if (data['driver_location'] != null) {
+          final location = data['driver_location'];
+          _driverLocation = LatLng(
+            location['latitude']?.toDouble() ??
+                _currentLocation.latitude + 0.01,
+            location['longitude']?.toDouble() ??
+                _currentLocation.longitude + 0.01,
+          );
+        }
+      });
+
+      // Show driver accepted sheet
+      _showDriverAcceptedSheet();
+    };
+  }
+
+  Future<void> _checkActiveRides() async {
+    print('=== CHECKING ACTIVE RIDES ===');
+    try {
+      final result = await _rideService.getActiveRides();
+      print('Active rides result: $result');
+
+      if (result['success'] == true) {
+        final data = result['data'];
+        final rides = data['rides'] as List? ?? [];
+        print('Number of active rides: ${rides.length}');
+
+        if (rides.isNotEmpty) {
+          final activeRide = rides.first;
+          print('Active ride found: $activeRide');
+          print('Ride Status: ${activeRide['Status']}');
+          print('Ride ID: ${activeRide['ID']}');
+
+          setState(() {
+            _activeRide = activeRide;
+          });
+
+          // Show active ride UI based on status
+          _handleActiveRideStatus(activeRide);
+        } else {
+          print('No active rides found');
+          setState(() {
+            _activeRide = null;
+          });
+        }
+      } else {
+        print('Failed to get active rides: ${result['message']}');
+      }
+    } catch (e) {
+      print('Error checking active rides: $e');
+    }
+    print('=== END CHECKING ACTIVE RIDES ===\n');
+  }
+
+  void _startActiveRideChecking() {
+    // Check for active rides every 8 seconds
+    _activeRideCheckTimer = Timer.periodic(Duration(seconds: 8), (timer) {
+      _checkActiveRides();
+    });
+  }
+
+  void _handleActiveRideStatus(Map<String, dynamic> ride) {
+    final status = ride['Status']?.toString().toLowerCase() ?? '';
+    print('Handling active ride with status: $status');
+
+    switch (status) {
+      case 'accepted':
+      case 'arrived':
+      case 'started':
+        // Extract driver and ride information
+        final driverData = ride['Driver'] ?? {};
+        if (driverData.isNotEmpty) {
+          _assignedDriver = Driver(
+            id: driverData['ID']?.toString() ?? 'driver_${ride['DriverID']}',
+            name:
+                '${driverData['first_name'] ?? 'Driver'} ${driverData['last_name'] ?? ''}',
+            profilePicture: driverData['profile_photo']?.toString() ?? '',
+            phoneNumber: driverData['phone']?.toString() ?? '',
+            rating: (driverData['average_rating'] ?? 4.5).toDouble(),
+            vehicleModel: 'Vehicle',
+            plateNumber: 'ABC-123',
+          );
+        }
+
+        setState(() {
+          _isDriverAssigned = true;
+          _isRideAccepted = true;
+          _pickupLocation = ride['PickupAddress'] ?? "Pickup location";
+          _dropoffLocation = ride['DestAddress'] ?? "Destination";
+
+          if (status == 'started') {
+            _isInCar = true;
+          }
+        });
+
+        // Add pickup and drop-off markers to map
+        _addActiveRideMarkers(ride);
+
+        // Show appropriate UI only if not already visible and user hasn't dismissed
+        if (status == 'started') {
+          // Show in-car UI
+        } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
+          _showDriverAcceptedSheet();
+        }
+        break;
+
+      case 'completed':
+      case 'cancelled':
+        // Clear active ride state and map markers
+        setState(() {
+          _activeRide = null;
+          _isDriverAssigned = false;
+          _isRideAccepted = false;
+          _isInCar = false;
+          _assignedDriver = null;
+          _mapMarkers = {};
+          _mapPolylines = {};
+        });
+        break;
+
+      default:
+        print('Unknown ride status: $status');
+    }
+  }
+
+  void _simulateInCar() {
+    setState(() {
+      _isRideAccepted = false;
+      _isInCar = true;
+    });
+  }
+
+  Future<void> _searchLocations(String query) async {
+    if (query.length < 2) {
+      setState(() {
+        _locationSuggestions = [];
+        _showSuggestions = false;
+      });
+      return;
+    }
+
+    try {
+      // Generate session token for billing optimization
+      _sessionToken ??= DateTime.now().millisecondsSinceEpoch.toString();
+
+      final predictions = await _placesService.getPlacePredictions(
+        query,
+        sessionToken: _sessionToken,
+        currentLocation: _userCurrentLocation,
+      );
+
+      setState(() {
+        _locationSuggestions = predictions;
+        _showSuggestions = predictions.isNotEmpty;
+      });
+    } catch (e) {
+      print('Error searching locations: $e');
+      setState(() {
+        _locationSuggestions = [];
+        _showSuggestions = false;
+      });
+    }
+  }
+
+  void _selectLocation(PlacePrediction prediction, bool isFrom) async {
+    // Get place details for accurate coordinates
+    final placeDetails = await _placesService.getPlaceDetails(
+      prediction.placeId,
+      sessionToken: _sessionToken,
+    );
+
+    setState(() {
+      if (isFrom) {
+        fromController.text = prediction.description;
+        _showDestinationField = true;
+        _isFromFieldFocused = false;
+      } else {
+        toController.text = prediction.description;
+      }
+      _locationSuggestions = [];
+      _showSuggestions = false;
+      _sessionToken = null; // Reset session token after use
+    });
+
+    // Save to recent locations
+    Provider.of<LocationProvider>(
+      context,
+      listen: false,
+    ).addRecentLocation(prediction.description, prediction.description);
+
+    // Only show vehicle selection after both fields are filled via selection
+    if (!isFrom && fromController.text.isNotEmpty) {
+      _checkBothFields();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission != LocationPermission.denied) {
+        Position position = await Geolocator.getCurrentPosition();
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        String currentAddress = 'Current location';
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
+              .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+          if (currentAddress.isEmpty) currentAddress = 'Current location';
+        }
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+          _userCurrentLocation = position;
+          fromController.text = currentAddress;
+          _isLocationLoaded = true;
+        });
+      }
+    } catch (e) {
+      print('Error getting location: $e');
+    }
+  }
+
+  double _calculateDistance(LatLng start, LatLng end) {
+    return Geolocator.distanceBetween(
+          start.latitude,
+          start.longitude,
+          end.latitude,
+          end.longitude,
+        ) /
+        1000; // Convert to kilometers
+  }
+
+  String _formatDistance(double distanceKm) {
+    if (distanceKm < 1) {
+      return '${(distanceKm * 1000).round()} m';
+    }
+    return '${distanceKm.toStringAsFixed(1)} km';
+  }
+
+  @override
+  void dispose() {
+    _webSocketService.disconnect();
+    _activeRideCheckTimer?.cancel();
+    super.dispose();
+  }
+
   void _showContactBottomSheet() {
-    Navigator.pop(context);
+    Navigator.pop(context); // Close drawer
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
@@ -186,7 +752,4526 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-=======
+
+  void _dismissSuggestions() {
+    setState(() {
+      _showSuggestions = false;
+      _locationSuggestions = [];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _dismissSuggestions,
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: _buildDrawer(),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          backgroundColor: Colors.white,
+          selectedItemColor: Color(ConstColors.mainColor),
+          unselectedItemColor: Colors.grey,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                ConstImages.homeIcon,
+                width: 24.w,
+                height: 24.h,
+                color: _currentIndex == 0
+                    ? Color(ConstColors.mainColor)
+                    : Colors.grey,
+              ),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                ConstImages.services,
+                width: 24.w,
+                height: 24.h,
+                color: _currentIndex == 1
+                    ? Color(ConstColors.mainColor)
+                    : Colors.grey,
+              ),
+              label: 'Services',
+            ),
+            BottomNavigationBarItem(
+              icon: Image.asset(
+                ConstImages.activities,
+                width: 24.w,
+                height: 24.h,
+                color: _currentIndex == 2
+                    ? Color(ConstColors.mainColor)
+                    : Colors.grey,
+              ),
+              label: 'Activities',
+            ),
+          ],
+        ),
+        body: _currentIndex == 1
+            ? const ServicesScreen()
+            : _currentIndex == 2
+            ? ActivitiesScreen()
+            : Stack(
+                children: [
+                  // Google Maps background
+                  GoogleMap(
+                    onMapCreated: (GoogleMapController controller) {
+                      _mapController = controller;
+                    },
+                    initialCameraPosition: CameraPosition(
+                      target: _currentLocation,
+                      zoom: 15.0,
+                    ),
+                    markers: _mapMarkers,
+                    polylines: _mapPolylines,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: false,
+                  ),
+
+                  // Drawer date
+                  Positioned(
+                    top: 66.h,
+                    left: 20.w,
+                    child: GestureDetector(
+                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      child: Container(
+                        width: 50.w,
+                        height: 50.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25.r),
+                        ),
+                        padding: EdgeInsets.all(10.w),
+                        child: Icon(Icons.menu, size: 24.sp),
+                      ),
+                    ),
+                  ),
+                  // Active ride indicator
+                  if (_activeRide != null)
+                    Positioned(
+                      top: 66.h,
+                      right: 80.w,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_activeRide != null) {
+                            _hasUserDismissedSheet = false;
+                            _showDriverAcceptedSheet();
+                          }
+                        },
+                        child: Container(
+                          width: 50.w,
+                          height: 50.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(25.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.all(10.w),
+                          child: Icon(
+                            Icons.directions_car,
+                            size: 24.sp,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Bottom sheet
+                  Positioned(
+                    bottom: _isBottomSheetVisible ? 0 : -294.h,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 344.h,
+                      width: 393.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(20.r),
+                          topRight: Radius.circular(20.r),
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isBottomSheetVisible =
+                                      !_isBottomSheetVisible;
+                                });
+                              },
+                              child: SizedBox(
+                                height: 50.h,
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 11.75.h),
+                                    Container(
+                                      width: 69.w,
+                                      height: 5.h,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(
+                                          2.5.r,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10.h),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 14.w,
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 14.w,
+                                          height: 14.h,
+                                          decoration: BoxDecoration(
+                                            color: Color(ConstColors.mainColor),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        if (_showDestinationField) ...[
+                                          SizedBox(height: 5.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+
+                                          Container(
+                                            width: 14.w,
+                                            height: 14.h,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          SizedBox(height: 25.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 25.h),
+                                          Container(
+                                            width: 14.w,
+                                            height: 14.h,
+                                            decoration: BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(width: 15.w),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 338.w,
+                                          height: 50.h,
+                                          decoration: BoxDecoration(
+                                            color: Color(
+                                              ConstColors.fieldColor,
+                                            ).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              8.r,
+                                            ),
+                                          ),
+                                          child: TextField(
+                                            controller: fromController,
+                                            readOnly: _showDestinationField
+                                                ? !_isFromFieldEditable
+                                                : false,
+                                            onTap: () {
+                                              if (!_showDestinationField) {
+                                                setState(() {
+                                                  _showDestinationField = true;
+                                                  _isFromFieldFocused = true;
+                                                  _showSuggestions = false;
+                                                });
+                                              } else if (!_isFromFieldEditable &&
+                                                  _isLocationLoaded) {
+                                                setState(() {
+                                                  _isFromFieldEditable = true;
+                                                  _isFromFieldFocused = true;
+                                                });
+                                              } else {
+                                                setState(() {
+                                                  _isFromFieldFocused = true;
+                                                });
+                                              }
+                                            },
+                                            onChanged: (value) {
+                                              if (_isFromFieldFocused ||
+                                                  !_showDestinationField) {
+                                                _searchLocations(value);
+                                              }
+                                            },
+                                            decoration: InputDecoration(
+                                              hintText: _showDestinationField
+                                                  ? 'From?'
+                                                  : 'Where to?',
+                                              prefixIcon: Icon(
+                                                Icons.search,
+                                                size: 20.sp,
+                                                color: Colors.grey,
+                                              ),
+                                              suffixIcon: _showDestinationField
+                                                  ? Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        if (fromController
+                                                            .text
+                                                            .isNotEmpty)
+                                                          GestureDetector(
+                                                            onTap: () {
+                                                              setState(() {
+                                                                fromController
+                                                                    .clear();
+                                                                _isFromFieldEditable =
+                                                                    false;
+                                                              });
+                                                            },
+                                                            child: Container(
+                                                              width: 24.w,
+                                                              height: 24.h,
+                                                              margin:
+                                                                  EdgeInsets.only(
+                                                                    right: 8.w,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.clear,
+                                                                size: 16.sp,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        GestureDetector(
+                                                          onTap: () async {
+                                                            setState(() {
+                                                              _showMapTooltip =
+                                                                  true;
+                                                            });
+                                                            Future.delayed(
+                                                              Duration(
+                                                                seconds: 2,
+                                                              ),
+                                                              () {
+                                                                if (mounted) {
+                                                                  setState(() {
+                                                                    _showMapTooltip =
+                                                                        false;
+                                                                  });
+                                                                }
+                                                              },
+                                                            );
+                                                            final result = await Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                builder: (context) =>
+                                                                    MapSelectionScreen(
+                                                                      isFromField:
+                                                                          true,
+                                                                      initialLocation:
+                                                                          _currentLocation,
+                                                                    ),
+                                                              ),
+                                                            );
+                                                            if (result !=
+                                                                null) {
+                                                              setState(() {
+                                                                fromController
+                                                                        .text =
+                                                                    result['address'];
+                                                                _currentLocation =
+                                                                    result['location'];
+                                                              });
+                                                              // Check if both fields are filled to show vehicle selection
+                                                              if (toController
+                                                                  .text
+                                                                  .isNotEmpty) {
+                                                                _checkBothFields();
+                                                              }
+                                                            }
+                                                          },
+                                                          child: Stack(
+                                                            children: [
+                                                              Container(
+                                                                width: 24.w,
+                                                                height: 24.h,
+                                                                margin:
+                                                                    EdgeInsets.only(
+                                                                      right:
+                                                                          8.w,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons.map,
+                                                                  size: 16.sp,
+                                                                  color: Color(
+                                                                    ConstColors
+                                                                        .mainColor,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              if (_showMapTooltip)
+                                                                Positioned(
+                                                                  right: 35.w,
+                                                                  top: -25.h,
+                                                                  child: Container(
+                                                                    padding: EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          8.w,
+                                                                      vertical:
+                                                                          4.h,
+                                                                    ),
+                                                                    decoration: BoxDecoration(
+                                                                      color: Colors
+                                                                          .black87,
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            4.r,
+                                                                          ),
+                                                                    ),
+                                                                    child: Text(
+                                                                      'Select from map',
+                                                                      style: TextStyle(
+                                                                        color: Colors
+                                                                            .white,
+                                                                        fontSize:
+                                                                            10.sp,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : null,
+                                              border: InputBorder.none,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 10.w,
+                                                    vertical: 8.h,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_showDestinationField)
+                                          Column(
+                                            children: [
+                                              SizedBox(height: 10.h),
+                                              Container(
+                                                width: 338.w,
+                                                height: 50.h,
+                                                decoration: BoxDecoration(
+                                                  color: Color(
+                                                    ConstColors.fieldColor,
+                                                  ).withOpacity(0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        8.r,
+                                                      ),
+                                                ),
+                                                child: TextField(
+                                                  controller: stopController,
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        'Add stop (optional)',
+                                                    prefixIcon: Icon(
+                                                      Icons.add_location,
+                                                      size: 20.sp,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    suffixIcon:
+                                                        stopController
+                                                            .text
+                                                            .isNotEmpty
+                                                        ? GestureDetector(
+                                                            onTap: () {
+                                                              setState(() {
+                                                                stopController
+                                                                    .clear();
+                                                              });
+                                                            },
+                                                            child: Container(
+                                                              width: 24.w,
+                                                              height: 24.h,
+                                                              margin:
+                                                                  EdgeInsets.only(
+                                                                    right: 8.w,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.clear,
+                                                                size: 16.sp,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            ),
+                                                          )
+                                                        : null,
+                                                    border: InputBorder.none,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 10.w,
+                                                          vertical: 8.h,
+                                                        ),
+                                                  ),
+                                                  onChanged: (value) =>
+                                                      setState(() {}),
+                                                ),
+                                              ),
+                                              SizedBox(height: 10.h),
+                                              Container(
+                                                width: 338.w,
+                                                height: 50.h,
+                                                decoration: BoxDecoration(
+                                                  color: Color(
+                                                    ConstColors.fieldColor,
+                                                  ).withOpacity(0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        8.r,
+                                                      ),
+                                                ),
+                                                child: TextField(
+                                                  controller: toController,
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _isFromFieldFocused =
+                                                          false;
+                                                    });
+                                                  },
+                                                  onChanged: (value) {
+                                                    _searchLocations(value);
+                                                  },
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Where to?',
+                                                    prefixIcon: Icon(
+                                                      Icons.search,
+                                                      size: 20.sp,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    suffixIcon: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        if (toController
+                                                            .text
+                                                            .isNotEmpty)
+                                                          GestureDetector(
+                                                            onTap: () {
+                                                              setState(() {
+                                                                toController
+                                                                    .clear();
+                                                              });
+                                                            },
+                                                            child: Container(
+                                                              width: 24.w,
+                                                              height: 24.h,
+                                                              margin:
+                                                                  EdgeInsets.only(
+                                                                    right: 8.w,
+                                                                  ),
+                                                              child: Icon(
+                                                                Icons.clear,
+                                                                size: 16.sp,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        GestureDetector(
+                                                          onTap: () async {
+                                                            setState(() {
+                                                              _showMapTooltip =
+                                                                  true;
+                                                            });
+                                                            Future.delayed(
+                                                              Duration(
+                                                                seconds: 2,
+                                                              ),
+                                                              () {
+                                                                if (mounted) {
+                                                                  setState(() {
+                                                                    _showMapTooltip =
+                                                                        false;
+                                                                  });
+                                                                }
+                                                              },
+                                                            );
+                                                            final result = await Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                builder: (context) =>
+                                                                    MapSelectionScreen(
+                                                                      isFromField:
+                                                                          false,
+                                                                      initialLocation:
+                                                                          _currentLocation,
+                                                                    ),
+                                                              ),
+                                                            );
+                                                            if (result !=
+                                                                null) {
+                                                              setState(() {
+                                                                toController
+                                                                        .text =
+                                                                    result['address'];
+                                                              });
+                                                              // Check if both fields are filled to show vehicle selection
+                                                              if (fromController
+                                                                  .text
+                                                                  .isNotEmpty) {
+                                                                _checkBothFields();
+                                                              }
+                                                            }
+                                                          },
+                                                          child: Stack(
+                                                            children: [
+                                                              Container(
+                                                                width: 24.w,
+                                                                height: 24.h,
+                                                                margin:
+                                                                    EdgeInsets.only(
+                                                                      right:
+                                                                          8.w,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons.map,
+                                                                  size: 16.sp,
+                                                                  color: Color(
+                                                                    ConstColors
+                                                                        .mainColor,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              if (_showMapTooltip)
+                                                                Positioned(
+                                                                  right: 35.w,
+                                                                  top: -25.h,
+                                                                  child: Container(
+                                                                    padding: EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          8.w,
+                                                                      vertical:
+                                                                          4.h,
+                                                                    ),
+                                                                    decoration: BoxDecoration(
+                                                                      color: Colors
+                                                                          .black87,
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            4.r,
+                                                                          ),
+                                                                    ),
+                                                                    child: Text(
+                                                                      'Select from map',
+                                                                      style: TextStyle(
+                                                                        color: Colors
+                                                                            .white,
+                                                                        fontSize:
+                                                                            10.sp,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    border: InputBorder.none,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                          horizontal: 10.w,
+                                                          vertical: 8.h,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_showSuggestions &&
+                                _locationSuggestions.isNotEmpty)
+                              Container(
+                                margin: EdgeInsets.symmetric(
+                                  horizontal: 20.w,
+                                  vertical: 10.h,
+                                ),
+                                constraints: BoxConstraints(maxHeight: 300.h),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.3),
+                                      spreadRadius: 1,
+                                      blurRadius: 5,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  itemCount: _locationSuggestions.length,
+                                  separatorBuilder: (context, index) => Divider(
+                                    height: 1,
+                                    color: Colors.grey.shade200,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final prediction =
+                                        _locationSuggestions[index];
+                                    return ListTile(
+                                      dense: true,
+                                      leading: Icon(
+                                        Icons.location_on,
+                                        size: 20.sp,
+                                        color: Color(ConstColors.mainColor),
+                                      ),
+                                      title: Text(
+                                        prediction.mainText,
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      subtitle:
+                                          prediction.secondaryText.isNotEmpty
+                                          ? Text(
+                                              prediction.secondaryText,
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                color: Colors.grey[600],
+                                              ),
+                                            )
+                                          : null,
+                                      trailing: prediction.distance != null
+                                          ? Text(
+                                              prediction.distance!,
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                color: Colors.grey[600],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            )
+                                          : null,
+                                      onTap: () => _selectLocation(
+                                        prediction,
+                                        _isFromFieldFocused,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            SizedBox(height: 15.h),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Saved location',
+                                  style: ConstTextStyles.savedLocation,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10.h),
+                            Divider(thickness: 1, color: Colors.grey.shade300),
+                            ListTile(
+                              leading: Image.asset(
+                                ConstImages.add,
+                                width: 24.w,
+                                height: 24.h,
+                              ),
+                              title: Text(
+                                'Add home location',
+                                style: ConstTextStyles.locationItem,
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AddHomeScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            Divider(thickness: 1, color: Colors.grey.shade300),
+                            ListTile(
+                              leading: Image.asset(
+                                ConstImages.add,
+                                width: 24.w,
+                                height: 24.h,
+                              ),
+                              title: Text(
+                                'Add work location',
+                                style: ConstTextStyles.locationItem,
+                              ),
+                            ),
+                            Divider(thickness: 1, color: Colors.grey.shade300),
+                            ListTile(
+                              leading: Image.asset(
+                                ConstImages.add,
+                                width: 24.w,
+                                height: 24.h,
+                              ),
+                              title: Text(
+                                'Add favourite location',
+                                style: ConstTextStyles.locationItem,
+                              ),
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddFavouriteScreen(),
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadFavouriteLocations();
+                                }
+                              },
+                            ),
+                            SizedBox(height: 15.h),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Recent locations',
+                                  style: ConstTextStyles.recentLocation
+                                      .copyWith(
+                                        color: Color(
+                                          ConstColors.recentLocationColor,
+                                        ),
+                                      ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10.h),
+                            Divider(thickness: 1, color: Colors.grey.shade300),
+                            Consumer<LocationProvider>(
+                              builder: (context, locationProvider, child) {
+                                final allLocations = <Widget>[];
+
+                                // Add favourite locations with star icon
+                                for (final fav in _favouriteLocations) {
+                                  allLocations.add(
+                                    Column(
+                                      children: [
+                                        ListTile(
+                                          leading: Image.asset(
+                                            ConstImages.locationPin,
+                                            width: 24.w,
+                                            height: 24.h,
+                                          ),
+                                          title: Text(
+                                            fav.name,
+                                            style: ConstTextStyles.drawerItem1,
+                                          ),
+                                          subtitle: Text(
+                                            fav.destAddress,
+                                            style: TextStyle(
+                                              fontSize: 12.sp,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          trailing: Icon(
+                                            Icons.star,
+                                            size: 20.sp,
+                                            color: Colors.amber,
+                                          ),
+                                          onTap: () {
+                                            toController.text = fav.destAddress;
+                                            if (fromController
+                                                .text
+                                                .isNotEmpty) {
+                                              _checkBothFields();
+                                            }
+                                          },
+                                          onLongPress: () async {
+                                            final shouldDelete = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: Text('Delete Favourite'),
+                                                content: Text(
+                                                  'Are you sure you want to remove "${fav.name}" from favourites?',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          context,
+                                                          false,
+                                                        ),
+                                                    child: Text('Cancel'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(
+                                                          context,
+                                                          true,
+                                                        ),
+                                                    child: Text(
+                                                      'Delete',
+                                                      style: TextStyle(
+                                                        color: Colors.red,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+
+                                            if (shouldDelete == true) {
+                                              try {
+                                                await _favouriteService
+                                                    .deleteFavouriteLocation(
+                                                      fav.id,
+                                                    );
+                                                _loadFavouriteLocations();
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Favourite removed',
+                                                    ),
+                                                  ),
+                                                );
+                                              } catch (e) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Failed to remove favourite',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                        Divider(
+                                          thickness: 1,
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                // Add recent locations without star
+                                for (final recent
+                                    in locationProvider.recentLocations) {
+                                  if (!recent.isFavourite) {
+                                    allLocations.add(
+                                      Column(
+                                        children: [
+                                          ListTile(
+                                            leading: Image.asset(
+                                              ConstImages.locationPin,
+                                              width: 24.w,
+                                              height: 24.h,
+                                            ),
+                                            title: Text(
+                                              recent.name,
+                                              style:
+                                                  ConstTextStyles.drawerItem1,
+                                            ),
+                                            subtitle: Text(
+                                              recent.address,
+                                              style: TextStyle(
+                                                fontSize: 12.sp,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            trailing: GestureDetector(
+                                              onTap: () async {
+                                                await locationProvider
+                                                    .deleteRecentLocation(
+                                                      recent.name,
+                                                    );
+                                              },
+                                              child: Icon(
+                                                Icons.close,
+                                                size: 20.sp,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              toController.text = recent.name;
+                                              if (fromController
+                                                  .text
+                                                  .isNotEmpty) {
+                                                _checkBothFields();
+                                              }
+                                            },
+                                          ),
+                                          if (allLocations.length <
+                                              _favouriteLocations.length +
+                                                  locationProvider
+                                                      .recentLocations
+                                                      .where(
+                                                        (r) => !r.isFavourite,
+                                                      )
+                                                      .length)
+                                            Divider(
+                                              thickness: 1,
+                                              color: Colors.grey.shade300,
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                }
+
+                                return Column(children: allLocations);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  void _checkBothFields() {
+    if (fromController.text.length >= 3 && toController.text.length >= 3) {
+      _updateMapWithRoute();
+      _showVehicleSelection();
+    }
+  }
+
+  void _updateMapWithRoute() async {
+    // Set pickup and destination coordinates
+    _pickupCoordinates = _currentLocation;
+    _destinationCoordinates = LatLng(
+      _currentLocation.latitude + 0.01,
+      _currentLocation.longitude + 0.01,
+    );
+
+    print('🗺️ Getting real route path...');
+
+    // Get the actual route polyline from Google Directions API
+    final routePoints = await _directionsService.getRoutePolyline(
+      origin: _pickupCoordinates!,
+      destination: _destinationCoordinates!,
+    );
+
+    print('✅ Got ${routePoints.length} route points');
+
+    // Create custom marker icons from widgets
+    final pickupIcon = await _createBitmapDescriptorFromWidget(
+      _buildPickupMarkerWidget(),
+      size: Size(247.w, 50.h),
+    );
+
+    final dropoffIcon = await _createBitmapDescriptorFromWidget(
+      _buildDropoffMarkerWidget(),
+      size: Size(242.w, 48.h),
+    );
+
+    // Create markers with custom icons
+    final markers = <Marker>{
+      Marker(
+        markerId: MarkerId('pickup'),
+        position: _pickupCoordinates!,
+        icon: pickupIcon,
+        anchor: Offset(0.5, 1.0),
+      ),
+      Marker(
+        markerId: MarkerId('dropoff'),
+        position: _destinationCoordinates!,
+        icon: dropoffIcon,
+        anchor: Offset(0.5, 1.0),
+      ),
+    };
+
+    // Create polyline with actual route points
+    final polylines = <Polyline>{
+      Polyline(
+        polylineId: PolylineId('route'),
+        points: routePoints,
+        color: Color(ConstColors.mainColor),
+        width: 5,
+        geodesic: true,
+      ),
+    };
+
+    setState(() {
+      _mapMarkers = markers;
+      _mapPolylines = polylines;
+    });
+
+    // Fit map to show both locations with padding
+    if (_mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              math.min(_pickupCoordinates!.latitude, _destinationCoordinates!.latitude),
+              math.min(_pickupCoordinates!.longitude, _destinationCoordinates!.longitude),
+            ),
+            northeast: LatLng(
+              math.max(_pickupCoordinates!.latitude, _destinationCoordinates!.latitude),
+              math.max(_pickupCoordinates!.longitude, _destinationCoordinates!.longitude),
+            ),
+          ),
+          100.0,
+        ),
+      );
+    }
+  }
+
+  void _showVehicleSelection() async {
+    // Get estimate data first
+    try {
+      await _estimateRide();
+    } catch (e) {
+      print('Failed to get estimate: $e');
+      return;
+    }
+
+    if (_currentEstimate == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 600.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 69.w,
+                  height: 5.h,
+                  margin: EdgeInsets.only(bottom: 20.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2.5.r),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Select your vehicle',
+                      style: ConstTextStyles.addHomeTitle,
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(Icons.close, size: 24.sp),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+                Divider(thickness: 1, color: Colors.grey.shade300),
+                SizedBox(height: 20.h),
+                ..._buildVehicleOptions(setModalState),
+                SizedBox(height: 30.h),
+                Container(
+                  width: 353.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: selectedVehicle != null
+                        ? Color(ConstColors.mainColor)
+                        : Color(ConstColors.fieldColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: GestureDetector(
+                    onTap: selectedVehicle != null
+                        ? () {
+                            Navigator.pop(context);
+                            _showBookingDetails();
+                          }
+                        : null,
+                    child: Center(
+                      child: Text(
+                        'Select vehicle',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildVehicleOptions(StateSetter setModalState) {
+    if (_currentEstimate?.priceList == null) return [];
+
+    List<Widget> options = [];
+
+    for (int i = 0; i < _currentEstimate!.priceList.length; i++) {
+      final priceData = _currentEstimate!.priceList[i];
+      final vehicleType = priceData['vehicle_type'];
+      final totalFare = priceData['total_fare'];
+
+      String title = '';
+      switch (vehicleType) {
+        case 'regular':
+          title = 'Regular vehicle';
+          break;
+        case 'fancy':
+          title = 'Fancy vehicle';
+          break;
+        case 'vip':
+          title = 'VIP';
+          break;
+      }
+
+      final isSelected = selectedVehicle == i;
+
+      options.add(
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              selectedVehicle = i;
+            });
+            setModalState(() {});
+          },
+          child: Container(
+            width: 353.w,
+            height: 65.h,
+            margin: EdgeInsets.only(bottom: 15.h),
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Color(ConstColors.mainColor)
+                  : Colors.transparent,
+              border: Border.all(
+                color: isSelected
+                    ? Color(ConstColors.mainColor)
+                    : Colors.grey.shade300,
+                width: 0.7,
+              ),
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: Row(
+              children: [
+                Image.asset(ConstImages.car, width: 55.w, height: 26.h),
+                SizedBox(width: 15.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: ConstTextStyles.vehicleTitle.copyWith(
+                          color: isSelected ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      Text(
+                        '${_currentEstimate!.durationMin.round()} min | 4 passengers',
+                        style: ConstTextStyles.vehicleSubtitle.copyWith(
+                          color: isSelected ? Colors.white : Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${_currentEstimate!.currency}${totalFare.toStringAsFixed(0)}',
+                  style: ConstTextStyles.vehicleTitle.copyWith(
+                    color: isSelected ? Colors.white : Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return options;
+  }
+
+  void _showBookingDetails() {
+    // Reset booking state
+    _isBookingRide = false;
+
+    final selectedOption = selectedVehicle != null
+        ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+        : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setBookingState) => Container(
+          height: 400.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _showAddNoteSheet(),
+                child: Column(
+                  children: [
+                    Icon(Icons.message, size: 25.67.w),
+                    SizedBox(height: 4.67.h),
+                    Text(
+                      'Add note',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w400,
+                        height: 22 / 16,
+                        letterSpacing: -0.41,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Image.asset(
+                    selectedVehicle != null
+                        ? ConstImages.car
+                        : ConstImages.bike,
+                    width: 55.w,
+                    height: 26.h,
+                  ),
+                  SizedBox(width: 15.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedOption,
+                          style: ConstTextStyles.vehicleTitle,
+                        ),
+                        Text(
+                          '4 passengers',
+                          style: ConstTextStyles.vehicleSubtitle,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _currentEstimate != null && selectedVehicle != null
+                            ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
+                            : '₦12,000',
+                        style: ConstTextStyles.vehicleTitle,
+                      ),
+                      Text(
+                        _currentEstimate != null
+                            ? '${_currentEstimate!.durationMin.round()} min'
+                            : 'Fixed',
+                        style: ConstTextStyles.fixedPrice.copyWith(
+                          color: Color(ConstColors.recentLocationColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(width: 10.w),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showVehicleSelection();
+                    },
+                    child: Icon(Icons.arrow_forward_ios, size: 16.sp),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              GestureDetector(
+                onTap: () => _showPaymentMethods(),
+                child: Row(
+                  children: [
+                    Image.asset(ConstImages.wallet, width: 24.w, height: 24.h),
+                    SizedBox(width: 15.w),
+                    Expanded(
+                      child: Text(
+                        selectedPaymentMethod,
+                        style: ConstTextStyles.vehicleTitle,
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, size: 16.sp),
+                  ],
+                ),
+              ),
+              Spacer(),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showPrebookSheet();
+                    },
+                    child: Container(
+                      width: 170.w,
+                      height: 47.h,
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Color(ConstColors.mainColor)),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Book Later',
+                          style: TextStyle(
+                            color: Color(ConstColors.mainColor),
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  GestureDetector(
+                    onTap: !_isBookingRide
+                        ? () async {
+                            setBookingState(() {
+                              _isBookingRide = true;
+                            });
+                            try {
+                              _currentRideResponse = await _requestRide();
+
+                              if (mounted) {
+                                fromController.clear();
+                                toController.clear();
+                                setState(() {
+                                  _showDestinationField = false;
+                                });
+                                Navigator.pop(context);
+                                _showBookingRequestSheet();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                setBookingState(() {
+                                  _isBookingRide = false;
+                                });
+                              }
+                            }
+                          }
+                        : null,
+                    child: Container(
+                      width: 170.w,
+                      height: 47.h,
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Center(
+                        child: _isBookingRide
+                            ? SizedBox(
+                                width: 20.w,
+                                height: 20.h,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                'Book Now',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentMethods() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Choose payment method',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.close, size: 24.sp),
+                ),
+              ],
+            ),
+            SizedBox(height: 20.h),
+            _buildPaymentOption('Pay with wallet'),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            _buildPaymentOption('Pay with card'),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            _buildPaymentOption('pay4me'),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            _buildPaymentOption('Pay in car'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(String method) {
+    final isSelected = selectedPaymentMethod == method;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedPaymentMethod = method;
+        });
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 15.h),
+        child: Row(
+          children: [
+            Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
+            if (isSelected) Icon(Icons.check, color: Colors.green, size: 20.sp),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddNoteSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setNoteState) => Container(
+          height: 300.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Text(
+                'Add note',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: 350.w,
+                height: 111.h,
+                padding: EdgeInsets.all(10.w),
+                decoration: BoxDecoration(
+                  color: Color(0xFFB1B1B1).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: TextField(
+                  controller: noteController,
+                  maxLines: null,
+                  expands: true,
+                  onChanged: (value) {
+                    setNoteState(() {});
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Type your note here...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              Spacer(),
+              Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: noteController.text.isNotEmpty
+                      ? Color(ConstColors.mainColor)
+                      : Color(ConstColors.fieldColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: noteController.text.isNotEmpty
+                      ? () {
+                          Navigator.pop(context);
+                        }
+                      : null,
+                  child: Center(
+                    child: Text(
+                      'Submit',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: Column(
+        children: [
+          SizedBox(height: 60.h),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Row(
+              children: [
+                Image.asset(ConstImages.avatar, width: 60.w, height: 60.h),
+                SizedBox(width: 15.w),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('John Doe', style: ConstTextStyles.drawerName),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'My Account',
+                        style: ConstTextStyles.drawerAccount.copyWith(
+                          color: Color(ConstColors.drawerAccountColor),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 20.h),
+          Divider(thickness: 1, color: Colors.grey.shade300),
+          _buildDrawerItem('Book a trip', ConstImages.car),
+          _buildDrawerItem('Activities', ConstImages.serviceEscort),
+          _buildDrawerItem(
+            'Wallet',
+            ConstImages.wallet,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WalletScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem('Drive with us', ConstImages.car),
+          _buildDrawerItem(
+            'Tip',
+            ConstImages.tip,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TipScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            'Promo code',
+            ConstImages.code,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PromoCodeScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            'Referral',
+            ConstImages.referral,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ReferralScreen()),
+              );
+            },
+          ),
+          _buildDrawerItem(
+            'Contact Us',
+            ConstImages.phoneCall,
+            onTap: _showContactBottomSheet,
+          ),
+          _buildDrawerItem('FAQ', ConstImages.faq),
+          _buildDrawerItem('About', ConstImages.about),
+        ],
+      ),
+    );
+  }
+
+  void _showPrebookSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPrebookState) => Container(
+          height: 450.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  width: 69.w,
+                  height: 5.h,
+                  margin: EdgeInsets.only(bottom: 20.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2.5.r),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Prebook a vehicle',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                Text(
+                  'Select time and date',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                Divider(thickness: 1, color: Colors.grey.shade300),
+                ListTile(
+                  leading: Image.asset(
+                    ConstImages.activities,
+                    width: 24.w,
+                    height: 24.h,
+                  ),
+                  title: Text(
+                    'Date',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      height: 1.0,
+                      letterSpacing: -0.32,
+                      color: Color(0xFFB1B1B1),
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
+                    style: ConstTextStyles.vehicleTitle,
+                  ),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(Duration(days: 365)),
+                    );
+                    if (picked != null && picked != selectedDate) {
+                      setPrebookState(() {
+                        selectedDate = picked;
+                      });
+                    }
+                  },
+                ),
+                Divider(thickness: 1, color: Colors.grey.shade300),
+                ListTile(
+                  leading: Image.asset(
+                    'assets/images/time.png',
+                    width: 24.w,
+                    height: 24.h,
+                  ),
+                  title: Text(
+                    'Time',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      height: 1.0,
+                      letterSpacing: -0.32,
+                      color: Color(0xFFB1B1B1),
+                    ),
+                  ),
+                  subtitle: Text(
+                    selectedTime.format(context),
+                    style: ConstTextStyles.vehicleTitle,
+                  ),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+                  onTap: () async {
+                    final TimeOfDay? picked = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                    );
+                    if (picked != null && picked != selectedTime) {
+                      setPrebookState(() {
+                        selectedTime = picked;
+                      });
+                    }
+                  },
+                ),
+                SizedBox(height: 30.h),
+                Column(
+                  children: [
+                    Container(
+                      width: 353.w,
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Color(ConstColors.mainColor)),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          setPrebookState(() {
+                            selectedDate = DateTime.now();
+                            selectedTime = TimeOfDay.now();
+                          });
+                        },
+                        child: Center(
+                          child: Text(
+                            'Reset to now',
+                            style: TextStyle(
+                              color: Color(ConstColors.mainColor),
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 10.h),
+                    Container(
+                      width: 353.w,
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showTripScheduledSheet();
+                        },
+                        child: Center(
+                          child: Text(
+                            'Set pick date and time',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getWeekday(int weekday) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return weekdays[weekday - 1];
+  }
+
+  String _getMonth(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[month - 1];
+  }
+
+  void _showDriverAcceptedSheet() {
+    if (_isActiveRideSheetVisible) return;
+    _isActiveRideSheetVisible = true;
+
+    final bool hasArrived = _activeRide?['Status']?.toString().toLowerCase() == 'arrived';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 10.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            // Header with title and cancel button
+            Row(
+              children: [
+                Container(
+                  width: 60.w,
+                  height: 60.h,
+                  decoration: BoxDecoration(
+                    color: Color(ConstColors.mainColor),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _driverArrivalTime,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 15.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasArrived ? 'Your driver has arrived' : 'Driver is on the way',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Divider(thickness: 1, color: Colors.grey.shade300),
+                    ],
+                  ),
+                ),
+                if (hasArrived)
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(
+                      Icons.close,
+                      size: 24.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+              ],
+            ),
+            // Driver Details
+            Column(
+              children: [
+                if (_assignedDriver != null) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: _buildDriverDetail('Driver name:', _assignedDriver!.name),
+                  ),
+                  SizedBox(height: 10.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Driver rating:',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                          ),
+                        ),
+                        Spacer(),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 16.sp,
+                              color: Colors.amber,
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              _assignedDriver!.rating.toString(),
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                height: 1.0,
+                                letterSpacing: -0.32,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: _buildDriverDetail(
+                      'Plate number:',
+                      _assignedDriver!.plateNumber,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: _buildDriverDetail('Car:', _assignedDriver!.vehicleModel),
+                  ),
+                  SizedBox(height: 10.h),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: _buildDriverDetail(
+                      'Trip ID:',
+                      _activeRide?['ID']?.toString() ?? 'N/A',
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  // Payment Method
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Container(
+                      width: double.infinity,
+                      height: 42.h,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 5.w,
+                        vertical: 6.h,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4.r),
+                        border: Border.all(
+                          width: 0.6,
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.payment, size: 20.sp),
+                              SizedBox(width: 8.w),
+                              Text(
+                                selectedPaymentMethod,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  // Action Buttons
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Container(
+                      width: double.infinity,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    hasArrived ? Icons.cancel : Icons.edit,
+                                    size: 16.sp,
+                                    color: Colors.black,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Text(
+                                    hasArrived ? 'Cancel' : 'Modify Trip',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 1.w,
+                            height: 30.h,
+                            color: Colors.grey.shade300,
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                if (_assignedDriver != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(
+                                        rideId: int.parse(_activeRide?['ID']),
+                                        driverName:
+                                            _assignedDriver?.name ?? 'Driver',
+                                        driverImage:
+                                            _assignedDriver?.profilePicture,
+                                        
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.chat,
+                                    size: 16.sp,
+                                    color: Colors.black,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Text(
+                                    'Chat Driver',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              
+           ], ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      _isActiveRideSheetVisible = false;
+      _hasUserDismissedSheet = true;
+    });
+  }
+
+  Widget _buildDriverDetail(String label, String value) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w500,
+            height: 1.0,
+            letterSpacing: -0.32,
+          ),
+        ),
+        Spacer(),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w500,
+            height: 1.0,
+            letterSpacing: -0.32,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showBookingRequestSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 380.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Text(
+                'Booking request successful',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Text(
+                'You\'ll receive a push notification when your driver is assigned.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12.sp,
+                  fontWeight: FontWeight.w400,
+                  height: 1.0,
+                  letterSpacing: -0.32,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Container(
+                padding: EdgeInsets.all(15.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Pick Up',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          _currentRideResponse?.pickupAddress ??
+                              'Pickup Location',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 15.h),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    SizedBox(height: 15.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Destination',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          _currentRideResponse?.destAddress ?? 'Destination',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showBookSuccessfulSheet();
+                  },
+                  child: Center(
+                    child: Text(
+                      'View Trip',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBookSuccessfulSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 300.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Text(
+              'Book Successful',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                height: 1.0,
+                letterSpacing: -0.32,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 10.h),
+            Text(
+              'We are searching for available nearby driver',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w400,
+                height: 1.0,
+                letterSpacing: -0.32,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            SizedBox(
+              width: 353.w,
+              height: 10.h,
+              child: LinearProgressIndicator(
+                backgroundColor: Colors.grey.shade300,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Color(ConstColors.mainColor),
+                ),
+              ),
+            ),
+            Spacer(),
+            Container(
+              width: 353.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _showTripDetailsSheet();
+                },
+                child: Center(
+                  child: Text(
+                    'Trip Details',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTripDetailsSheet() {
+    final selectedOption =
+        _currentRideResponse?.vehicleType ??
+        (selectedVehicle != null
+            ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+            : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!]);
+    final currentDate =
+        '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} at ${TimeOfDay.now().format(context)}';
+    final paymentMethod =
+        _currentRideResponse?.paymentMethod
+            .replaceAll('_', ' ')
+            .replaceAll('pay', 'Pay') ??
+        selectedPaymentMethod;
+    final pickupAddr = _currentRideResponse?.pickupAddress ?? 'Pickup Location';
+    final destAddr = _currentRideResponse?.destAddress ?? 'Destination';
+    final vehicleType = _currentRideResponse?.vehicleType ?? selectedOption;
+    final ridePrice =
+        _currentRideResponse?.price.toStringAsFixed(0) ?? '12,000';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 600.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ID: #${_currentRideResponse?.id ?? '12345'}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close, size: 24.sp, color: Colors.black),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Container(
+                padding: EdgeInsets.all(15.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Pick Up',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          'Nsukka, Enugu',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 15.h),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    SizedBox(height: 15.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Destination',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          'Ikeja, Lagos',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Text(
+                    'Date',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 1.0,
+                      letterSpacing: -0.32,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 5.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'November 28, 2025 at 03:45 pm',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment Method',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 5.h),
+                        Text(
+                          selectedPaymentMethod,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 1.w,
+                    height: 40.h,
+                    color: Colors.grey.shade300,
+                  ),
+                  SizedBox(width: 20.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Vehicle',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 5.h),
+                        Text(
+                          selectedOption,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Price',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.0,
+                        letterSpacing: -0.32,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: 5.h),
+                    Text(
+                      '₦${_currentRideResponse?.price.toStringAsFixed(0) ?? '12,000'}',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              SizedBox(
+                width: 328.w,
+                height: 50.h,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit, size: 16.sp, color: Colors.black),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Modify Trip',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w400,
+                                height: 22 / 16,
+                                letterSpacing: -0.41,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 1.w,
+                      height: 30.h,
+                      color: Colors.grey.shade300,
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_assignedDriver != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(
+                                  rideId: int.parse(_activeRide?['ID']) ,
+                                  driverName: _assignedDriver?.name ?? 'Driver',
+                                  driverImage: _assignedDriver?.profilePicture,
+                                  // rideId:
+                                  //     .toString() ??_currentRideResponse?.id
+                                  //     '12345',
+                                  // currentUserId:
+                                  //     'user_123', // This should come from auth service
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('No driver assigned yet')),
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.chat, size: 16.sp, color: Colors.black),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Chat Driver',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w400,
+                                height: 22 / 16,
+                                letterSpacing: -0.41,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTripScheduledSheet() {
+    final selectedOption = selectedVehicle != null
+        ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+        : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 500.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Trip scheduled',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Container(
+                padding: EdgeInsets.all(15.w),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Pick Up',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          'Nsukka, Enugu',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 15.h),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    SizedBox(height: 15.h),
+                    Row(
+                      children: [
+                        Container(
+                          width: 6.w,
+                          height: 6.h,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 10.w),
+                        Text(
+                          'Destination',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 5.h),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16.w),
+                        child: Text(
+                          'Ikeja, Lagos',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Text(
+                    'Date',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      height: 1.0,
+                      letterSpacing: -0.32,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 5.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'November 28, 2025 at 03:45 pm',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment Method',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 5.h),
+                        Text(
+                          selectedPaymentMethod,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 1.w,
+                    height: 40.h,
+                    color: Colors.grey.shade300,
+                  ),
+                  SizedBox(width: 20.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Vehicle',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 5.h),
+                        Text(
+                          selectedOption,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Price',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.0,
+                        letterSpacing: -0.32,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: 5.h),
+                    Text(
+                      '₦12,000',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 30.h),
+              Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showEditPrebookingSheet();
+                  },
+                  child: Center(
+                    child: Text(
+                      'Edit pre booking',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditPrebookingSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 600.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Edit pre booking',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 26.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close, size: 24.sp, color: Colors.black),
+                  ),
+                ],
+              ),
+              SizedBox(height: 30.h),
+              _buildEditField('PICK UP', 'Nsukka, Enugu'),
+              SizedBox(height: 15.h),
+              _buildEditField('DESTINATION', 'Ikeja, Lagos'),
+              SizedBox(height: 15.h),
+              _buildEditField('WHEN', 'November 28, 2025 at 03:45 pm'),
+              SizedBox(height: 15.h),
+              _buildEditField('PAYMENT METHOD', selectedPaymentMethod),
+              SizedBox(height: 15.h),
+              _buildEditField(
+                'VEHICLE',
+                selectedVehicle != null
+                    ? [
+                        'Regular vehicle',
+                        'Fancy vehicle',
+                        'VIP',
+                      ][selectedVehicle!]
+                    : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
+              ),
+              SizedBox(height: 40.h),
+              Column(
+                children: [
+                  Container(
+                    width: 353.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.red),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showTripCanceledSheet();
+                      },
+                      child: Center(
+                        child: Text(
+                          'Cancel prebooking',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 15.h),
+                  Container(
+                    width: 353.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: Color(ConstColors.mainColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: Center(
+                        child: Text(
+                          'Save prebooking',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+          ),
+        ),
+        SizedBox(height: 8.h),
+        Container(
+          width: 353.w,
+          height: 50.h,
+          padding: EdgeInsets.symmetric(horizontal: 10.w),
+          decoration: BoxDecoration(
+            color: Color(0xFFB1B1B1).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(2.r),
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTripCanceledSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setCancelState) => Container(
+          height: 450.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Trip Canceled',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Help us improve by sharing why you are canceling',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 30.h),
+              _buildCancelReason(
+                0,
+                'I am taking alternative transport',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(
+                1,
+                'It is taking too long to get a driver',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(
+                2,
+                'I have to attend to something',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(3, 'Others', setCancelState),
+              Spacer(),
+              Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: selectedCancelReason != null
+                      ? Color(ConstColors.mainColor)
+                      : Color(ConstColors.fieldColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: selectedCancelReason != null
+                      ? () {
+                          Navigator.pop(context);
+                          _showFeedbackSuccessSheet();
+                        }
+                      : null,
+                  child: Center(
+                    child: Text(
+                      'Submit',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCancelReason(
+    int index,
+    String reason,
+    StateSetter setCancelState,
+  ) {
+    final isSelected = selectedCancelReason == index;
+    return GestureDetector(
+      onTap: () {
+        setCancelState(() {
+          selectedCancelReason = index;
+        });
+      },
+      child: Container(
+        width: 353.w,
+        height: 40.h,
+        padding: EdgeInsets.all(10.w),
+        decoration: BoxDecoration(
+          color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
+          border: Border.all(color: Color(ConstColors.mainColor)),
+          borderRadius: BorderRadius.circular(15.r),
+        ),
+        child: Center(
+          child: Text(
+            reason,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w400,
+              color: isSelected ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeedbackSuccessSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 400.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 30.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Container(
+              width: 266.w,
+              height: 212.h,
+              margin: EdgeInsets.only(top: 30.h, left: 62.w),
+              child: Image.asset(
+                'assets/images/Feedback_suucess.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+            Spacer(),
+            Container(
+              width: 353.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: Center(
+                  child: Text(
+                    'GO HOME',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(
+    String title,
+    String iconPath, {
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      leading: Image.asset(iconPath, width: 24.w, height: 24.h),
+      title: Text(title, style: ConstTextStyles.drawerItem),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildPickupWidget() {
+    // Show when there's an active ride
+    if (_activeRide == null) return SizedBox.shrink();
+
+    return Container(
+      width: 247.w,
+      height: 50.h,
+      padding: EdgeInsets.only(right: 12.h, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50.w,
+            height: 50.h,
+            decoration: BoxDecoration(
+              color: Color(ConstColors.mainColor),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Text(
+                    _driverArrivalTime,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+
+                  Text(
+                    "MIN",
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Pick up',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.41,
+                  ),
+                ),
+                Text(
+                  _pickupLocation,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.41,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, size: 16.sp),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropoffWidget() {
+    // Show when there's an active ride
+    if (_activeRide == null) return SizedBox.shrink();
+
+    return Container(
+      width: 242.w,
+      height: 48.h,
+      padding: EdgeInsets.fromLTRB(22.w, 7.h, 22.w, 7.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Row(
+        children: [
+          Image.asset(ConstImages.locationPin, width: 24.w, height: 24.h),
+          SizedBox(width: 6.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Drop off',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.41,
+                  ),
+                ),
+                Text(
+                  _dropoffLocation,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.41,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, size: 16.sp),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteLineWidget() {
+    if (!_isDriverAssigned && !_isInCar) return SizedBox.shrink();
+
+    return Container(
+      width: 2.w,
+      height: 30.h,
+      color: Color(ConstColors.mainColor),
+    );
+  }
+
+  Widget _buildRoutePickupWidget() {
+    return Container(
+      width: 247.w,
+      height: 50.h,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50.w,
+            height: 50.h,
+            decoration: BoxDecoration(
+              color: Color(ConstColors.mainColor),
+              borderRadius: BorderRadius.circular(1000.r),
+            ),
+            child: Center(
+              child: Text(
+                _estimatedTime,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 16 / 18,
+                  letterSpacing: -0.41,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Pick up',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    height: 22 / 14,
+                    letterSpacing: -0.41,
+                  ),
+                ),
+                Text(
+                  fromController.text.isNotEmpty
+                      ? fromController.text
+                      : 'Current location',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 22 / 14,
+                    letterSpacing: -0.41,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, size: 16.sp),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteDropoffWidget() {
+    return Container(
+      width: 247.w,
+      height: 50.h,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50.w,
+            height: 50.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(1000.r),
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+            ),
+            child: Center(
+              child: Image.asset(
+                ConstImages.locationIconPin,
+                width: 24.w,
+                height: 24.h,
+              ),
+            ),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Drop off',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    height: 22 / 14,
+                    letterSpacing: -0.41,
+                  ),
+                ),
+                Text(
+                  toController.text.isNotEmpty
+                      ? toController.text
+                      : 'Destination',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 22 / 14,
+                    letterSpacing: -0.41,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios, size: 16.sp),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _estimateRide() async {
+    final request = RideEstimateRequest(
+      pickup:
+          "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
+      dest: "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
+      destAddress: toController.text,
+      serviceType: "taxi",
+      vehicleType: "regular", // Default for estimate
+    );
+
+    _currentEstimate = await _rideService.estimateRide(request);
+    setState(() {});
+  }
+
+  Future<RideResponse> _requestRide() async {
+    if (_currentEstimate == null || selectedVehicle == null) {
+      throw Exception('No estimate or vehicle selected');
+    }
+
+    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
+    final vehicleType = selectedPriceData['vehicle_type'];
+
+    // Use different coordinates for pickup and destination
+    final pickupCoords =
+        "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})";
+    final destCoords =
+        "POINT(${_currentLocation.longitude + 0.01} ${_currentLocation.latitude + 0.01})";
+
+    final request = RideRequest(
+      pickup: pickupCoords,
+      dest: destCoords,
+      pickupAddress: fromController.text.isNotEmpty
+          ? fromController.text
+          : "Current location",
+      destAddress: toController.text.isNotEmpty
+          ? toController.text
+          : "Destination",
+      stopAddress: stopController.text.isNotEmpty
+          ? stopController.text
+          : "No stops",
+      serviceType: _currentEstimate!.serviceType,
+      vehicleType: vehicleType,
+      paymentMethod: selectedPaymentMethod.toLowerCase().replaceAll(' ', '_'),
+    );
+
+    return await _rideService.requestRide(request);
+  }
+
+  void _showActiveRideSheet() {
+    if (_activeRide == null || _isActiveRideSheetVisible) return;
+
+    _isActiveRideSheetVisible = true;
+
+    final status = _activeRide!['Status']?.toString().toLowerCase() ?? '';
+    final rideId = _activeRide!['ID']?.toString() ?? 'Unknown';
+    final pickupAddress = _activeRide!['PickupAddress'] ?? 'Pickup location';
+    final destAddress = _activeRide!['DestAddress'] ?? 'Destination';
+    final price = _activeRide!['Price']?.toString() ?? '0';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        height: 400.h,
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Text(
+              'Active Ride',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 10.h),
+            Text(
+              'ID: #$rideId',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Text(
+              '₦$price',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w700,
+                fontSize: 36.sp,
+                height: 1.0,
+                letterSpacing: -0.32,
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Container(
+              padding: EdgeInsets.all(15.w),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          'Pickup: $pickupAddress',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          'Destination: $destAddress',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                color: _getStatusColor(status),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(
+                'Status: ${status.toUpperCase()}',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            Spacer(),
+            if (_assignedDriver != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Color(ConstColors.mainColor)),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen( rideId: int.parse(_activeRide?['ID']) ,
+                                  driverName: _assignedDriver?.name ?? 'Driver',
+                                  driverImage: _assignedDriver?.profilePicture,
+                                
+                              ),
+                            ),
+                          );
+                        },
+                        child: Center(
+                          child: Text(
+                            'Chat Driver',
+                            style: TextStyle(
+                              color: Color(ConstColors.mainColor),
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Container(
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          _isActiveRideSheetVisible = false;
+                          Navigator.pop(context);
+                        },
+                        child: Center(
+                          child: Text(
+                            'Track Ride',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      _isActiveRideSheetVisible = false;
+    });
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        return Colors.blue;
+      case 'arrived':
+        return Colors.orange;
+      case 'started':
+        return Colors.green;
+      case 'completed':
+        return Colors.grey;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _addActiveRideMarkers(Map<String, dynamic> ride) async {
+    final pickupLat = ride['PickupLatitude']?.toDouble() ?? _currentLocation.latitude;
+    final pickupLng = ride['PickupLongitude']?.toDouble() ?? _currentLocation.longitude;
+    final destLat = ride['DestLatitude']?.toDouble() ?? _currentLocation.latitude + 0.01;
+    final destLng = ride['DestLongitude']?.toDouble() ?? _currentLocation.longitude + 0.01;
+
+    final pickupLocation = LatLng(pickupLat, pickupLng);
+    final destLocation = LatLng(destLat, destLng);
+
+    // Get the actual route polyline
+    final routePoints = await _directionsService.getRoutePolyline(
+      origin: pickupLocation,
+      destination: destLocation,
+    );
+
+    // Create custom marker icons
+    final pickupIcon = await _createBitmapDescriptorFromWidget(
+      _buildPickupMarkerWidget(),
+      size: Size(247.w, 50.h),
+    );
+
+    final dropoffIcon = await _createBitmapDescriptorFromWidget(
+      _buildDropoffMarkerWidget(),
+      size: Size(242.w, 48.h),
+    );
+
+    // Create markers
+    final markers = <Marker>{
+      Marker(
+        markerId: MarkerId('pickup'),
+        position: pickupLocation,
+        icon: pickupIcon,
+        anchor: Offset(0.5, 1.0),
+      ),
+      Marker(
+        markerId: MarkerId('dropoff'),
+        position: destLocation,
+        icon: dropoffIcon,
+        anchor: Offset(0.5, 1.0),
+      ),
+      if (_driverLocation != null)
+        Marker(
+          markerId: MarkerId('driver'),
+          position: _driverLocation!,
+          icon: _driverIcon ?? BitmapDescriptor.defaultMarker,
+        ),
+    };
+
+    // Create polyline with actual route
+    final polylines = <Polyline>{
+      Polyline(
+        polylineId: PolylineId('active_route'),
+        points: routePoints,
+        color: Color(ConstColors.mainColor),
+        width: 5,
+        geodesic: true,
+      ),
+    };
+
+    setState(() {
+      _mapMarkers = markers;
+      _mapPolylines = polylines;
+      _pickupCoordinates = pickupLocation;
+      _destinationCoordinates = destLocation;
+    });
+
+    // Center map on ride
+    if (_mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              math.min(pickupLocation.latitude, destLocation.latitude),
+              math.min(pickupLocation.longitude, destLocation.longitude),
+            ),
+            northeast: LatLng(
+              math.max(pickupLocation.latitude, destLocation.latitude),
+              math.max(pickupLocation.longitude, destLocation.longitude),
+            ),
+          ),
+          100.0,
+        ),
+      );
+    }
+  }
+
+  List<LatLng> _generateCurvedPath(LatLng start, LatLng end) {
+    List<LatLng> points = [];
+    
+    // Calculate midpoint with offset for curve
+    double midLat = (start.latitude + end.latitude) / 2;
+    double midLng = (start.longitude + end.longitude) / 2;
+    
+    // Add curve offset (perpendicular to the line)
+    double offsetLat = (end.longitude - start.longitude) * 0.002;
+    double offsetLng = (start.latitude - end.latitude) * 0.002;
+    
+    LatLng curvePoint = LatLng(midLat + offsetLat, midLng + offsetLng);
+    
+    // Generate points along the curve
+    for (int i = 0; i <= 20; i++) {
+      double t = i / 20.0;
+      double lat = _quadraticBezier(start.latitude, curvePoint.latitude, end.latitude, t);
+      double lng = _quadraticBezier(start.longitude, curvePoint.longitude, end.longitude, t);
+      points.add(LatLng(lat, lng));
+    }
+    
+    return points;
+  }
+
+  double _quadraticBezier(double p0, double p1, double p2, double t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import 'package:flutter/material.dart';
+// import 'package:flutter_screenutil/flutter_screenutil.dart';
+// import 'package:muvam/core/constants/colors.dart';
+// import 'package:muvam/core/constants/images.dart';
+// import 'package:muvam/core/constants/text_styles.dart';
+// import 'package:muvam/core/utils/app_logger.dart';
+// import 'package:muvam/core/utils/custom_flushbar.dart';
+// import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
+// import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
+// import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
+// import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
+// import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
+// import 'package:muvam/features/services/presentation/screens/services_screen.dart';
+// import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+// import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
+// import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
+// import 'package:muvam/shared/presentation/screens/tip_screen.dart';
+// import 'package:muvam/shared/providers/location_provider.dart';
+// import 'package:provider/provider.dart';
+// import 'add_home_screen.dart';
+// import 'add_favourite_screen.dart';
+
+// class HomeScreen extends StatefulWidget {
+//   const HomeScreen({super.key});
+
+//   @override
+//   State<HomeScreen> createState() => _HomeScreenState();
+// }
+
+// class _HomeScreenState extends State<HomeScreen> {
+//   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+//   bool _isBottomSheetVisible = true;
+//   bool _showDestinationField = false;
+//   int _currentIndex = 0;
+//   int? selectedVehicle;
+//   int? selectedDelivery;
+//   String selectedPaymentMethod = 'Pay in car';
+//   final TextEditingController fromController = TextEditingController();
+//   final TextEditingController toController = TextEditingController();
+//   final TextEditingController noteController = TextEditingController();
+//   DateTime selectedDate = DateTime.now();
+//   TimeOfDay selectedTime = TimeOfDay.now();
+//   int? selectedCancelReason;
+  
+//   @override
+//   void initState() {
+//     super.initState();
+//     WidgetsBinding.instance.addPostFrameCallback((_) {
+//       Provider.of<LocationProvider>(
+//         context,
+//         listen: false,
+//       ).loadFavouriteLocations();
+//     });
+//   }
+
+// // class HomeScreen extends StatefulWidget {
+// //   const HomeScreen({super.key});
+
+// //   @override
+// //   State<HomeScreen> createState() => _HomeScreenState();
+// // }
+
+// // class _HomeScreenState extends State<HomeScreen> {
+// //   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+// //   bool _isBottomSheetVisible = true;
+// //   bool _showDestinationField = false;
+// //   int _currentIndex = 0;
+// //   int? selectedVehicle;
+// //   int? selectedDelivery;
+// //   String selectedPaymentMethod = 'Pay in car';
+// //   final TextEditingController fromController = TextEditingController();
+// //   final TextEditingController toController = TextEditingController();
+// //   final TextEditingController noteController = TextEditingController();
+// //   DateTime selectedDate = DateTime.now();
+// //   TimeOfDay selectedTime = TimeOfDay.now();
+// //   int? selectedCancelReason;
+// //   @override
+// //   void initState() {
+// //     super.initState();
+// //     WidgetsBinding.instance.addPostFrameCallback((_) {
+// //       Provider.of<LocationProvider>(
+// //         context,
+// //         listen: false,
+// //       ).loadFavouriteLocations();
+// //     });
+// //   }
+
+// <<<<<<< Updated upstream
+//   void _navigateToWallet() async {
+//     Navigator.pop(context);
+
+//     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+
+//     // Show loading indicator
+//     showDialog(
+//       context: context,
+//       barrierDismissible: false,
+//       builder: (context) => Center(
+//         child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+//       ),
+//     );
+
+//     // Check if user has virtual account
+//     final hasAccount = await walletProvider.checkVirtualAccount();
+
+//     // Close loading indicator
+//     if (mounted) {
+//       Navigator.pop(context);
+//     }
+
+//     AppLogger.log('Navigate to appropriate screen');
+//     // Navigate to appropriate screen
+//     if (mounted) {
+//       if (hasAccount) {
+//         AppLogger.log('Navigate to appropriate WalletScreen');
+//         Navigator.push(
+//           context,
+//           MaterialPageRoute(builder: (context) => const WalletScreen()),
+//         );
+//       } else {
+//         AppLogger.log('Navigate to appropriate WalletEmptyScreen');
+//         Navigator.push(
+//           context,
+//           MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
+//         );
+//       }
+//     }
+//   }
+
 //   void _showContactBottomSheet() {
 //     Navigator.pop(context);
 //     showModalBottomSheet(
@@ -246,8 +5331,1778 @@ class _HomeScreenState extends State<HomeScreen> {
 //       ),
 //     );
 //   }
->>>>>>> Stashed changes
+// =======
+// //   void _showContactBottomSheet() {
+// //     Navigator.pop(context);
+// //     showModalBottomSheet(
+// //       context: context,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: Column(
+// //           mainAxisSize: MainAxisSize.min,
+// //           children: [
+// //             Row(
+// //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// //               children: [
+// //                 Text('Contact us', style: ConstTextStyles.addHomeTitle),
+// //                 GestureDetector(
+// //                   onTap: () => Navigator.pop(context),
+// //                   child: Icon(Icons.close, size: 24.sp),
+// //                 ),
+// //               ],
+// //             ),
+// //             SizedBox(height: 20.h),
+// //             ListTile(
+// //               leading: Image.asset(
+// //                 ConstImages.phoneCall,
+// //                 width: 22.w,
+// //                 height: 22.h,
+// //               ),
+// //               title: Text('Via Call', style: ConstTextStyles.contactOption),
+// //               trailing: Icon(
+// //                 Icons.arrow_forward_ios,
+// //                 size: 12.sp,
+// //                 color: Colors.grey,
+// //               ),
+// //             ),
+// //             Divider(thickness: 1, color: Colors.grey.shade300),
+// //             ListTile(
+// //               leading: Image.asset(
+// //                 ConstImages.whatsapp,
+// //                 width: 22.w,
+// //                 height: 22.h,
+// //               ),
+// //               title: Text('Via WhatsApp', style: ConstTextStyles.contactOption),
+// //               trailing: Icon(
+// //                 Icons.arrow_forward_ios,
+// //                 size: 12.sp,
+// //                 color: Colors.grey,
+// //               ),
+// //             ),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+// >>>>>>> Stashed changes
 
+// //   @override
+// //   Widget build(BuildContext context) {
+// //     return Scaffold(
+// //       key: _scaffoldKey,
+// //       drawer: _buildDrawer(),
+// //       bottomNavigationBar: BottomNavigationBar(
+// //         currentIndex: _currentIndex,
+// //         backgroundColor: Colors.white,
+// //         selectedItemColor: Color(ConstColors.mainColor),
+// //         unselectedItemColor: Colors.grey,
+// //         onTap: (index) {
+// //           setState(() {
+// //             _currentIndex = index;
+// //           });
+// //         },
+// //         items: [
+// //           BottomNavigationBarItem(
+// //             icon: Image.asset(
+// //               ConstImages.homeIcon,
+// //               width: 24.w,
+// //               height: 24.h,
+// //               color: _currentIndex == 0
+// //                   ? Color(ConstColors.mainColor)
+// //                   : Colors.grey,
+// //             ),
+// //             label: 'Home',
+// //           ),
+// //           BottomNavigationBarItem(
+// //             icon: Image.asset(
+// //               ConstImages.services,
+// //               width: 24.w,
+// //               height: 24.h,
+// //               color: _currentIndex == 1
+// //                   ? Color(ConstColors.mainColor)
+// //                   : Colors.grey,
+// //             ),
+// //             label: 'Services',
+// //           ),
+// //           BottomNavigationBarItem(
+// //             icon: Image.asset(
+// //               ConstImages.activities,
+// //               width: 24.w,
+// //               height: 24.h,
+// //               color: _currentIndex == 2
+// //                   ? Color(ConstColors.mainColor)
+// //                   : Colors.grey,
+// //             ),
+// //             label: 'Activities',
+// //           ),
+// //         ],
+// //       ),
+// //       body: _currentIndex == 1
+// //           ? const ServicesScreen()
+// //           : _currentIndex == 2
+// //           ? ActivitiesScreen()
+// //           : Stack(
+// //               children: [
+// //                 // Map background
+// //                 // Container(
+// //                 //   width: double.infinity,
+// //                 //   height: double.infinity,
+// //                 //   child: Image.asset(ConstImages.maps, fit: BoxFit.cover),
+// //                 // ),
+// //                 // Center map images
+// //                 Positioned(
+// //                   top: 270.h,
+// //                   left: 84.w,
+// //                   child: Column(
+// //                     children: [
+// //                       Image.asset(
+// //                         ConstImages.locationTime,
+// //                         width: 247.w,
+// //                         height: 50.h,
+// //                       ),
+// //                       SizedBox(height: 10.h),
+// //                       // Image.asset(
+// //                       //   ConstImages.locationPin,
+// //                       //   width: 30.w,
+// //                       //   height: 30.h,
+// //                       // ),
+// //                     ],
+// //                   ),
+// //                 ),
+// //                 // Drawer date
+// //                 Positioned(
+// //                   top: 66.h,
+// //                   left: 20.w,
+// //                   child: GestureDetector(
+// //                     onTap: () => _scaffoldKey.currentState?.openDrawer(),
+// //                     child: Container(
+// //                       width: 50.w,
+// //                       height: 50.h,
+// //                       decoration: BoxDecoration(
+// //                         color: Colors.white,
+// //                         borderRadius: BorderRadius.circular(25.r),
+// //                       ),
+// //                       padding: EdgeInsets.all(10.w),
+// //                       child: Icon(Icons.menu, size: 24.sp),
+// //                     ),
+// //                   ),
+// //                 ),
+// //                 // Bottom sheet
+// //                 Positioned(
+// //                   bottom: _isBottomSheetVisible ? 0 : -294.h,
+// //                   left: 0,
+// //                   right: 0,
+// //                   child: Container(
+// //                     height: 344.h,
+// //                     width: 393.w,
+// //                     decoration: BoxDecoration(
+// //                       color: Colors.white,
+// //                       borderRadius: BorderRadius.only(
+// //                         topLeft: Radius.circular(20.r),
+// //                         topRight: Radius.circular(20.r),
+// //                       ),
+// //                     ),
+// //                     child: SingleChildScrollView(
+// //                       child: Column(
+// //                         children: [
+// //                           GestureDetector(
+// //                             onTap: () {
+// //                               setState(() {
+// //                                 _isBottomSheetVisible = !_isBottomSheetVisible;
+// //                               });
+// //                             },
+// //                             child: Container(
+// //                               height: 50.h,
+// //                               child: Column(
+// //                                 children: [
+// //                                   SizedBox(height: 11.75.h),
+// //                                   Container(
+// //                                     width: 69.w,
+// //                                     height: 5.h,
+// //                                     decoration: BoxDecoration(
+// //                                       color: Colors.grey.shade300,
+// //                                       borderRadius: BorderRadius.circular(
+// //                                         2.5.r,
+// //                                       ),
+// //                                     ),
+// //                                   ),
+// //                                 ],
+// //                               ),
+// //                             ),
+// //                           ),
+// //                           SizedBox(height: 20.h),
+// //                           Padding(
+// //                             padding: EdgeInsets.symmetric(horizontal: 20.w),
+// //                             child: Row(
+// //                               children: [
+// //                                 Column(
+// //                                   children: [
+// //                                     Container(
+// //                                       width: 14.w,
+// //                                       height: 14.h,
+// //                                       decoration: BoxDecoration(
+// //                                         color: Color(ConstColors.mainColor),
+// //                                         shape: BoxShape.circle,
+// //                                       ),
+// //                                     ),
+// //                                     if (_showDestinationField)
+// //                                       Column(
+// //                                         children: [
+// //                                           SizedBox(height: 4.h),
+// //                                           Container(
+// //                                             width: 2.w,
+// //                                             height: 4.h,
+// //                                             color: Colors.red,
+// //                                           ),
+// //                                           SizedBox(height: 4.h),
+// //                                           Container(
+// //                                             width: 2.w,
+// //                                             height: 4.h,
+// //                                             color: Colors.red,
+// //                                           ),
+// //                                           SizedBox(height: 4.h),
+// //                                           Container(
+// //                                             width: 2.w,
+// //                                             height: 4.h,
+// //                                             color: Colors.red,
+// //                                           ),
+// //                                           SizedBox(height: 4.h),
+// //                                           Container(
+// //                                             width: 14.w,
+// //                                             height: 14.h,
+// //                                             decoration: BoxDecoration(
+// //                                               color: Colors.red,
+// //                                               shape: BoxShape.circle,
+// //                                             ),
+// //                                           ),
+// //                                         ],
+// //                                       ),
+// //                                   ],
+// //                                 ),
+// //                                 SizedBox(width: 15.w),
+// //                                 Expanded(
+// //                                   child: Column(
+// //                                     children: [
+// //                                       Container(
+// //                                         width: 338.w,
+// //                                         height: 50.h,
+// //                                         decoration: BoxDecoration(
+// //                                           color: Color(
+// //                                             ConstColors.fieldColor,
+// //                                           ).withOpacity(0.12),
+// //                                           borderRadius: BorderRadius.circular(
+// //                                             8.r,
+// //                                           ),
+// //                                         ),
+// //                                         child: TextField(
+// //                                           controller: fromController,
+// //                                           onTap: () {
+// //                                             setState(() {
+// //                                               _showDestinationField = true;
+// //                                             });
+// //                                           },
+// //                                           onChanged: (value) {
+// //                                             _checkBothFields();
+// //                                             if (value.isNotEmpty) {
+// //                                               Provider.of<LocationProvider>(
+// //                                                 context,
+// //                                                 listen: false,
+// //                                               ).addRecentLocation(value, value);
+// //                                             }
+// //                                           },
+// //                                           decoration: InputDecoration(
+// //                                             hintText: _showDestinationField
+// //                                                 ? 'From?'
+// //                                                 : 'Where to?',
+// //                                             prefixIcon: Icon(
+// //                                               Icons.search,
+// //                                               size: 20.sp,
+// //                                             ),
+// //                                             border: InputBorder.none,
+// //                                             contentPadding:
+// //                                                 EdgeInsets.symmetric(
+// //                                                   horizontal: 10.w,
+// //                                                   vertical: 8.h,
+// //                                                 ),
+// //                                           ),
+// //                                         ),
+// //                                       ),
+// //                                       if (_showDestinationField)
+// //                                         Column(
+// //                                           children: [
+// //                                             SizedBox(height: 10.h),
+// //                                             Container(
+// //                                               width: 338.w,
+// //                                               height: 50.h,
+// //                                               decoration: BoxDecoration(
+// //                                                 color: Color(
+// //                                                   ConstColors.fieldColor,
+// //                                                 ).withOpacity(0.12),
+// //                                                 borderRadius:
+// //                                                     BorderRadius.circular(8.r),
+// //                                               ),
+// //                                               child: TextField(
+// //                                                 controller: toController,
+// //                                                 onChanged: (value) {
+// //                                                   _checkBothFields();
+// //                                                 },
+// //                                                 decoration: InputDecoration(
+// //                                                   hintText: 'Where to?',
+// //                                                   prefixIcon: Icon(
+// //                                                     Icons.search,
+// //                                                     size: 20.sp,
+// //                                                   ),
+// //                                                   border: InputBorder.none,
+// //                                                   contentPadding:
+// //                                                       EdgeInsets.symmetric(
+// //                                                         horizontal: 10.w,
+// //                                                         vertical: 8.h,
+// //                                                       ),
+// //                                                 ),
+// //                                               ),
+// //                                             ),
+// //                                           ],
+// //                                         ),
+// //                                     ],
+// //                                   ),
+// //                                 ),
+// //                               ],
+// //                             ),
+// //                           ),
+// //                           SizedBox(height: 15.h),
+// //                           Padding(
+// //                             padding: EdgeInsets.symmetric(horizontal: 20.w),
+// //                             child: Align(
+// //                               alignment: Alignment.centerLeft,
+// //                               child: Text(
+// //                                 'Saved location',
+// //                                 style: ConstTextStyles.savedLocation,
+// //                               ),
+// //                             ),
+// //                           ),
+// //                           SizedBox(height: 10.h),
+// //                           Divider(thickness: 1, color: Colors.grey.shade300),
+// //                           ListTile(
+// //                             leading: Image.asset(
+// //                               ConstImages.add,
+// //                               width: 24.w,
+// //                               height: 24.h,
+// //                             ),
+// //                             title: Text(
+// //                               'Add home location',
+// //                               style: ConstTextStyles.locationItem,
+// //                             ),
+// //                             onTap: () {
+// //                               Navigator.push(
+// //                                 context,
+// //                                 MaterialPageRoute(
+// //                                   builder: (context) => const AddHomeScreen(),
+// //                                 ),
+// //                               );
+// //                             },
+// //                           ),
+// //                           Divider(thickness: 1, color: Colors.grey.shade300),
+// //                           ListTile(
+// //                             leading: Image.asset(
+// //                               ConstImages.add,
+// //                               width: 24.w,
+// //                               height: 24.h,
+// //                             ),
+// //                             title: Text(
+// //                               'Add work location',
+// //                               style: ConstTextStyles.locationItem,
+// //                             ),
+// //                           ),
+// //                           Divider(thickness: 1, color: Colors.grey.shade300),
+// //                           ListTile(
+// //                             leading: Image.asset(
+// //                               ConstImages.add,
+// //                               width: 24.w,
+// //                               height: 24.h,
+// //                             ),
+// //                             title: Text(
+// //                               'Add favourite location',
+// //                               style: ConstTextStyles.locationItem,
+// //                             ),
+// //                             onTap: () {
+// //                               Navigator.push(
+// //                                 context,
+// //                                 MaterialPageRoute(
+// //                                   builder: (context) =>
+// //                                       const AddFavouriteScreen(),
+// //                                 ),
+// //                               );
+// //                             },
+// //                           ),
+// //                           SizedBox(height: 15.h),
+// //                           Padding(
+// //                             padding: EdgeInsets.symmetric(horizontal: 20.w),
+// //                             child: Align(
+// //                               alignment: Alignment.centerLeft,
+// //                               child: Text(
+// //                                 'Recent locations',
+// //                                 style: ConstTextStyles.recentLocation.copyWith(
+// //                                   color: Color(ConstColors.recentLocationColor),
+// //                                 ),
+// //                               ),
+// //                             ),
+// //                           ),
+// //                           SizedBox(height: 10.h),
+// //                           Divider(thickness: 1, color: Colors.grey.shade300),
+// //                           Consumer<LocationProvider>(
+// //                             builder: (context, locationProvider, child) {
+// //                               final allLocations = <Widget>[];
+
+//                               // Add favourite locations with star icon
+//                               for (final fav
+//                                   in locationProvider.favouriteLocations) {
+//                                 allLocations.add(
+//                                   Column(
+//                                     children: [
+//                                       ListTile(
+//                                         leading: Image.asset(
+//                                           ConstImages.locationPin,
+//                                           width: 24.w,
+//                                           height: 24.h,
+//                                         ),
+//                                         title: Text(
+//                                           fav.name,
+//                                           style: ConstTextStyles.drawerItem1,
+//                                         ),
+//                                         subtitle: Text(
+//                                           fav.destAddress,
+//                                           style: TextStyle(
+//                                             fontSize: 12.sp,
+//                                             color: Colors.grey,
+//                                           ),
+//                                         ),
+//                                         trailing: GestureDetector(
+//                                           onTap: () async {
+//                                             final success =
+//                                                 await locationProvider
+//                                                     .deleteFavouriteLocation(
+//                                                       fav.id,
+//                                                     );
+//                                             if (success) {
+//                                               CustomFlushbar.showInfo(
+//                                                 context: context,
+//                                                 message: 'Favourite removed',
+//                                               );
+//                                             }
+//                                           },
+//                                           child: Icon(
+//                                             Icons.star,
+//                                             size: 20.sp,
+//                                             color: Colors.black,
+//                                           ),
+//                                         ),
+//                                         onTap: () {
+//                                           toController.text = fav.name;
+//                                           _checkBothFields();
+//                                         },
+//                                       ),
+//                                       Divider(
+//                                         thickness: 1,
+//                                         color: Colors.grey.shade300,
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 );
+//                               }
+
+// //                               // Add recent locations without star
+// //                               for (final recent
+// //                                   in locationProvider.recentLocations) {
+// //                                 if (!recent.isFavourite) {
+// //                                   allLocations.add(
+// //                                     Column(
+// //                                       children: [
+// //                                         ListTile(
+// //                                           leading: Image.asset(
+// //                                             ConstImages.locationPin,
+// //                                             width: 24.w,
+// //                                             height: 24.h,
+// //                                           ),
+// //                                           title: Text(
+// //                                             recent.name,
+// //                                             style: ConstTextStyles.drawerItem1,
+// //                                           ),
+// //                                           subtitle: Text(
+// //                                             recent.address,
+// //                                             style: TextStyle(
+// //                                               fontSize: 12.sp,
+// //                                               color: Colors.grey,
+// //                                             ),
+// //                                           ),
+// //                                           onTap: () {
+// //                                             toController.text = recent.name;
+// //                                             _checkBothFields();
+// //                                           },
+// //                                         ),
+// //                                         if (allLocations.length <
+// //                                             locationProvider
+// //                                                     .favouriteLocations
+// //                                                     .length +
+// //                                                 locationProvider.recentLocations
+// //                                                     .where(
+// //                                                       (r) => !r.isFavourite,
+// //                                                     )
+// //                                                     .length)
+// //                                           Divider(
+// //                                             thickness: 1,
+// //                                             color: Colors.grey.shade300,
+// //                                           ),
+// //                                       ],
+// //                                     ),
+// //                                   );
+// //                                 }
+// //                               }
+
+// //                               return Column(children: allLocations);
+// //                             },
+// //                           ),
+// //                         ],
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ],
+// //             ),
+// //     );
+// //   }
+
+// //   void _checkBothFields() {
+// //     if (fromController.text.isNotEmpty && toController.text.isNotEmpty) {
+// //       _showVehicleSelection();
+// //     }
+// //   }
+
+// //   void _showVehicleSelection() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => StatefulBuilder(
+// //         builder: (context, setModalState) => Container(
+// //           height: 600.h,
+// //           padding: EdgeInsets.all(20.w),
+// //           decoration: BoxDecoration(
+// //             color: Colors.white,
+// //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //           ),
+// //           child: SingleChildScrollView(
+// //             child: Column(
+// //               crossAxisAlignment: CrossAxisAlignment.start,
+// //               children: [
+// //                 Container(
+// //                   width: 69.w,
+// //                   height: 5.h,
+// //                   margin: EdgeInsets.only(bottom: 20.h),
+// //                   decoration: BoxDecoration(
+// //                     color: Colors.grey.shade300,
+// //                     borderRadius: BorderRadius.circular(2.5.r),
+// //                   ),
+// //                 ),
+// //                 Row(
+// //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// //                   children: [
+// //                     Text(
+// //                       'Select your vehicle',
+// //                       style: ConstTextStyles.addHomeTitle,
+// //                     ),
+// //                     GestureDetector(
+// //                       onTap: () => Navigator.pop(context),
+// //                       child: Icon(Icons.close, size: 24.sp),
+// //                     ),
+// //                   ],
+// //                 ),
+// //                 SizedBox(height: 20.h),
+// //                 Divider(thickness: 1, color: Colors.grey.shade300),
+// //                 SizedBox(height: 20.h),
+// //                 _buildVehicleOption(
+// //                   0,
+// //                   'Regular vehicle',
+// //                   '20 min | 4 passengers',
+// //                   '₦12,000',
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 15.h),
+// //                 _buildVehicleOption(
+// //                   1,
+// //                   'Fancy vehicle',
+// //                   '20 min | 4 passengers',
+// //                   '₦12,000',
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 15.h),
+// //                 _buildVehicleOption(
+// //                   2,
+// //                   'VIP',
+// //                   '20 min | 4 passengers',
+// //                   '₦12,000',
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 30.h),
+// //                 Text('Delivery service', style: ConstTextStyles.deliveryTitle),
+// //                 SizedBox(height: 20.h),
+// //                 _buildDeliveryOption(
+// //                   0,
+// //                   'Bicycle',
+// //                   '20 min',
+// //                   '₦12,000',
+// //                   ConstImages.bike,
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 15.h),
+// //                 _buildDeliveryOption(
+// //                   1,
+// //                   'Vehicle',
+// //                   '20 min',
+// //                   '₦12,000',
+// //                   ConstImages.car,
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 15.h),
+// //                 _buildDeliveryOption(
+// //                   2,
+// //                   'Motor bike',
+// //                   '20 min',
+// //                   '₦12,000',
+// //                   ConstImages.car,
+// //                   setModalState,
+// //                 ),
+// //                 SizedBox(height: 30.h),
+// //                 Container(
+// //                   width: 353.w,
+// //                   height: 48.h,
+// //                   decoration: BoxDecoration(
+// //                     color: (selectedVehicle != null || selectedDelivery != null)
+// //                         ? Color(ConstColors.mainColor)
+// //                         : Color(ConstColors.fieldColor),
+// //                     borderRadius: BorderRadius.circular(8.r),
+// //                   ),
+// //                   child: GestureDetector(
+// //                     onTap: (selectedVehicle != null || selectedDelivery != null)
+// //                         ? () {
+// //                             Navigator.pop(context);
+// //                             _showBookingDetails();
+// //                           }
+// //                         : null,
+// //                     child: Center(
+// //                       child: Text(
+// //                         'Select vehicle',
+// //                         style: TextStyle(
+// //                           color: Colors.white,
+// //                           fontSize: 16.sp,
+// //                           fontWeight: FontWeight.w600,
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ],
+// //             ),
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildVehicleOption(
+// //     int index,
+// //     String title,
+// //     String subtitle,
+// //     String price,
+// //     StateSetter setModalState,
+// //   ) {
+// //     final isSelected = selectedVehicle == index;
+// //     return GestureDetector(
+// //       onTap: () {
+// //         setState(() {
+// //           selectedVehicle = index;
+// //           selectedDelivery = null;
+// //         });
+// //         setModalState(() {});
+// //       },
+// //       child: Container(
+// //         width: 353.w,
+// //         height: 65.h,
+// //         padding: EdgeInsets.symmetric(horizontal: 8.w),
+// //         decoration: BoxDecoration(
+// //           color: isSelected ? Color(ConstColors.mainColor) : Colors.transparent,
+// //           border: Border.all(
+// //             color: isSelected
+// //                 ? Color(ConstColors.mainColor)
+// //                 : Colors.grey.shade300,
+// //             width: 0.7,
+// //           ),
+// //           borderRadius: BorderRadius.circular(12.r),
+// //         ),
+// //         child: Row(
+// //           children: [
+// //             Image.asset(ConstImages.car, width: 55.w, height: 26.h),
+// //             SizedBox(width: 15.w),
+// //             Expanded(
+// //               child: Column(
+// //                 crossAxisAlignment: CrossAxisAlignment.start,
+// //                 mainAxisAlignment: MainAxisAlignment.center,
+// //                 children: [
+// //                   Text(
+// //                     title,
+// //                     style: ConstTextStyles.vehicleTitle.copyWith(
+// //                       color: isSelected ? Colors.white : Colors.black,
+// //                     ),
+// //                   ),
+// //                   Text(
+// //                     subtitle,
+// //                     style: ConstTextStyles.vehicleSubtitle.copyWith(
+// //                       color: isSelected ? Colors.white : Colors.black,
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //             ),
+// //             Text(
+// //               price,
+// //               style: ConstTextStyles.vehicleTitle.copyWith(
+// //                 color: isSelected ? Colors.white : Colors.black,
+// //               ),
+// //             ),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildDeliveryOption(
+// //     int index,
+// //     String title,
+// //     String subtitle,
+// //     String price,
+// //     String imagePath,
+// //     StateSetter setModalState,
+// //   ) {
+// //     final isSelected = selectedDelivery == index;
+// //     return GestureDetector(
+// //       onTap: () {
+// //         setState(() {
+// //           selectedDelivery = index;
+// //           selectedVehicle = null;
+// //         });
+// //         setModalState(() {});
+// //       },
+// //       child: Container(
+// //         width: 353.w,
+// //         height: 65.h,
+// //         padding: EdgeInsets.symmetric(horizontal: 8.w),
+// //         decoration: BoxDecoration(
+// //           color: isSelected ? Color(ConstColors.mainColor) : Colors.transparent,
+// //           border: Border.all(
+// //             color: isSelected
+// //                 ? Color(ConstColors.mainColor)
+// //                 : Colors.grey.shade300,
+// //             width: 0.7,
+// //           ),
+// //           borderRadius: BorderRadius.circular(12.r),
+// //         ),
+// //         child: Row(
+// //           children: [
+// //             Image.asset(imagePath, width: 55.w, height: 26.h),
+// //             SizedBox(width: 15.w),
+// //             Expanded(
+// //               child: Column(
+// //                 crossAxisAlignment: CrossAxisAlignment.start,
+// //                 mainAxisAlignment: MainAxisAlignment.center,
+// //                 children: [
+// //                   Text(
+// //                     title,
+// //                     style: ConstTextStyles.vehicleTitle.copyWith(
+// //                       color: isSelected ? Colors.white : Colors.black,
+// //                     ),
+// //                   ),
+// //                   Text(
+// //                     subtitle,
+// //                     style: ConstTextStyles.vehicleSubtitle.copyWith(
+// //                       color: isSelected ? Colors.white : Colors.black,
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //             ),
+// //             Text(
+// //               price,
+// //               style: ConstTextStyles.vehicleTitle.copyWith(
+// //                 color: isSelected ? Colors.white : Colors.black,
+// //               ),
+// //             ),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showBookingDetails() {
+// //     final selectedOption = selectedVehicle != null
+// //         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+// //         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => StatefulBuilder(
+// //         builder: (context, setBookingState) => Container(
+// //           height: 400.h,
+// //           padding: EdgeInsets.all(20.w),
+// //           decoration: BoxDecoration(
+// //             color: Colors.white,
+// //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //           ),
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               GestureDetector(
+// //                 onTap: () => _showAddNoteSheet(),
+// //                 child: Column(
+// //                   children: [
+// //                     Icon(Icons.message, size: 25.67.w),
+// //                     SizedBox(height: 4.67.h),
+// //                     Text(
+// //                       'Add note',
+// //                       textAlign: TextAlign.center,
+// //                       style: TextStyle(
+// //                         fontFamily: 'Inter',
+// //                         fontSize: 16.sp,
+// //                         fontWeight: FontWeight.w400,
+// //                         height: 22 / 16,
+// //                         letterSpacing: -0.41,
+// //                         color: Colors.black,
+// //                       ),
+// //                     ),
+// //                   ],
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Row(
+// //                 children: [
+// //                   Image.asset(
+// //                     selectedVehicle != null
+// //                         ? ConstImages.car
+// //                         : ConstImages.bike,
+// //                     width: 55.w,
+// //                     height: 26.h,
+// //                   ),
+// //                   SizedBox(width: 15.w),
+// //                   Expanded(
+// //                     child: Column(
+// //                       crossAxisAlignment: CrossAxisAlignment.start,
+// //                       children: [
+// //                         Text(
+// //                           selectedOption,
+// //                           style: ConstTextStyles.vehicleTitle,
+// //                         ),
+// //                         Text(
+// //                           '4 passengers',
+// //                           style: ConstTextStyles.vehicleSubtitle,
+// //                         ),
+// //                       ],
+// //                     ),
+// //                   ),
+// //                   Column(
+// //                     crossAxisAlignment: CrossAxisAlignment.end,
+// //                     children: [
+// //                       Text('₦12,000', style: ConstTextStyles.vehicleTitle),
+// //                       Text(
+// //                         'Fixed',
+// //                         style: ConstTextStyles.fixedPrice.copyWith(
+// //                           color: Color(ConstColors.recentLocationColor),
+// //                         ),
+// //                       ),
+// //                     ],
+// //                   ),
+// //                   SizedBox(width: 10.w),
+// //                   GestureDetector(
+// //                     onTap: () {
+// //                       Navigator.pop(context);
+// //                       _showVehicleSelection();
+// //                     },
+// //                     child: Icon(Icons.arrow_forward_ios, size: 16.sp),
+// //                   ),
+// //                 ],
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               GestureDetector(
+// //                 onTap: () => _showPaymentMethods(),
+// //                 child: Row(
+// //                   children: [
+// //                     Image.asset(ConstImages.wallet, width: 24.w, height: 24.h),
+// //                     SizedBox(width: 15.w),
+// //                     Expanded(
+// //                       child: Text(
+// //                         selectedPaymentMethod,
+// //                         style: ConstTextStyles.vehicleTitle,
+// //                       ),
+// //                     ),
+// //                     Icon(Icons.arrow_forward_ios, size: 16.sp),
+// //                   ],
+// //                 ),
+// //               ),
+// //               Spacer(),
+// //               Row(
+// //                 children: [
+// //                   GestureDetector(
+// //                     onTap: () {
+// //                       Navigator.pop(context);
+// //                       _showPrebookSheet();
+// //                     },
+// //                     child: Container(
+// //                       width: 170.w,
+// //                       height: 47.h,
+// //                       padding: EdgeInsets.all(10.w),
+// //                       decoration: BoxDecoration(
+// //                         color: Colors.white,
+// //                         border: Border.all(color: Color(ConstColors.mainColor)),
+// //                         borderRadius: BorderRadius.circular(8.r),
+// //                       ),
+// //                       child: Center(
+// //                         child: Text(
+// //                           'Book Later',
+// //                           style: TextStyle(
+// //                             color: Color(ConstColors.mainColor),
+// //                             fontSize: 16.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ),
+// //                   SizedBox(width: 10.w),
+// //                   GestureDetector(
+// //                     onTap: () {
+// //                       Navigator.pop(context);
+// //                       _showBookingRequestSheet();
+// //                     },
+// //                     child: Container(
+// //                       width: 170.w,
+// //                       height: 47.h,
+// //                       padding: EdgeInsets.all(10.w),
+// //                       decoration: BoxDecoration(
+// //                         color: Color(ConstColors.mainColor),
+// //                         borderRadius: BorderRadius.circular(8.r),
+// //                       ),
+// //                       child: Center(
+// //                         child: Text(
+// //                           'Book Now',
+// //                           style: TextStyle(
+// //                             color: Colors.white,
+// //                             fontSize: 16.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showPaymentMethods() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         padding: EdgeInsets.all(20.w),
+// //         child: Column(
+// //           mainAxisSize: MainAxisSize.min,
+// //           children: [
+// //             Container(
+// //               width: 69.w,
+// //               height: 5.h,
+// //               margin: EdgeInsets.only(bottom: 20.h),
+// //               decoration: BoxDecoration(
+// //                 color: Colors.grey.shade300,
+// //                 borderRadius: BorderRadius.circular(2.5.r),
+// //               ),
+// //             ),
+// //             Row(
+// //               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// //               children: [
+// //                 Text(
+// //                   'Choose payment method',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 18.sp,
+// //                     fontWeight: FontWeight.w600,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //                 GestureDetector(
+// //                   onTap: () => Navigator.pop(context),
+// //                   child: Icon(Icons.close, size: 24.sp),
+// //                 ),
+// //               ],
+// //             ),
+// //             SizedBox(height: 20.h),
+// //             _buildPaymentOption('Pay with wallet'),
+// //             Divider(thickness: 1, color: Colors.grey.shade300),
+// //             _buildPaymentOption('Pay with card'),
+// //             Divider(thickness: 1, color: Colors.grey.shade300),
+// //             _buildPaymentOption('pay4me'),
+// //             Divider(thickness: 1, color: Colors.grey.shade300),
+// //             _buildPaymentOption('Pay in car'),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildPaymentOption(String method) {
+// //     final isSelected = selectedPaymentMethod == method;
+// //     return GestureDetector(
+// //       onTap: () {
+// //         setState(() {
+// //           selectedPaymentMethod = method;
+// //         });
+// //         Navigator.pop(context);
+// //       },
+// //       child: Padding(
+// //         padding: EdgeInsets.symmetric(vertical: 15.h),
+// //         child: Row(
+// //           children: [
+// //             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
+// //             if (isSelected) Icon(Icons.check, color: Colors.green, size: 20.sp),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showAddNoteSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => StatefulBuilder(
+// //         builder: (context, setNoteState) => Container(
+// //           height: 300.h,
+// //           padding: EdgeInsets.all(20.w),
+// //           decoration: BoxDecoration(
+// //             color: Colors.white,
+// //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //           ),
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               Text(
+// //                 'Add note',
+// //                 style: TextStyle(
+// //                   fontFamily: 'Inter',
+// //                   fontSize: 18.sp,
+// //                   fontWeight: FontWeight.w600,
+// //                   color: Colors.black,
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Container(
+// //                 width: 350.w,
+// //                 height: 111.h,
+// //                 padding: EdgeInsets.all(10.w),
+// //                 decoration: BoxDecoration(
+// //                   color: Color(0xFFB1B1B1).withOpacity(0.2),
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: TextField(
+// //                   controller: noteController,
+// //                   maxLines: null,
+// //                   expands: true,
+// //                   onChanged: (value) {
+// //                     setNoteState(() {});
+// //                   },
+// //                   decoration: InputDecoration(
+// //                     hintText: 'Type your note here...',
+// //                     border: InputBorder.none,
+// //                     contentPadding: EdgeInsets.zero,
+// //                   ),
+// //                 ),
+// //               ),
+// //               Spacer(),
+// //               Container(
+// //                 width: 353.w,
+// //                 height: 48.h,
+// //                 decoration: BoxDecoration(
+// //                   color: noteController.text.isNotEmpty
+// //                       ? Color(ConstColors.mainColor)
+// //                       : Color(ConstColors.fieldColor),
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: GestureDetector(
+// //                   onTap: noteController.text.isNotEmpty
+// //                       ? () {
+// //                           Navigator.pop(context);
+// //                         }
+// //                       : null,
+// //                   child: Center(
+// //                     child: Text(
+// //                       'Submit',
+// //                       style: TextStyle(
+// //                         color: Colors.white,
+// //                         fontSize: 16.sp,
+// //                         fontWeight: FontWeight.w600,
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+//   Widget _buildDrawer() {
+//     return Drawer(
+//       child: Column(
+//         children: [
+//           SizedBox(height: 60.h),
+//           Padding(
+//             padding: EdgeInsets.symmetric(horizontal: 20.w),
+//             child: Row(
+//               children: [
+//                 Image.asset(ConstImages.avatar, width: 60.w, height: 60.h),
+//                 SizedBox(width: 15.w),
+//                 Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text('John Doe', style: ConstTextStyles.drawerName),
+//                     GestureDetector(
+//                       onTap: () {
+//                         Navigator.pop(context);
+//                         Navigator.push(
+//                           context,
+//                           MaterialPageRoute(
+//                             builder: (context) => ProfileScreen(),
+//                           ),
+//                         );
+//                       },
+//                       child: Text(
+//                         'My Account',
+//                         style: ConstTextStyles.drawerAccount.copyWith(
+//                           color: Color(ConstColors.drawerAccountColor),
+//                         ),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ],
+//             ),
+//           ),
+//           SizedBox(height: 20.h),
+//           Divider(thickness: 1, color: Colors.grey.shade300),
+//           _buildDrawerItem('Book a trip', ConstImages.car),
+//           _buildDrawerItem('Activities', ConstImages.serviceEscort),
+//           _buildDrawerItem(
+//             'Wallet',
+//             ConstImages.wallet,
+//             onTap: _navigateToWallet,
+//           ),
+//           _buildDrawerItem('Drive with us', ConstImages.car),
+//           _buildDrawerItem(
+//             'Tip',
+//             ConstImages.tip,
+//             onTap: () {
+//               Navigator.pop(context);
+//               Navigator.push(
+//                 context,
+//                 MaterialPageRoute(builder: (context) => const TipScreen()),
+//               );
+//             },
+//           ),
+//           _buildDrawerItem(
+//             'Promo code',
+//             ConstImages.code,
+//             onTap: () {
+//               Navigator.pop(context);
+//               Navigator.push(
+//                 context,
+//                 MaterialPageRoute(builder: (context) => PromoCodeScreen()),
+//               );
+//             },
+//           ),
+//           _buildDrawerItem(
+//             'Referral',
+//             ConstImages.referral,
+//             onTap: () {
+//               Navigator.pop(context);
+//               Navigator.push(
+//                 context,
+//                 MaterialPageRoute(builder: (context) => ReferralScreen()),
+//               );
+//             },
+//           ),
+//           _buildDrawerItem(
+//             'Contact Us',
+//             ConstImages.phoneCall,
+//             onTap: _showContactBottomSheet,
+//           ),
+//           _buildDrawerItem('FAQ', ConstImages.faq),
+//           _buildDrawerItem('About', ConstImages.about),
+//         ],
+//       ),
+//     );
+//   }
+
+// //   void _showPrebookSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => StatefulBuilder(
+// //         builder: (context, setPrebookState) => Container(
+// //           height: 450.h,
+// //           padding: EdgeInsets.all(20.w),
+// //           decoration: BoxDecoration(
+// //             color: Colors.white,
+// //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //           ),
+// //           child: SingleChildScrollView(
+// //             child: Column(
+// //               children: [
+// //                 Container(
+// //                   width: 69.w,
+// //                   height: 5.h,
+// //                   margin: EdgeInsets.only(bottom: 20.h),
+// //                   decoration: BoxDecoration(
+// //                     color: Colors.grey.shade300,
+// //                     borderRadius: BorderRadius.circular(2.5.r),
+// //                   ),
+// //                 ),
+// //                 Align(
+// //                   alignment: Alignment.centerLeft,
+// //                   child: Text(
+// //                     'Prebook a vehicle',
+// //                     style: TextStyle(
+// //                       fontFamily: 'Inter',
+// //                       fontSize: 18.sp,
+// //                       fontWeight: FontWeight.w600,
+// //                       color: Colors.black,
+// //                     ),
+// //                   ),
+// //                 ),
+// //                 SizedBox(height: 20.h),
+// //                 Text(
+// //                   'Select time and date',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 14.sp,
+// //                     fontWeight: FontWeight.w400,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //                 SizedBox(height: 20.h),
+// //                 Divider(thickness: 1, color: Colors.grey.shade300),
+// //                 ListTile(
+// //                   leading: Image.asset(
+// //                     ConstImages.activities,
+// //                     width: 24.w,
+// //                     height: 24.h,
+// //                   ),
+// //                   title: Text(
+// //                     'Date',
+// //                     style: TextStyle(
+// //                       fontFamily: 'Inter',
+// //                       fontSize: 14.sp,
+// //                       fontWeight: FontWeight.w400,
+// //                       height: 1.0,
+// //                       letterSpacing: -0.32,
+// //                       color: Color(0xFFB1B1B1),
+// //                     ),
+// //                   ),
+// //                   subtitle: Text(
+// //                     '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
+// //                     style: ConstTextStyles.vehicleTitle,
+// //                   ),
+// //                   trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+// //                   onTap: () async {
+// //                     final DateTime? picked = await showDatePicker(
+// //                       context: context,
+// //                       initialDate: selectedDate,
+// //                       firstDate: DateTime.now(),
+// //                       lastDate: DateTime.now().add(Duration(days: 365)),
+// //                     );
+// //                     if (picked != null && picked != selectedDate) {
+// //                       setPrebookState(() {
+// //                         selectedDate = picked;
+// //                       });
+// //                     }
+// //                   },
+// //                 ),
+// //                 Divider(thickness: 1, color: Colors.grey.shade300),
+// //                 ListTile(
+// //                   leading: Image.asset(
+// //                     'assets/images/time.png',
+// //                     width: 24.w,
+// //                     height: 24.h,
+// //                   ),
+// //                   title: Text(
+// //                     'Time',
+// //                     style: TextStyle(
+// //                       fontFamily: 'Inter',
+// //                       fontSize: 14.sp,
+// //                       fontWeight: FontWeight.w400,
+// //                       height: 1.0,
+// //                       letterSpacing: -0.32,
+// //                       color: Color(0xFFB1B1B1),
+// //                     ),
+// //                   ),
+// //                   subtitle: Text(
+// //                     '${selectedTime.format(context)}',
+// //                     style: ConstTextStyles.vehicleTitle,
+// //                   ),
+// //                   trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+// //                   onTap: () async {
+// //                     final TimeOfDay? picked = await showTimePicker(
+// //                       context: context,
+// //                       initialTime: selectedTime,
+// //                     );
+// //                     if (picked != null && picked != selectedTime) {
+// //                       setPrebookState(() {
+// //                         selectedTime = picked;
+// //                       });
+// //                     }
+// //                   },
+// //                 ),
+// //                 SizedBox(height: 30.h),
+// //                 Column(
+// //                   children: [
+// //                     Container(
+// //                       width: 353.w,
+// //                       height: 48.h,
+// //                       decoration: BoxDecoration(
+// //                         color: Colors.white,
+// //                         border: Border.all(color: Color(ConstColors.mainColor)),
+// //                         borderRadius: BorderRadius.circular(8.r),
+// //                       ),
+// //                       child: GestureDetector(
+// //                         onTap: () {
+// //                           setPrebookState(() {
+// //                             selectedDate = DateTime.now();
+// //                             selectedTime = TimeOfDay.now();
+// //                           });
+// //                         },
+// //                         child: Center(
+// //                           child: Text(
+// //                             'Reset to now',
+// //                             style: TextStyle(
+// //                               color: Color(ConstColors.mainColor),
+// //                               fontSize: 16.sp,
+// //                               fontWeight: FontWeight.w600,
+// //                             ),
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                     SizedBox(height: 10.h),
+// //                     Container(
+// //                       width: 353.w,
+// //                       height: 48.h,
+// //                       decoration: BoxDecoration(
+// //                         color: Color(ConstColors.mainColor),
+// //                         borderRadius: BorderRadius.circular(8.r),
+// //                       ),
+// //                       child: GestureDetector(
+// //                         onTap: () {
+// //                           Navigator.pop(context);
+// //                           _showTripScheduledSheet();
+// //                         },
+// //                         child: Center(
+// //                           child: Text(
+// //                             'Set pick date and time',
+// //                             style: TextStyle(
+// //                               color: Colors.white,
+// //                               fontSize: 16.sp,
+// //                               fontWeight: FontWeight.w600,
+// //                             ),
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ],
+// //                 ),
+// //               ],
+// //             ),
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   String _getWeekday(int weekday) {
+// //     const weekdays = [
+// //       'Monday',
+// //       'Tuesday',
+// //       'Wednesday',
+// //       'Thursday',
+// //       'Friday',
+// //       'Saturday',
+// //       'Sunday',
+// //     ];
+// //     return weekdays[weekday - 1];
+// //   }
+
+// //   String _getMonth(int month) {
+// //     const months = [
+// //       'January',
+// //       'February',
+// //       'March',
+// //       'April',
+// //       'May',
+// //       'June',
+// //       'July',
+// //       'August',
+// //       'September',
+// //       'October',
+// //       'November',
+// //       'December',
+// //     ];
+// //     return months[month - 1];
+// //   }
+
+// //   void _showBookingRequestSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         height: 380.h,
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: SingleChildScrollView(
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               Text(
+// //                 'Booking request successful',
+// //                 style: TextStyle(
+// //                   fontFamily: 'Inter',
+// //                   fontSize: 18.sp,
+// //                   fontWeight: FontWeight.w600,
+// //                   color: Colors.black,
+// //                 ),
+// //               ),
+// //               SizedBox(height: 10.h),
+// //               Text(
+// //                 'You\'ll receive a push notification when your driver is assigned.',
+// //                 textAlign: TextAlign.center,
+// //                 style: TextStyle(
+// //                   fontFamily: 'Inter',
+// //                   fontSize: 12.sp,
+// //                   fontWeight: FontWeight.w400,
+// //                   height: 1.0,
+// //                   letterSpacing: -0.32,
+// //                   color: Colors.black,
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Container(
+// //                 padding: EdgeInsets.all(15.w),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade50,
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: Column(
+// //                   children: [
+// //                     Row(
+// //                       children: [
+// //                         Container(
+// //                           width: 6.w,
+// //                           height: 6.h,
+// //                           decoration: BoxDecoration(
+// //                             color: Color(ConstColors.mainColor),
+// //                             shape: BoxShape.circle,
+// //                           ),
+// //                         ),
+// //                         SizedBox(width: 10.w),
+// //                         Text(
+// //                           'Pick Up',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                     SizedBox(height: 5.h),
+// //                     Align(
+// //                       alignment: Alignment.centerLeft,
+// //                       child: Padding(
+// //                         padding: EdgeInsets.only(left: 16.w),
+// //                         child: Text(
+// //                           'Nsukka, Enugu',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                     SizedBox(height: 15.h),
+// //                     Divider(thickness: 1, color: Colors.grey.shade300),
+// //                     SizedBox(height: 15.h),
+// //                     Row(
+// //                       children: [
+// //                         Container(
+// //                           width: 6.w,
+// //                           height: 6.h,
+// //                           decoration: BoxDecoration(
+// //                             color: Colors.red,
+// //                             shape: BoxShape.circle,
+// //                           ),
+// //                         ),
+// //                         SizedBox(width: 10.w),
+// //                         Text(
+// //                           'Destination',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                     SizedBox(height: 5.h),
+// //                     Align(
+// //                       alignment: Alignment.centerLeft,
+// //                       child: Padding(
+// //                         padding: EdgeInsets.only(left: 16.w),
+// //                         child: Text(
+// //                           'Ikeja, Lagos',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ],
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Container(
+// //                 width: 353.w,
+// //                 height: 48.h,
+// //                 decoration: BoxDecoration(
+// //                   color: Color(ConstColors.mainColor),
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: GestureDetector(
+// //                   onTap: () {
+// //                     Navigator.pop(context);
+// //                     _showBookSuccessfulSheet();
+// //                   },
+// //                   child: Center(
+// //                     child: Text(
+// //                       'View Trip',
+// //                       style: TextStyle(
+// //                         color: Colors.white,
+// //                         fontSize: 16.sp,
+// //                         fontWeight: FontWeight.w600,
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showBookSuccessfulSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         height: 300.h,
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: Column(
+// //           children: [
+// //             Container(
+// //               width: 69.w,
+// //               height: 5.h,
+// //               margin: EdgeInsets.only(bottom: 20.h),
+// //               decoration: BoxDecoration(
+// //                 color: Colors.grey.shade300,
+// //                 borderRadius: BorderRadius.circular(2.5.r),
+// //               ),
+// //             ),
+// //             Text(
+// //               'Book Successful',
+// //               style: TextStyle(
+// //                 fontFamily: 'Inter',
+// //                 fontSize: 18.sp,
+// //                 fontWeight: FontWeight.w600,
+// //                 height: 1.0,
+// //                 letterSpacing: -0.32,
+// //                 color: Colors.black,
+// //               ),
+// //             ),
+// //             SizedBox(height: 10.h),
+// //             Text(
+// //               'We are searching for available nearby driver',
+// //               textAlign: TextAlign.center,
+// //               style: TextStyle(
+// //                 fontFamily: 'Inter',
+// //                 fontSize: 12.sp,
+// //                 fontWeight: FontWeight.w400,
+// //                 height: 1.0,
+// //                 letterSpacing: -0.32,
+// //                 color: Colors.black,
+// //               ),
+// //             ),
+// //             SizedBox(height: 20.h),
+// //             Divider(thickness: 1, color: Colors.grey.shade300),
+// //             SizedBox(height: 20.h),
+// //             Container(
+// //               width: 353.w,
+// //               height: 10.h,
+// //               child: LinearProgressIndicator(
+// //                 backgroundColor: Colors.grey.shade300,
+// //                 valueColor: AlwaysStoppedAnimation<Color>(
+// //                   Color(ConstColors.mainColor),
+// //                 ),
+// //               ),
+// //             ),
+// //             Spacer(),
+// //             Container(
+// //               width: 353.w,
+// //               height: 48.h,
+// //               decoration: BoxDecoration(
+// //                 color: Color(ConstColors.mainColor),
+// //                 borderRadius: BorderRadius.circular(8.r),
+// //               ),
+// //               child: GestureDetector(
+// //                 onTap: () {
+// //                   Navigator.pop(context);
+// //                   _showTripDetailsSheet();
+// //                 },
+// //                 child: Center(
+// //                   child: Text(
+// //                     'Trip Details',
+// //                     style: TextStyle(
+// //                       color: Colors.white,
+// //                       fontSize: 16.sp,
+// //                       fontWeight: FontWeight.w600,
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showTripDetailsSheet() {
+// //     final selectedOption = selectedVehicle != null
+// //         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+// //         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+
+//   }
+  
+//   void _checkBothFields() {
+//     // Placeholder method
+//   }
+  
+//   Widget _buildDrawerItem(String title, String iconPath, {VoidCallback? onTap}) {
+//     return ListTile(
+//       leading: Image.asset(iconPath, width: 24.w, height: 24.h),
+//       title: Text(title, style: ConstTextStyles.drawerItem),
+//       onTap: onTap,
+//     );
+//   }
+  
 //   @override
 //   Widget build(BuildContext context) {
 //     return Scaffold(
@@ -303,2420 +7158,710 @@ class _HomeScreenState extends State<HomeScreen> {
 //           ? const ServicesScreen()
 //           : _currentIndex == 2
 //           ? ActivitiesScreen()
-//           : Stack(
-//               children: [
-//                 // Map background
-//                 // Container(
-//                 //   width: double.infinity,
-//                 //   height: double.infinity,
-//                 //   child: Image.asset(ConstImages.maps, fit: BoxFit.cover),
-//                 // ),
-//                 // Center map images
-//                 Positioned(
-//                   top: 270.h,
-//                   left: 84.w,
-//                   child: Column(
-//                     children: [
-//                       Image.asset(
-//                         ConstImages.locationTime,
-//                         width: 247.w,
-//                         height: 50.h,
-//                       ),
-//                       SizedBox(height: 10.h),
-//                       // Image.asset(
-//                       //   ConstImages.locationPin,
-//                       //   width: 30.w,
-//                       //   height: 30.h,
-//                       // ),
-//                     ],
-//                   ),
-//                 ),
-//                 // Drawer date
-//                 Positioned(
-//                   top: 66.h,
-//                   left: 20.w,
-//                   child: GestureDetector(
-//                     onTap: () => _scaffoldKey.currentState?.openDrawer(),
-//                     child: Container(
-//                       width: 50.w,
-//                       height: 50.h,
-//                       decoration: BoxDecoration(
-//                         color: Colors.white,
-//                         borderRadius: BorderRadius.circular(25.r),
-//                       ),
-//                       padding: EdgeInsets.all(10.w),
-//                       child: Icon(Icons.menu, size: 24.sp),
-//                     ),
-//                   ),
-//                 ),
-//                 // Bottom sheet
-//                 Positioned(
-//                   bottom: _isBottomSheetVisible ? 0 : -294.h,
-//                   left: 0,
-//                   right: 0,
-//                   child: Container(
-//                     height: 344.h,
-//                     width: 393.w,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.only(
-//                         topLeft: Radius.circular(20.r),
-//                         topRight: Radius.circular(20.r),
-//                       ),
-//                     ),
-//                     child: SingleChildScrollView(
-//                       child: Column(
-//                         children: [
-//                           GestureDetector(
-//                             onTap: () {
-//                               setState(() {
-//                                 _isBottomSheetVisible = !_isBottomSheetVisible;
-//                               });
-//                             },
-//                             child: Container(
-//                               height: 50.h,
-//                               child: Column(
-//                                 children: [
-//                                   SizedBox(height: 11.75.h),
-//                                   Container(
-//                                     width: 69.w,
-//                                     height: 5.h,
-//                                     decoration: BoxDecoration(
-//                                       color: Colors.grey.shade300,
-//                                       borderRadius: BorderRadius.circular(
-//                                         2.5.r,
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ),
-//                           ),
-//                           SizedBox(height: 20.h),
-//                           Padding(
-//                             padding: EdgeInsets.symmetric(horizontal: 20.w),
-//                             child: Row(
-//                               children: [
-//                                 Column(
-//                                   children: [
-//                                     Container(
-//                                       width: 14.w,
-//                                       height: 14.h,
-//                                       decoration: BoxDecoration(
-//                                         color: Color(ConstColors.mainColor),
-//                                         shape: BoxShape.circle,
-//                                       ),
-//                                     ),
-//                                     if (_showDestinationField)
-//                                       Column(
-//                                         children: [
-//                                           SizedBox(height: 4.h),
-//                                           Container(
-//                                             width: 2.w,
-//                                             height: 4.h,
-//                                             color: Colors.red,
-//                                           ),
-//                                           SizedBox(height: 4.h),
-//                                           Container(
-//                                             width: 2.w,
-//                                             height: 4.h,
-//                                             color: Colors.red,
-//                                           ),
-//                                           SizedBox(height: 4.h),
-//                                           Container(
-//                                             width: 2.w,
-//                                             height: 4.h,
-//                                             color: Colors.red,
-//                                           ),
-//                                           SizedBox(height: 4.h),
-//                                           Container(
-//                                             width: 14.w,
-//                                             height: 14.h,
-//                                             decoration: BoxDecoration(
-//                                               color: Colors.red,
-//                                               shape: BoxShape.circle,
-//                                             ),
-//                                           ),
-//                                         ],
-//                                       ),
-//                                   ],
-//                                 ),
-//                                 SizedBox(width: 15.w),
-//                                 Expanded(
-//                                   child: Column(
-//                                     children: [
-//                                       Container(
-//                                         width: 338.w,
-//                                         height: 50.h,
-//                                         decoration: BoxDecoration(
-//                                           color: Color(
-//                                             ConstColors.fieldColor,
-//                                           ).withOpacity(0.12),
-//                                           borderRadius: BorderRadius.circular(
-//                                             8.r,
-//                                           ),
-//                                         ),
-//                                         child: TextField(
-//                                           controller: fromController,
-//                                           onTap: () {
-//                                             setState(() {
-//                                               _showDestinationField = true;
-//                                             });
-//                                           },
-//                                           onChanged: (value) {
-//                                             _checkBothFields();
-//                                             if (value.isNotEmpty) {
-//                                               Provider.of<LocationProvider>(
-//                                                 context,
-//                                                 listen: false,
-//                                               ).addRecentLocation(value, value);
-//                                             }
-//                                           },
-//                                           decoration: InputDecoration(
-//                                             hintText: _showDestinationField
-//                                                 ? 'From?'
-//                                                 : 'Where to?',
-//                                             prefixIcon: Icon(
-//                                               Icons.search,
-//                                               size: 20.sp,
-//                                             ),
-//                                             border: InputBorder.none,
-//                                             contentPadding:
-//                                                 EdgeInsets.symmetric(
-//                                                   horizontal: 10.w,
-//                                                   vertical: 8.h,
-//                                                 ),
-//                                           ),
-//                                         ),
-//                                       ),
-//                                       if (_showDestinationField)
-//                                         Column(
-//                                           children: [
-//                                             SizedBox(height: 10.h),
-//                                             Container(
-//                                               width: 338.w,
-//                                               height: 50.h,
-//                                               decoration: BoxDecoration(
-//                                                 color: Color(
-//                                                   ConstColors.fieldColor,
-//                                                 ).withOpacity(0.12),
-//                                                 borderRadius:
-//                                                     BorderRadius.circular(8.r),
-//                                               ),
-//                                               child: TextField(
-//                                                 controller: toController,
-//                                                 onChanged: (value) {
-//                                                   _checkBothFields();
-//                                                 },
-//                                                 decoration: InputDecoration(
-//                                                   hintText: 'Where to?',
-//                                                   prefixIcon: Icon(
-//                                                     Icons.search,
-//                                                     size: 20.sp,
-//                                                   ),
-//                                                   border: InputBorder.none,
-//                                                   contentPadding:
-//                                                       EdgeInsets.symmetric(
-//                                                         horizontal: 10.w,
-//                                                         vertical: 8.h,
-//                                                       ),
-//                                                 ),
-//                                               ),
-//                                             ),
-//                                           ],
-//                                         ),
-//                                     ],
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ),
-//                           SizedBox(height: 15.h),
-//                           Padding(
-//                             padding: EdgeInsets.symmetric(horizontal: 20.w),
-//                             child: Align(
-//                               alignment: Alignment.centerLeft,
-//                               child: Text(
-//                                 'Saved location',
-//                                 style: ConstTextStyles.savedLocation,
-//                               ),
-//                             ),
-//                           ),
-//                           SizedBox(height: 10.h),
-//                           Divider(thickness: 1, color: Colors.grey.shade300),
-//                           ListTile(
-//                             leading: Image.asset(
-//                               ConstImages.add,
-//                               width: 24.w,
-//                               height: 24.h,
-//                             ),
-//                             title: Text(
-//                               'Add home location',
-//                               style: ConstTextStyles.locationItem,
-//                             ),
-//                             onTap: () {
-//                               Navigator.push(
-//                                 context,
-//                                 MaterialPageRoute(
-//                                   builder: (context) => const AddHomeScreen(),
-//                                 ),
-//                               );
-//                             },
-//                           ),
-//                           Divider(thickness: 1, color: Colors.grey.shade300),
-//                           ListTile(
-//                             leading: Image.asset(
-//                               ConstImages.add,
-//                               width: 24.w,
-//                               height: 24.h,
-//                             ),
-//                             title: Text(
-//                               'Add work location',
-//                               style: ConstTextStyles.locationItem,
-//                             ),
-//                           ),
-//                           Divider(thickness: 1, color: Colors.grey.shade300),
-//                           ListTile(
-//                             leading: Image.asset(
-//                               ConstImages.add,
-//                               width: 24.w,
-//                               height: 24.h,
-//                             ),
-//                             title: Text(
-//                               'Add favourite location',
-//                               style: ConstTextStyles.locationItem,
-//                             ),
-//                             onTap: () {
-//                               Navigator.push(
-//                                 context,
-//                                 MaterialPageRoute(
-//                                   builder: (context) =>
-//                                       const AddFavouriteScreen(),
-//                                 ),
-//                               );
-//                             },
-//                           ),
-//                           SizedBox(height: 15.h),
-//                           Padding(
-//                             padding: EdgeInsets.symmetric(horizontal: 20.w),
-//                             child: Align(
-//                               alignment: Alignment.centerLeft,
-//                               child: Text(
-//                                 'Recent locations',
-//                                 style: ConstTextStyles.recentLocation.copyWith(
-//                                   color: Color(ConstColors.recentLocationColor),
-//                                 ),
-//                               ),
-//                             ),
-//                           ),
-//                           SizedBox(height: 10.h),
-//                           Divider(thickness: 1, color: Colors.grey.shade300),
-//                           Consumer<LocationProvider>(
-//                             builder: (context, locationProvider, child) {
-//                               final allLocations = <Widget>[];
-
-                              // Add favourite locations with star icon
-                              for (final fav
-                                  in locationProvider.favouriteLocations) {
-                                allLocations.add(
-                                  Column(
-                                    children: [
-                                      ListTile(
-                                        leading: Image.asset(
-                                          ConstImages.locationPin,
-                                          width: 24.w,
-                                          height: 24.h,
-                                        ),
-                                        title: Text(
-                                          fav.name,
-                                          style: ConstTextStyles.drawerItem1,
-                                        ),
-                                        subtitle: Text(
-                                          fav.destAddress,
-                                          style: TextStyle(
-                                            fontSize: 12.sp,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        trailing: GestureDetector(
-                                          onTap: () async {
-                                            final success =
-                                                await locationProvider
-                                                    .deleteFavouriteLocation(
-                                                      fav.id,
-                                                    );
-                                            if (success) {
-                                              CustomFlushbar.showInfo(
-                                                context: context,
-                                                message: 'Favourite removed',
-                                              );
-                                            }
-                                          },
-                                          child: Icon(
-                                            Icons.star,
-                                            size: 20.sp,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                        onTap: () {
-                                          toController.text = fav.name;
-                                          _checkBothFields();
-                                        },
-                                      ),
-                                      Divider(
-                                        thickness: 1,
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-
-//                               // Add recent locations without star
-//                               for (final recent
-//                                   in locationProvider.recentLocations) {
-//                                 if (!recent.isFavourite) {
-//                                   allLocations.add(
-//                                     Column(
-//                                       children: [
-//                                         ListTile(
-//                                           leading: Image.asset(
-//                                             ConstImages.locationPin,
-//                                             width: 24.w,
-//                                             height: 24.h,
-//                                           ),
-//                                           title: Text(
-//                                             recent.name,
-//                                             style: ConstTextStyles.drawerItem1,
-//                                           ),
-//                                           subtitle: Text(
-//                                             recent.address,
-//                                             style: TextStyle(
-//                                               fontSize: 12.sp,
-//                                               color: Colors.grey,
-//                                             ),
-//                                           ),
-//                                           onTap: () {
-//                                             toController.text = recent.name;
-//                                             _checkBothFields();
-//                                           },
-//                                         ),
-//                                         if (allLocations.length <
-//                                             locationProvider
-//                                                     .favouriteLocations
-//                                                     .length +
-//                                                 locationProvider.recentLocations
-//                                                     .where(
-//                                                       (r) => !r.isFavourite,
-//                                                     )
-//                                                     .length)
-//                                           Divider(
-//                                             thickness: 1,
-//                                             color: Colors.grey.shade300,
-//                                           ),
-//                                       ],
-//                                     ),
-//                                   );
-//                                 }
-//                               }
-
-//                               return Column(children: allLocations);
-//                             },
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//     );
-//   }
-
-//   void _checkBothFields() {
-//     if (fromController.text.isNotEmpty && toController.text.isNotEmpty) {
-//       _showVehicleSelection();
-//     }
-//   }
-
-//   void _showVehicleSelection() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => StatefulBuilder(
-//         builder: (context, setModalState) => Container(
-//           height: 600.h,
-//           padding: EdgeInsets.all(20.w),
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//           ),
-//           child: SingleChildScrollView(
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 Container(
-//                   width: 69.w,
-//                   height: 5.h,
-//                   margin: EdgeInsets.only(bottom: 20.h),
-//                   decoration: BoxDecoration(
-//                     color: Colors.grey.shade300,
-//                     borderRadius: BorderRadius.circular(2.5.r),
-//                   ),
-//                 ),
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     Text(
-//                       'Select your vehicle',
-//                       style: ConstTextStyles.addHomeTitle,
-//                     ),
-//                     GestureDetector(
-//                       onTap: () => Navigator.pop(context),
-//                       child: Icon(Icons.close, size: 24.sp),
-//                     ),
-//                   ],
-//                 ),
-//                 SizedBox(height: 20.h),
-//                 Divider(thickness: 1, color: Colors.grey.shade300),
-//                 SizedBox(height: 20.h),
-//                 _buildVehicleOption(
-//                   0,
-//                   'Regular vehicle',
-//                   '20 min | 4 passengers',
-//                   '₦12,000',
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 15.h),
-//                 _buildVehicleOption(
-//                   1,
-//                   'Fancy vehicle',
-//                   '20 min | 4 passengers',
-//                   '₦12,000',
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 15.h),
-//                 _buildVehicleOption(
-//                   2,
-//                   'VIP',
-//                   '20 min | 4 passengers',
-//                   '₦12,000',
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 30.h),
-//                 Text('Delivery service', style: ConstTextStyles.deliveryTitle),
-//                 SizedBox(height: 20.h),
-//                 _buildDeliveryOption(
-//                   0,
-//                   'Bicycle',
-//                   '20 min',
-//                   '₦12,000',
-//                   ConstImages.bike,
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 15.h),
-//                 _buildDeliveryOption(
-//                   1,
-//                   'Vehicle',
-//                   '20 min',
-//                   '₦12,000',
-//                   ConstImages.car,
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 15.h),
-//                 _buildDeliveryOption(
-//                   2,
-//                   'Motor bike',
-//                   '20 min',
-//                   '₦12,000',
-//                   ConstImages.car,
-//                   setModalState,
-//                 ),
-//                 SizedBox(height: 30.h),
-//                 Container(
-//                   width: 353.w,
-//                   height: 48.h,
-//                   decoration: BoxDecoration(
-//                     color: (selectedVehicle != null || selectedDelivery != null)
-//                         ? Color(ConstColors.mainColor)
-//                         : Color(ConstColors.fieldColor),
-//                     borderRadius: BorderRadius.circular(8.r),
-//                   ),
-//                   child: GestureDetector(
-//                     onTap: (selectedVehicle != null || selectedDelivery != null)
-//                         ? () {
-//                             Navigator.pop(context);
-//                             _showBookingDetails();
-//                           }
-//                         : null,
-//                     child: Center(
-//                       child: Text(
-//                         'Select vehicle',
-//                         style: TextStyle(
-//                           color: Colors.white,
-//                           fontSize: 16.sp,
-//                           fontWeight: FontWeight.w600,
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildVehicleOption(
-//     int index,
-//     String title,
-//     String subtitle,
-//     String price,
-//     StateSetter setModalState,
-//   ) {
-//     final isSelected = selectedVehicle == index;
-//     return GestureDetector(
-//       onTap: () {
-//         setState(() {
-//           selectedVehicle = index;
-//           selectedDelivery = null;
-//         });
-//         setModalState(() {});
-//       },
-//       child: Container(
-//         width: 353.w,
-//         height: 65.h,
-//         padding: EdgeInsets.symmetric(horizontal: 8.w),
-//         decoration: BoxDecoration(
-//           color: isSelected ? Color(ConstColors.mainColor) : Colors.transparent,
-//           border: Border.all(
-//             color: isSelected
-//                 ? Color(ConstColors.mainColor)
-//                 : Colors.grey.shade300,
-//             width: 0.7,
-//           ),
-//           borderRadius: BorderRadius.circular(12.r),
-//         ),
-//         child: Row(
-//           children: [
-//             Image.asset(ConstImages.car, width: 55.w, height: 26.h),
-//             SizedBox(width: 15.w),
-//             Expanded(
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   Text(
-//                     title,
-//                     style: ConstTextStyles.vehicleTitle.copyWith(
-//                       color: isSelected ? Colors.white : Colors.black,
-//                     ),
-//                   ),
-//                   Text(
-//                     subtitle,
-//                     style: ConstTextStyles.vehicleSubtitle.copyWith(
-//                       color: isSelected ? Colors.white : Colors.black,
-//                     ),
-//                   ),
-//                 ],
+//           : Center(
+//               child: Text(
+//                 'Home Screen - Recovery Branch',
+//                 style: TextStyle(fontSize: 18.sp),
 //               ),
 //             ),
-//             Text(
-//               price,
-//               style: ConstTextStyles.vehicleTitle.copyWith(
-//                 color: isSelected ? Colors.white : Colors.black,
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildDeliveryOption(
-//     int index,
-//     String title,
-//     String subtitle,
-//     String price,
-//     String imagePath,
-//     StateSetter setModalState,
-//   ) {
-//     final isSelected = selectedDelivery == index;
-//     return GestureDetector(
-//       onTap: () {
-//         setState(() {
-//           selectedDelivery = index;
-//           selectedVehicle = null;
-//         });
-//         setModalState(() {});
-//       },
-//       child: Container(
-//         width: 353.w,
-//         height: 65.h,
-//         padding: EdgeInsets.symmetric(horizontal: 8.w),
-//         decoration: BoxDecoration(
-//           color: isSelected ? Color(ConstColors.mainColor) : Colors.transparent,
-//           border: Border.all(
-//             color: isSelected
-//                 ? Color(ConstColors.mainColor)
-//                 : Colors.grey.shade300,
-//             width: 0.7,
-//           ),
-//           borderRadius: BorderRadius.circular(12.r),
-//         ),
-//         child: Row(
-//           children: [
-//             Image.asset(imagePath, width: 55.w, height: 26.h),
-//             SizedBox(width: 15.w),
-//             Expanded(
-//               child: Column(
-//                 crossAxisAlignment: CrossAxisAlignment.start,
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   Text(
-//                     title,
-//                     style: ConstTextStyles.vehicleTitle.copyWith(
-//                       color: isSelected ? Colors.white : Colors.black,
-//                     ),
-//                   ),
-//                   Text(
-//                     subtitle,
-//                     style: ConstTextStyles.vehicleSubtitle.copyWith(
-//                       color: isSelected ? Colors.white : Colors.black,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//             Text(
-//               price,
-//               style: ConstTextStyles.vehicleTitle.copyWith(
-//                 color: isSelected ? Colors.white : Colors.black,
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showBookingDetails() {
-//     final selectedOption = selectedVehicle != null
-//         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
-//         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
-
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => StatefulBuilder(
-//         builder: (context, setBookingState) => Container(
-//           height: 400.h,
-//           padding: EdgeInsets.all(20.w),
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//           ),
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               GestureDetector(
-//                 onTap: () => _showAddNoteSheet(),
-//                 child: Column(
-//                   children: [
-//                     Icon(Icons.message, size: 25.67.w),
-//                     SizedBox(height: 4.67.h),
-//                     Text(
-//                       'Add note',
-//                       textAlign: TextAlign.center,
-//                       style: TextStyle(
-//                         fontFamily: 'Inter',
-//                         fontSize: 16.sp,
-//                         fontWeight: FontWeight.w400,
-//                         height: 22 / 16,
-//                         letterSpacing: -0.41,
-//                         color: Colors.black,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Row(
-//                 children: [
-//                   Image.asset(
-//                     selectedVehicle != null
-//                         ? ConstImages.car
-//                         : ConstImages.bike,
-//                     width: 55.w,
-//                     height: 26.h,
-//                   ),
-//                   SizedBox(width: 15.w),
-//                   Expanded(
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         Text(
-//                           selectedOption,
-//                           style: ConstTextStyles.vehicleTitle,
-//                         ),
-//                         Text(
-//                           '4 passengers',
-//                           style: ConstTextStyles.vehicleSubtitle,
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                   Column(
-//                     crossAxisAlignment: CrossAxisAlignment.end,
-//                     children: [
-//                       Text('₦12,000', style: ConstTextStyles.vehicleTitle),
-//                       Text(
-//                         'Fixed',
-//                         style: ConstTextStyles.fixedPrice.copyWith(
-//                           color: Color(ConstColors.recentLocationColor),
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                   SizedBox(width: 10.w),
-//                   GestureDetector(
-//                     onTap: () {
-//                       Navigator.pop(context);
-//                       _showVehicleSelection();
-//                     },
-//                     child: Icon(Icons.arrow_forward_ios, size: 16.sp),
-//                   ),
-//                 ],
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               GestureDetector(
-//                 onTap: () => _showPaymentMethods(),
-//                 child: Row(
-//                   children: [
-//                     Image.asset(ConstImages.wallet, width: 24.w, height: 24.h),
-//                     SizedBox(width: 15.w),
-//                     Expanded(
-//                       child: Text(
-//                         selectedPaymentMethod,
-//                         style: ConstTextStyles.vehicleTitle,
-//                       ),
-//                     ),
-//                     Icon(Icons.arrow_forward_ios, size: 16.sp),
-//                   ],
-//                 ),
-//               ),
-//               Spacer(),
-//               Row(
-//                 children: [
-//                   GestureDetector(
-//                     onTap: () {
-//                       Navigator.pop(context);
-//                       _showPrebookSheet();
-//                     },
-//                     child: Container(
-//                       width: 170.w,
-//                       height: 47.h,
-//                       padding: EdgeInsets.all(10.w),
-//                       decoration: BoxDecoration(
-//                         color: Colors.white,
-//                         border: Border.all(color: Color(ConstColors.mainColor)),
-//                         borderRadius: BorderRadius.circular(8.r),
-//                       ),
-//                       child: Center(
-//                         child: Text(
-//                           'Book Later',
-//                           style: TextStyle(
-//                             color: Color(ConstColors.mainColor),
-//                             fontSize: 16.sp,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                   SizedBox(width: 10.w),
-//                   GestureDetector(
-//                     onTap: () {
-//                       Navigator.pop(context);
-//                       _showBookingRequestSheet();
-//                     },
-//                     child: Container(
-//                       width: 170.w,
-//                       height: 47.h,
-//                       padding: EdgeInsets.all(10.w),
-//                       decoration: BoxDecoration(
-//                         color: Color(ConstColors.mainColor),
-//                         borderRadius: BorderRadius.circular(8.r),
-//                       ),
-//                       child: Center(
-//                         child: Text(
-//                           'Book Now',
-//                           style: TextStyle(
-//                             color: Colors.white,
-//                             fontSize: 16.sp,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showPaymentMethods() {
-//     showModalBottomSheet(
-//       context: context,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         padding: EdgeInsets.all(20.w),
-//         child: Column(
-//           mainAxisSize: MainAxisSize.min,
-//           children: [
-//             Container(
-//               width: 69.w,
-//               height: 5.h,
-//               margin: EdgeInsets.only(bottom: 20.h),
-//               decoration: BoxDecoration(
-//                 color: Colors.grey.shade300,
-//                 borderRadius: BorderRadius.circular(2.5.r),
-//               ),
-//             ),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 Text(
-//                   'Choose payment method',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 18.sp,
-//                     fontWeight: FontWeight.w600,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//                 GestureDetector(
-//                   onTap: () => Navigator.pop(context),
-//                   child: Icon(Icons.close, size: 24.sp),
-//                 ),
-//               ],
-//             ),
-//             SizedBox(height: 20.h),
-//             _buildPaymentOption('Pay with wallet'),
-//             Divider(thickness: 1, color: Colors.grey.shade300),
-//             _buildPaymentOption('Pay with card'),
-//             Divider(thickness: 1, color: Colors.grey.shade300),
-//             _buildPaymentOption('pay4me'),
-//             Divider(thickness: 1, color: Colors.grey.shade300),
-//             _buildPaymentOption('Pay in car'),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildPaymentOption(String method) {
-//     final isSelected = selectedPaymentMethod == method;
-//     return GestureDetector(
-//       onTap: () {
-//         setState(() {
-//           selectedPaymentMethod = method;
-//         });
-//         Navigator.pop(context);
-//       },
-//       child: Padding(
-//         padding: EdgeInsets.symmetric(vertical: 15.h),
-//         child: Row(
-//           children: [
-//             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
-//             if (isSelected) Icon(Icons.check, color: Colors.green, size: 20.sp),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showAddNoteSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => StatefulBuilder(
-//         builder: (context, setNoteState) => Container(
-//           height: 300.h,
-//           padding: EdgeInsets.all(20.w),
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//           ),
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               Text(
-//                 'Add note',
-//                 style: TextStyle(
-//                   fontFamily: 'Inter',
-//                   fontSize: 18.sp,
-//                   fontWeight: FontWeight.w600,
-//                   color: Colors.black,
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Container(
-//                 width: 350.w,
-//                 height: 111.h,
-//                 padding: EdgeInsets.all(10.w),
-//                 decoration: BoxDecoration(
-//                   color: Color(0xFFB1B1B1).withOpacity(0.2),
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: TextField(
-//                   controller: noteController,
-//                   maxLines: null,
-//                   expands: true,
-//                   onChanged: (value) {
-//                     setNoteState(() {});
-//                   },
-//                   decoration: InputDecoration(
-//                     hintText: 'Type your note here...',
-//                     border: InputBorder.none,
-//                     contentPadding: EdgeInsets.zero,
-//                   ),
-//                 ),
-//               ),
-//               Spacer(),
-//               Container(
-//                 width: 353.w,
-//                 height: 48.h,
-//                 decoration: BoxDecoration(
-//                   color: noteController.text.isNotEmpty
-//                       ? Color(ConstColors.mainColor)
-//                       : Color(ConstColors.fieldColor),
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: GestureDetector(
-//                   onTap: noteController.text.isNotEmpty
-//                       ? () {
-//                           Navigator.pop(context);
-//                         }
-//                       : null,
-//                   child: Center(
-//                     child: Text(
-//                       'Submit',
-//                       style: TextStyle(
-//                         color: Colors.white,
-//                         fontSize: 16.sp,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-  Widget _buildDrawer() {
-    return Drawer(
-      child: Column(
-        children: [
-          SizedBox(height: 60.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Row(
-              children: [
-                Image.asset(ConstImages.avatar, width: 60.w, height: 60.h),
-                SizedBox(width: 15.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('John Doe', style: ConstTextStyles.drawerName),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'My Account',
-                        style: ConstTextStyles.drawerAccount.copyWith(
-                          color: Color(ConstColors.drawerAccountColor),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20.h),
-          Divider(thickness: 1, color: Colors.grey.shade300),
-          _buildDrawerItem('Book a trip', ConstImages.car),
-          _buildDrawerItem('Activities', ConstImages.serviceEscort),
-          _buildDrawerItem(
-            'Wallet',
-            ConstImages.wallet,
-            onTap: _navigateToWallet,
-          ),
-          _buildDrawerItem('Drive with us', ConstImages.car),
-          _buildDrawerItem(
-            'Tip',
-            ConstImages.tip,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TipScreen()),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            'Promo code',
-            ConstImages.code,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => PromoCodeScreen()),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            'Referral',
-            ConstImages.referral,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ReferralScreen()),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            'Contact Us',
-            ConstImages.phoneCall,
-            onTap: _showContactBottomSheet,
-          ),
-          _buildDrawerItem('FAQ', ConstImages.faq),
-          _buildDrawerItem('About', ConstImages.about),
-        ],
-      ),
-    );
-  }
-
-//   void _showPrebookSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => StatefulBuilder(
-//         builder: (context, setPrebookState) => Container(
-//           height: 450.h,
-//           padding: EdgeInsets.all(20.w),
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//           ),
-//           child: SingleChildScrollView(
-//             child: Column(
-//               children: [
-//                 Container(
-//                   width: 69.w,
-//                   height: 5.h,
-//                   margin: EdgeInsets.only(bottom: 20.h),
-//                   decoration: BoxDecoration(
-//                     color: Colors.grey.shade300,
-//                     borderRadius: BorderRadius.circular(2.5.r),
-//                   ),
-//                 ),
-//                 Align(
-//                   alignment: Alignment.centerLeft,
-//                   child: Text(
-//                     'Prebook a vehicle',
-//                     style: TextStyle(
-//                       fontFamily: 'Inter',
-//                       fontSize: 18.sp,
-//                       fontWeight: FontWeight.w600,
-//                       color: Colors.black,
-//                     ),
-//                   ),
-//                 ),
-//                 SizedBox(height: 20.h),
-//                 Text(
-//                   'Select time and date',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 14.sp,
-//                     fontWeight: FontWeight.w400,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//                 SizedBox(height: 20.h),
-//                 Divider(thickness: 1, color: Colors.grey.shade300),
-//                 ListTile(
-//                   leading: Image.asset(
-//                     ConstImages.activities,
-//                     width: 24.w,
-//                     height: 24.h,
-//                   ),
-//                   title: Text(
-//                     'Date',
-//                     style: TextStyle(
-//                       fontFamily: 'Inter',
-//                       fontSize: 14.sp,
-//                       fontWeight: FontWeight.w400,
-//                       height: 1.0,
-//                       letterSpacing: -0.32,
-//                       color: Color(0xFFB1B1B1),
-//                     ),
-//                   ),
-//                   subtitle: Text(
-//                     '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
-//                     style: ConstTextStyles.vehicleTitle,
-//                   ),
-//                   trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
-//                   onTap: () async {
-//                     final DateTime? picked = await showDatePicker(
-//                       context: context,
-//                       initialDate: selectedDate,
-//                       firstDate: DateTime.now(),
-//                       lastDate: DateTime.now().add(Duration(days: 365)),
-//                     );
-//                     if (picked != null && picked != selectedDate) {
-//                       setPrebookState(() {
-//                         selectedDate = picked;
-//                       });
-//                     }
-//                   },
-//                 ),
-//                 Divider(thickness: 1, color: Colors.grey.shade300),
-//                 ListTile(
-//                   leading: Image.asset(
-//                     'assets/images/time.png',
-//                     width: 24.w,
-//                     height: 24.h,
-//                   ),
-//                   title: Text(
-//                     'Time',
-//                     style: TextStyle(
-//                       fontFamily: 'Inter',
-//                       fontSize: 14.sp,
-//                       fontWeight: FontWeight.w400,
-//                       height: 1.0,
-//                       letterSpacing: -0.32,
-//                       color: Color(0xFFB1B1B1),
-//                     ),
-//                   ),
-//                   subtitle: Text(
-//                     '${selectedTime.format(context)}',
-//                     style: ConstTextStyles.vehicleTitle,
-//                   ),
-//                   trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
-//                   onTap: () async {
-//                     final TimeOfDay? picked = await showTimePicker(
-//                       context: context,
-//                       initialTime: selectedTime,
-//                     );
-//                     if (picked != null && picked != selectedTime) {
-//                       setPrebookState(() {
-//                         selectedTime = picked;
-//                       });
-//                     }
-//                   },
-//                 ),
-//                 SizedBox(height: 30.h),
-//                 Column(
-//                   children: [
-//                     Container(
-//                       width: 353.w,
-//                       height: 48.h,
-//                       decoration: BoxDecoration(
-//                         color: Colors.white,
-//                         border: Border.all(color: Color(ConstColors.mainColor)),
-//                         borderRadius: BorderRadius.circular(8.r),
-//                       ),
-//                       child: GestureDetector(
-//                         onTap: () {
-//                           setPrebookState(() {
-//                             selectedDate = DateTime.now();
-//                             selectedTime = TimeOfDay.now();
-//                           });
-//                         },
-//                         child: Center(
-//                           child: Text(
-//                             'Reset to now',
-//                             style: TextStyle(
-//                               color: Color(ConstColors.mainColor),
-//                               fontSize: 16.sp,
-//                               fontWeight: FontWeight.w600,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                     SizedBox(height: 10.h),
-//                     Container(
-//                       width: 353.w,
-//                       height: 48.h,
-//                       decoration: BoxDecoration(
-//                         color: Color(ConstColors.mainColor),
-//                         borderRadius: BorderRadius.circular(8.r),
-//                       ),
-//                       child: GestureDetector(
-//                         onTap: () {
-//                           Navigator.pop(context);
-//                           _showTripScheduledSheet();
-//                         },
-//                         child: Center(
-//                           child: Text(
-//                             'Set pick date and time',
-//                             style: TextStyle(
-//                               color: Colors.white,
-//                               fontSize: 16.sp,
-//                               fontWeight: FontWeight.w600,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   String _getWeekday(int weekday) {
-//     const weekdays = [
-//       'Monday',
-//       'Tuesday',
-//       'Wednesday',
-//       'Thursday',
-//       'Friday',
-//       'Saturday',
-//       'Sunday',
-//     ];
-//     return weekdays[weekday - 1];
-//   }
-
-//   String _getMonth(int month) {
-//     const months = [
-//       'January',
-//       'February',
-//       'March',
-//       'April',
-//       'May',
-//       'June',
-//       'July',
-//       'August',
-//       'September',
-//       'October',
-//       'November',
-//       'December',
-//     ];
-//     return months[month - 1];
-//   }
-
-//   void _showBookingRequestSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         height: 380.h,
-//         padding: EdgeInsets.all(20.w),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//         ),
-//         child: SingleChildScrollView(
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               Text(
-//                 'Booking request successful',
-//                 style: TextStyle(
-//                   fontFamily: 'Inter',
-//                   fontSize: 18.sp,
-//                   fontWeight: FontWeight.w600,
-//                   color: Colors.black,
-//                 ),
-//               ),
-//               SizedBox(height: 10.h),
-//               Text(
-//                 'You\'ll receive a push notification when your driver is assigned.',
-//                 textAlign: TextAlign.center,
-//                 style: TextStyle(
-//                   fontFamily: 'Inter',
-//                   fontSize: 12.sp,
-//                   fontWeight: FontWeight.w400,
-//                   height: 1.0,
-//                   letterSpacing: -0.32,
-//                   color: Colors.black,
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Container(
-//                 padding: EdgeInsets.all(15.w),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade50,
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: Column(
-//                   children: [
-//                     Row(
-//                       children: [
-//                         Container(
-//                           width: 6.w,
-//                           height: 6.h,
-//                           decoration: BoxDecoration(
-//                             color: Color(ConstColors.mainColor),
-//                             shape: BoxShape.circle,
-//                           ),
-//                         ),
-//                         SizedBox(width: 10.w),
-//                         Text(
-//                           'Pick Up',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     SizedBox(height: 5.h),
-//                     Align(
-//                       alignment: Alignment.centerLeft,
-//                       child: Padding(
-//                         padding: EdgeInsets.only(left: 16.w),
-//                         child: Text(
-//                           'Nsukka, Enugu',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                     SizedBox(height: 15.h),
-//                     Divider(thickness: 1, color: Colors.grey.shade300),
-//                     SizedBox(height: 15.h),
-//                     Row(
-//                       children: [
-//                         Container(
-//                           width: 6.w,
-//                           height: 6.h,
-//                           decoration: BoxDecoration(
-//                             color: Colors.red,
-//                             shape: BoxShape.circle,
-//                           ),
-//                         ),
-//                         SizedBox(width: 10.w),
-//                         Text(
-//                           'Destination',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     SizedBox(height: 5.h),
-//                     Align(
-//                       alignment: Alignment.centerLeft,
-//                       child: Padding(
-//                         padding: EdgeInsets.only(left: 16.w),
-//                         child: Text(
-//                           'Ikeja, Lagos',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Container(
-//                 width: 353.w,
-//                 height: 48.h,
-//                 decoration: BoxDecoration(
-//                   color: Color(ConstColors.mainColor),
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: GestureDetector(
-//                   onTap: () {
-//                     Navigator.pop(context);
-//                     _showBookSuccessfulSheet();
-//                   },
-//                   child: Center(
-//                     child: Text(
-//                       'View Trip',
-//                       style: TextStyle(
-//                         color: Colors.white,
-//                         fontSize: 16.sp,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showBookSuccessfulSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         height: 300.h,
-//         padding: EdgeInsets.all(20.w),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//         ),
-//         child: Column(
-//           children: [
-//             Container(
-//               width: 69.w,
-//               height: 5.h,
-//               margin: EdgeInsets.only(bottom: 20.h),
-//               decoration: BoxDecoration(
-//                 color: Colors.grey.shade300,
-//                 borderRadius: BorderRadius.circular(2.5.r),
-//               ),
-//             ),
-//             Text(
-//               'Book Successful',
-//               style: TextStyle(
-//                 fontFamily: 'Inter',
-//                 fontSize: 18.sp,
-//                 fontWeight: FontWeight.w600,
-//                 height: 1.0,
-//                 letterSpacing: -0.32,
-//                 color: Colors.black,
-//               ),
-//             ),
-//             SizedBox(height: 10.h),
-//             Text(
-//               'We are searching for available nearby driver',
-//               textAlign: TextAlign.center,
-//               style: TextStyle(
-//                 fontFamily: 'Inter',
-//                 fontSize: 12.sp,
-//                 fontWeight: FontWeight.w400,
-//                 height: 1.0,
-//                 letterSpacing: -0.32,
-//                 color: Colors.black,
-//               ),
-//             ),
-//             SizedBox(height: 20.h),
-//             Divider(thickness: 1, color: Colors.grey.shade300),
-//             SizedBox(height: 20.h),
-//             Container(
-//               width: 353.w,
-//               height: 10.h,
-//               child: LinearProgressIndicator(
-//                 backgroundColor: Colors.grey.shade300,
-//                 valueColor: AlwaysStoppedAnimation<Color>(
-//                   Color(ConstColors.mainColor),
-//                 ),
-//               ),
-//             ),
-//             Spacer(),
-//             Container(
-//               width: 353.w,
-//               height: 48.h,
-//               decoration: BoxDecoration(
-//                 color: Color(ConstColors.mainColor),
-//                 borderRadius: BorderRadius.circular(8.r),
-//               ),
-//               child: GestureDetector(
-//                 onTap: () {
-//                   Navigator.pop(context);
-//                   _showTripDetailsSheet();
-//                 },
-//                 child: Center(
-//                   child: Text(
-//                     'Trip Details',
-//                     style: TextStyle(
-//                       color: Colors.white,
-//                       fontSize: 16.sp,
-//                       fontWeight: FontWeight.w600,
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showTripDetailsSheet() {
-//     final selectedOption = selectedVehicle != null
-//         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
-//         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
-
-  }
-  
-  void _checkBothFields() {
-    // Placeholder method
-  }
-  
-  Widget _buildDrawerItem(String title, String iconPath, {VoidCallback? onTap}) {
-    return ListTile(
-      leading: Image.asset(iconPath, width: 24.w, height: 24.h),
-      title: Text(title, style: ConstTextStyles.drawerItem),
-      onTap: onTap,
-    );
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: _buildDrawer(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        backgroundColor: Colors.white,
-        selectedItemColor: Color(ConstColors.mainColor),
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              ConstImages.homeIcon,
-              width: 24.w,
-              height: 24.h,
-              color: _currentIndex == 0
-                  ? Color(ConstColors.mainColor)
-                  : Colors.grey,
-            ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              ConstImages.services,
-              width: 24.w,
-              height: 24.h,
-              color: _currentIndex == 1
-                  ? Color(ConstColors.mainColor)
-                  : Colors.grey,
-            ),
-            label: 'Services',
-          ),
-          BottomNavigationBarItem(
-            icon: Image.asset(
-              ConstImages.activities,
-              width: 24.w,
-              height: 24.h,
-              color: _currentIndex == 2
-                  ? Color(ConstColors.mainColor)
-                  : Colors.grey,
-            ),
-            label: 'Activities',
-          ),
-        ],
-      ),
-      body: _currentIndex == 1
-          ? const ServicesScreen()
-          : _currentIndex == 2
-          ? ActivitiesScreen()
-          : Center(
-              child: Text(
-                'Home Screen - Recovery Branch',
-                style: TextStyle(fontSize: 18.sp),
-              ),
-            ),
-    );
-  }
-}
-
-//   void _showTripScheduledSheet() {
-//     final selectedOption = selectedVehicle != null
-//         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
-//         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
-
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         height: 500.h,
-//         padding: EdgeInsets.all(20.w),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//         ),
-//         child: SingleChildScrollView(
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               Align(
-//                 alignment: Alignment.centerLeft,
-//                 child: Text(
-//                   'Trip scheduled',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 18.sp,
-//                     fontWeight: FontWeight.w600,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Container(
-//                 padding: EdgeInsets.all(15.w),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade50,
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: Column(
-//                   children: [
-//                     Row(
-//                       children: [
-//                         Container(
-//                           width: 6.w,
-//                           height: 6.h,
-//                           decoration: BoxDecoration(
-//                             color: Color(ConstColors.mainColor),
-//                             shape: BoxShape.circle,
-//                           ),
-//                         ),
-//                         SizedBox(width: 10.w),
-//                         Text(
-//                           'Pick Up',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     SizedBox(height: 5.h),
-//                     Align(
-//                       alignment: Alignment.centerLeft,
-//                       child: Padding(
-//                         padding: EdgeInsets.only(left: 16.w),
-//                         child: Text(
-//                           'Nsukka, Enugu',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                     SizedBox(height: 15.h),
-//                     Divider(thickness: 1, color: Colors.grey.shade300),
-//                     SizedBox(height: 15.h),
-//                     Row(
-//                       children: [
-//                         Container(
-//                           width: 6.w,
-//                           height: 6.h,
-//                           decoration: BoxDecoration(
-//                             color: Colors.red,
-//                             shape: BoxShape.circle,
-//                           ),
-//                         ),
-//                         SizedBox(width: 10.w),
-//                         Text(
-//                           'Destination',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                     SizedBox(height: 5.h),
-//                     Align(
-//                       alignment: Alignment.centerLeft,
-//                       child: Padding(
-//                         padding: EdgeInsets.only(left: 16.w),
-//                         child: Text(
-//                           'Ikeja, Lagos',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Row(
-//                 children: [
-//                   Text(
-//                     'Date',
-//                     style: TextStyle(
-//                       fontFamily: 'Inter',
-//                       fontSize: 12.sp,
-//                       fontWeight: FontWeight.w500,
-//                       height: 1.0,
-//                       letterSpacing: -0.32,
-//                       color: Colors.black,
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               SizedBox(height: 5.h),
-//               Align(
-//                 alignment: Alignment.centerLeft,
-//                 child: Text(
-//                   'November 28, 2025 at 03:45 pm',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 14.sp,
-//                     fontWeight: FontWeight.w600,
-//                     height: 1.0,
-//                     letterSpacing: -0.32,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Row(
-//                 children: [
-//                   Expanded(
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         Text(
-//                           'Payment Method',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                         SizedBox(height: 5.h),
-//                         Text(
-//                           selectedPaymentMethod,
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                   Container(
-//                     width: 1.w,
-//                     height: 40.h,
-//                     color: Colors.grey.shade300,
-//                   ),
-//                   SizedBox(width: 20.w),
-//                   Expanded(
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         Text(
-//                           'Vehicle',
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 12.sp,
-//                             fontWeight: FontWeight.w500,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                         SizedBox(height: 5.h),
-//                         Text(
-//                           selectedOption,
-//                           style: TextStyle(
-//                             fontFamily: 'Inter',
-//                             fontSize: 14.sp,
-//                             fontWeight: FontWeight.w600,
-//                             height: 1.0,
-//                             letterSpacing: -0.32,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//               SizedBox(height: 20.h),
-//               Divider(thickness: 1, color: Colors.grey.shade300),
-//               SizedBox(height: 20.h),
-//               Align(
-//                 alignment: Alignment.centerLeft,
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(
-//                       'Price',
-//                       style: TextStyle(
-//                         fontFamily: 'Inter',
-//                         fontSize: 12.sp,
-//                         fontWeight: FontWeight.w500,
-//                         height: 1.0,
-//                         letterSpacing: -0.32,
-//                         color: Colors.black,
-//                       ),
-//                     ),
-//                     SizedBox(height: 5.h),
-//                     Text(
-//                       '₦12,000',
-//                       style: TextStyle(
-//                         fontFamily: 'Inter',
-//                         fontSize: 18.sp,
-//                         fontWeight: FontWeight.w700,
-//                         color: Colors.black,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               SizedBox(height: 30.h),
-//               Container(
-//                 width: 353.w,
-//                 height: 48.h,
-//                 decoration: BoxDecoration(
-//                   color: Color(ConstColors.mainColor),
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: GestureDetector(
-//                   onTap: () {
-//                     Navigator.pop(context);
-//                     _showEditPrebookingSheet();
-//                   },
-//                   child: Center(
-//                     child: Text(
-//                       'Edit pre booking',
-//                       style: TextStyle(
-//                         color: Colors.white,
-//                         fontSize: 16.sp,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showEditPrebookingSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         height: 600.h,
-//         padding: EdgeInsets.all(20.w),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//         ),
-//         child: SingleChildScrollView(
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               Row(
-//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                 children: [
-//                   Text(
-//                     'Edit pre booking',
-//                     style: TextStyle(
-//                       fontFamily: 'Inter',
-//                       fontSize: 26.sp,
-//                       fontWeight: FontWeight.w600,
-//                       color: Colors.black,
-//                     ),
-//                   ),
-//                   GestureDetector(
-//                     onTap: () => Navigator.pop(context),
-//                     child: Icon(Icons.close, size: 24.sp, color: Colors.black),
-//                   ),
-//                 ],
-//               ),
-//               SizedBox(height: 30.h),
-//               _buildEditField('PICK UP', 'Nsukka, Enugu'),
-//               SizedBox(height: 15.h),
-//               _buildEditField('DESTINATION', 'Ikeja, Lagos'),
-//               SizedBox(height: 15.h),
-//               _buildEditField('WHEN', 'November 28, 2025 at 03:45 pm'),
-//               SizedBox(height: 15.h),
-//               _buildEditField('PAYMENT METHOD', selectedPaymentMethod),
-//               SizedBox(height: 15.h),
-//               _buildEditField(
-//                 'VEHICLE',
-//                 selectedVehicle != null
-//                     ? [
-//                         'Regular vehicle',
-//                         'Fancy vehicle',
-//                         'VIP',
-//                       ][selectedVehicle!]
-//                     : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
-//               ),
-//               SizedBox(height: 40.h),
-//               Column(
-//                 children: [
-//                   Container(
-//                     width: 353.w,
-//                     height: 48.h,
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       border: Border.all(color: Colors.red),
-//                       borderRadius: BorderRadius.circular(8.r),
-//                     ),
-//                     child: GestureDetector(
-//                       onTap: () {
-//                         Navigator.pop(context);
-//                         _showTripCanceledSheet();
-//                       },
-//                       child: Center(
-//                         child: Text(
-//                           'Cancel prebooking',
-//                           style: TextStyle(
-//                             color: Colors.red,
-//                             fontSize: 16.sp,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                   SizedBox(height: 15.h),
-//                   Container(
-//                     width: 353.w,
-//                     height: 48.h,
-//                     decoration: BoxDecoration(
-//                       color: Color(ConstColors.mainColor),
-//                       borderRadius: BorderRadius.circular(8.r),
-//                     ),
-//                     child: GestureDetector(
-//                       onTap: () {
-//                         Navigator.pop(context);
-//                       },
-//                       child: Center(
-//                         child: Text(
-//                           'Save prebooking',
-//                           style: TextStyle(
-//                             color: Colors.white,
-//                             fontSize: 16.sp,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildEditField(String label, String value) {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         Text(
-//           label,
-//           style: TextStyle(
-//             fontFamily: 'Inter',
-//             fontSize: 12.sp,
-//             fontWeight: FontWeight.w500,
-//             color: Colors.black,
-//           ),
-//         ),
-//         SizedBox(height: 8.h),
-//         Container(
-//           width: 353.w,
-//           height: 50.h,
-//           padding: EdgeInsets.symmetric(horizontal: 10.w),
-//           decoration: BoxDecoration(
-//             color: Color(0xFFB1B1B1).withOpacity(0.12),
-//             borderRadius: BorderRadius.circular(2.r),
-//           ),
-//           child: Align(
-//             alignment: Alignment.centerLeft,
-//             child: Text(
-//               value,
-//               style: TextStyle(
-//                 fontFamily: 'Inter',
-//                 fontSize: 14.sp,
-//                 fontWeight: FontWeight.w400,
-//                 color: Colors.black,
-//               ),
-//             ),
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-
-//   void _showTripCanceledSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => StatefulBuilder(
-//         builder: (context, setCancelState) => Container(
-//           height: 450.h,
-//           padding: EdgeInsets.all(20.w),
-//           decoration: BoxDecoration(
-//             color: Colors.white,
-//             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//           ),
-//           child: Column(
-//             children: [
-//               Container(
-//                 width: 69.w,
-//                 height: 5.h,
-//                 margin: EdgeInsets.only(bottom: 20.h),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade300,
-//                   borderRadius: BorderRadius.circular(2.5.r),
-//                 ),
-//               ),
-//               Align(
-//                 alignment: Alignment.centerLeft,
-//                 child: Text(
-//                   'Trip Canceled',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 18.sp,
-//                     fontWeight: FontWeight.w600,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//               ),
-//               SizedBox(height: 10.h),
-//               Align(
-//                 alignment: Alignment.centerLeft,
-//                 child: Text(
-//                   'Help us improve by sharing why you are canceling',
-//                   style: TextStyle(
-//                     fontFamily: 'Inter',
-//                     fontSize: 14.sp,
-//                     fontWeight: FontWeight.w400,
-//                     height: 1.0,
-//                     letterSpacing: -0.32,
-//                     color: Colors.black,
-//                   ),
-//                 ),
-//               ),
-//               SizedBox(height: 30.h),
-//               _buildCancelReason(
-//                 0,
-//                 'I am taking alternative transport',
-//                 setCancelState,
-//               ),
-//               SizedBox(height: 10.h),
-//               _buildCancelReason(
-//                 1,
-//                 'It is taking too long to get a driver',
-//                 setCancelState,
-//               ),
-//               SizedBox(height: 10.h),
-//               _buildCancelReason(
-//                 2,
-//                 'I have to attend to something',
-//                 setCancelState,
-//               ),
-//               SizedBox(height: 10.h),
-//               _buildCancelReason(3, 'Others', setCancelState),
-//               Spacer(),
-//               Container(
-//                 width: 353.w,
-//                 height: 48.h,
-//                 decoration: BoxDecoration(
-//                   color: selectedCancelReason != null
-//                       ? Color(ConstColors.mainColor)
-//                       : Color(ConstColors.fieldColor),
-//                   borderRadius: BorderRadius.circular(8.r),
-//                 ),
-//                 child: GestureDetector(
-//                   onTap: selectedCancelReason != null
-//                       ? () {
-//                           Navigator.pop(context);
-//                           _showFeedbackSuccessSheet();
-//                         }
-//                       : null,
-//                   child: Center(
-//                     child: Text(
-//                       'Submit',
-//                       style: TextStyle(
-//                         color: Colors.white,
-//                         fontSize: 16.sp,
-//                         fontWeight: FontWeight.w600,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildCancelReason(
-//     int index,
-//     String reason,
-//     StateSetter setCancelState,
-//   ) {
-//     final isSelected = selectedCancelReason == index;
-//     return GestureDetector(
-//       onTap: () {
-//         setCancelState(() {
-//           selectedCancelReason = index;
-//         });
-//       },
-//       child: Container(
-//         width: 353.w,
-//         height: 40.h,
-//         padding: EdgeInsets.all(10.w),
-//         decoration: BoxDecoration(
-//           color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
-//           border: Border.all(color: Color(ConstColors.mainColor)),
-//           borderRadius: BorderRadius.circular(15.r),
-//         ),
-//         child: Center(
-//           child: Text(
-//             reason,
-//             style: TextStyle(
-//               fontFamily: 'Inter',
-//               fontSize: 14.sp,
-//               fontWeight: FontWeight.w400,
-//               color: isSelected ? Colors.white : Colors.black,
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   void _showFeedbackSuccessSheet() {
-//     showModalBottomSheet(
-//       context: context,
-//       isScrollControlled: true,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//       ),
-//       builder: (context) => Container(
-//         height: 400.h,
-//         padding: EdgeInsets.all(20.w),
-//         decoration: BoxDecoration(
-//           color: Colors.white,
-//           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-//         ),
-//         child: Column(
-//           children: [
-//             Container(
-//               width: 69.w,
-//               height: 5.h,
-//               margin: EdgeInsets.only(bottom: 30.h),
-//               decoration: BoxDecoration(
-//                 color: Colors.grey.shade300,
-//                 borderRadius: BorderRadius.circular(2.5.r),
-//               ),
-//             ),
-//             Container(
-//               width: 266.w,
-//               height: 212.h,
-//               margin: EdgeInsets.only(top: 30.h, left: 62.w),
-//               child: Image.asset(
-//                 'assets/images/Feedback_suucess.png',
-//                 fit: BoxFit.contain,
-//               ),
-//             ),
-//             Spacer(),
-//             Container(
-//               width: 353.w,
-//               height: 48.h,
-//               decoration: BoxDecoration(
-//                 color: Color(ConstColors.mainColor),
-//                 borderRadius: BorderRadius.circular(8.r),
-//               ),
-//               child: GestureDetector(
-//                 onTap: () {
-//                   Navigator.pop(context);
-//                 },
-//                 child: Center(
-//                   child: Text(
-//                     'GO HOME',
-//                     style: TextStyle(
-//                       color: Colors.white,
-//                       fontSize: 16.sp,
-//                       fontWeight: FontWeight.w600,
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildDrawerItem(
-//     String title,
-//     String iconPath, {
-//     VoidCallback? onTap,
-//   }) {
-//     return ListTile(
-//       leading: Image.asset(iconPath, width: 24.w, height: 24.h),
-//       title: Text(title, style: ConstTextStyles.drawerItem),
-//       onTap: onTap,
 //     );
 //   }
 // }
+
+// //   void _showTripScheduledSheet() {
+// //     final selectedOption = selectedVehicle != null
+// //         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+// //         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         height: 500.h,
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: SingleChildScrollView(
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               Align(
+// //                 alignment: Alignment.centerLeft,
+// //                 child: Text(
+// //                   'Trip scheduled',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 18.sp,
+// //                     fontWeight: FontWeight.w600,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Container(
+// //                 padding: EdgeInsets.all(15.w),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade50,
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: Column(
+// //                   children: [
+// //                     Row(
+// //                       children: [
+// //                         Container(
+// //                           width: 6.w,
+// //                           height: 6.h,
+// //                           decoration: BoxDecoration(
+// //                             color: Color(ConstColors.mainColor),
+// //                             shape: BoxShape.circle,
+// //                           ),
+// //                         ),
+// //                         SizedBox(width: 10.w),
+// //                         Text(
+// //                           'Pick Up',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                     SizedBox(height: 5.h),
+// //                     Align(
+// //                       alignment: Alignment.centerLeft,
+// //                       child: Padding(
+// //                         padding: EdgeInsets.only(left: 16.w),
+// //                         child: Text(
+// //                           'Nsukka, Enugu',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                     SizedBox(height: 15.h),
+// //                     Divider(thickness: 1, color: Colors.grey.shade300),
+// //                     SizedBox(height: 15.h),
+// //                     Row(
+// //                       children: [
+// //                         Container(
+// //                           width: 6.w,
+// //                           height: 6.h,
+// //                           decoration: BoxDecoration(
+// //                             color: Colors.red,
+// //                             shape: BoxShape.circle,
+// //                           ),
+// //                         ),
+// //                         SizedBox(width: 10.w),
+// //                         Text(
+// //                           'Destination',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                     SizedBox(height: 5.h),
+// //                     Align(
+// //                       alignment: Alignment.centerLeft,
+// //                       child: Padding(
+// //                         padding: EdgeInsets.only(left: 16.w),
+// //                         child: Text(
+// //                           'Ikeja, Lagos',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ],
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Row(
+// //                 children: [
+// //                   Text(
+// //                     'Date',
+// //                     style: TextStyle(
+// //                       fontFamily: 'Inter',
+// //                       fontSize: 12.sp,
+// //                       fontWeight: FontWeight.w500,
+// //                       height: 1.0,
+// //                       letterSpacing: -0.32,
+// //                       color: Colors.black,
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //               SizedBox(height: 5.h),
+// //               Align(
+// //                 alignment: Alignment.centerLeft,
+// //                 child: Text(
+// //                   'November 28, 2025 at 03:45 pm',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 14.sp,
+// //                     fontWeight: FontWeight.w600,
+// //                     height: 1.0,
+// //                     letterSpacing: -0.32,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Row(
+// //                 children: [
+// //                   Expanded(
+// //                     child: Column(
+// //                       crossAxisAlignment: CrossAxisAlignment.start,
+// //                       children: [
+// //                         Text(
+// //                           'Payment Method',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                         SizedBox(height: 5.h),
+// //                         Text(
+// //                           selectedPaymentMethod,
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                   ),
+// //                   Container(
+// //                     width: 1.w,
+// //                     height: 40.h,
+// //                     color: Colors.grey.shade300,
+// //                   ),
+// //                   SizedBox(width: 20.w),
+// //                   Expanded(
+// //                     child: Column(
+// //                       crossAxisAlignment: CrossAxisAlignment.start,
+// //                       children: [
+// //                         Text(
+// //                           'Vehicle',
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 12.sp,
+// //                             fontWeight: FontWeight.w500,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                         SizedBox(height: 5.h),
+// //                         Text(
+// //                           selectedOption,
+// //                           style: TextStyle(
+// //                             fontFamily: 'Inter',
+// //                             fontSize: 14.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                             height: 1.0,
+// //                             letterSpacing: -0.32,
+// //                             color: Colors.black,
+// //                           ),
+// //                         ),
+// //                       ],
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //               SizedBox(height: 20.h),
+// //               Divider(thickness: 1, color: Colors.grey.shade300),
+// //               SizedBox(height: 20.h),
+// //               Align(
+// //                 alignment: Alignment.centerLeft,
+// //                 child: Column(
+// //                   crossAxisAlignment: CrossAxisAlignment.start,
+// //                   children: [
+// //                     Text(
+// //                       'Price',
+// //                       style: TextStyle(
+// //                         fontFamily: 'Inter',
+// //                         fontSize: 12.sp,
+// //                         fontWeight: FontWeight.w500,
+// //                         height: 1.0,
+// //                         letterSpacing: -0.32,
+// //                         color: Colors.black,
+// //                       ),
+// //                     ),
+// //                     SizedBox(height: 5.h),
+// //                     Text(
+// //                       '₦12,000',
+// //                       style: TextStyle(
+// //                         fontFamily: 'Inter',
+// //                         fontSize: 18.sp,
+// //                         fontWeight: FontWeight.w700,
+// //                         color: Colors.black,
+// //                       ),
+// //                     ),
+// //                   ],
+// //                 ),
+// //               ),
+// //               SizedBox(height: 30.h),
+// //               Container(
+// //                 width: 353.w,
+// //                 height: 48.h,
+// //                 decoration: BoxDecoration(
+// //                   color: Color(ConstColors.mainColor),
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: GestureDetector(
+// //                   onTap: () {
+// //                     Navigator.pop(context);
+// //                     _showEditPrebookingSheet();
+// //                   },
+// //                   child: Center(
+// //                     child: Text(
+// //                       'Edit pre booking',
+// //                       style: TextStyle(
+// //                         color: Colors.white,
+// //                         fontSize: 16.sp,
+// //                         fontWeight: FontWeight.w600,
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showEditPrebookingSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         height: 600.h,
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: SingleChildScrollView(
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               Row(
+// //                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// //                 children: [
+// //                   Text(
+// //                     'Edit pre booking',
+// //                     style: TextStyle(
+// //                       fontFamily: 'Inter',
+// //                       fontSize: 26.sp,
+// //                       fontWeight: FontWeight.w600,
+// //                       color: Colors.black,
+// //                     ),
+// //                   ),
+// //                   GestureDetector(
+// //                     onTap: () => Navigator.pop(context),
+// //                     child: Icon(Icons.close, size: 24.sp, color: Colors.black),
+// //                   ),
+// //                 ],
+// //               ),
+// //               SizedBox(height: 30.h),
+// //               _buildEditField('PICK UP', 'Nsukka, Enugu'),
+// //               SizedBox(height: 15.h),
+// //               _buildEditField('DESTINATION', 'Ikeja, Lagos'),
+// //               SizedBox(height: 15.h),
+// //               _buildEditField('WHEN', 'November 28, 2025 at 03:45 pm'),
+// //               SizedBox(height: 15.h),
+// //               _buildEditField('PAYMENT METHOD', selectedPaymentMethod),
+// //               SizedBox(height: 15.h),
+// //               _buildEditField(
+// //                 'VEHICLE',
+// //                 selectedVehicle != null
+// //                     ? [
+// //                         'Regular vehicle',
+// //                         'Fancy vehicle',
+// //                         'VIP',
+// //                       ][selectedVehicle!]
+// //                     : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
+// //               ),
+// //               SizedBox(height: 40.h),
+// //               Column(
+// //                 children: [
+// //                   Container(
+// //                     width: 353.w,
+// //                     height: 48.h,
+// //                     decoration: BoxDecoration(
+// //                       color: Colors.white,
+// //                       border: Border.all(color: Colors.red),
+// //                       borderRadius: BorderRadius.circular(8.r),
+// //                     ),
+// //                     child: GestureDetector(
+// //                       onTap: () {
+// //                         Navigator.pop(context);
+// //                         _showTripCanceledSheet();
+// //                       },
+// //                       child: Center(
+// //                         child: Text(
+// //                           'Cancel prebooking',
+// //                           style: TextStyle(
+// //                             color: Colors.red,
+// //                             fontSize: 16.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ),
+// //                   SizedBox(height: 15.h),
+// //                   Container(
+// //                     width: 353.w,
+// //                     height: 48.h,
+// //                     decoration: BoxDecoration(
+// //                       color: Color(ConstColors.mainColor),
+// //                       borderRadius: BorderRadius.circular(8.r),
+// //                     ),
+// //                     child: GestureDetector(
+// //                       onTap: () {
+// //                         Navigator.pop(context);
+// //                       },
+// //                       child: Center(
+// //                         child: Text(
+// //                           'Save prebooking',
+// //                           style: TextStyle(
+// //                             color: Colors.white,
+// //                             fontSize: 16.sp,
+// //                             fontWeight: FontWeight.w600,
+// //                           ),
+// //                         ),
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ],
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildEditField(String label, String value) {
+// //     return Column(
+// //       crossAxisAlignment: CrossAxisAlignment.start,
+// //       children: [
+// //         Text(
+// //           label,
+// //           style: TextStyle(
+// //             fontFamily: 'Inter',
+// //             fontSize: 12.sp,
+// //             fontWeight: FontWeight.w500,
+// //             color: Colors.black,
+// //           ),
+// //         ),
+// //         SizedBox(height: 8.h),
+// //         Container(
+// //           width: 353.w,
+// //           height: 50.h,
+// //           padding: EdgeInsets.symmetric(horizontal: 10.w),
+// //           decoration: BoxDecoration(
+// //             color: Color(0xFFB1B1B1).withOpacity(0.12),
+// //             borderRadius: BorderRadius.circular(2.r),
+// //           ),
+// //           child: Align(
+// //             alignment: Alignment.centerLeft,
+// //             child: Text(
+// //               value,
+// //               style: TextStyle(
+// //                 fontFamily: 'Inter',
+// //                 fontSize: 14.sp,
+// //                 fontWeight: FontWeight.w400,
+// //                 color: Colors.black,
+// //               ),
+// //             ),
+// //           ),
+// //         ),
+// //       ],
+// //     );
+// //   }
+
+// //   void _showTripCanceledSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => StatefulBuilder(
+// //         builder: (context, setCancelState) => Container(
+// //           height: 450.h,
+// //           padding: EdgeInsets.all(20.w),
+// //           decoration: BoxDecoration(
+// //             color: Colors.white,
+// //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //           ),
+// //           child: Column(
+// //             children: [
+// //               Container(
+// //                 width: 69.w,
+// //                 height: 5.h,
+// //                 margin: EdgeInsets.only(bottom: 20.h),
+// //                 decoration: BoxDecoration(
+// //                   color: Colors.grey.shade300,
+// //                   borderRadius: BorderRadius.circular(2.5.r),
+// //                 ),
+// //               ),
+// //               Align(
+// //                 alignment: Alignment.centerLeft,
+// //                 child: Text(
+// //                   'Trip Canceled',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 18.sp,
+// //                     fontWeight: FontWeight.w600,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //               ),
+// //               SizedBox(height: 10.h),
+// //               Align(
+// //                 alignment: Alignment.centerLeft,
+// //                 child: Text(
+// //                   'Help us improve by sharing why you are canceling',
+// //                   style: TextStyle(
+// //                     fontFamily: 'Inter',
+// //                     fontSize: 14.sp,
+// //                     fontWeight: FontWeight.w400,
+// //                     height: 1.0,
+// //                     letterSpacing: -0.32,
+// //                     color: Colors.black,
+// //                   ),
+// //                 ),
+// //               ),
+// //               SizedBox(height: 30.h),
+// //               _buildCancelReason(
+// //                 0,
+// //                 'I am taking alternative transport',
+// //                 setCancelState,
+// //               ),
+// //               SizedBox(height: 10.h),
+// //               _buildCancelReason(
+// //                 1,
+// //                 'It is taking too long to get a driver',
+// //                 setCancelState,
+// //               ),
+// //               SizedBox(height: 10.h),
+// //               _buildCancelReason(
+// //                 2,
+// //                 'I have to attend to something',
+// //                 setCancelState,
+// //               ),
+// //               SizedBox(height: 10.h),
+// //               _buildCancelReason(3, 'Others', setCancelState),
+// //               Spacer(),
+// //               Container(
+// //                 width: 353.w,
+// //                 height: 48.h,
+// //                 decoration: BoxDecoration(
+// //                   color: selectedCancelReason != null
+// //                       ? Color(ConstColors.mainColor)
+// //                       : Color(ConstColors.fieldColor),
+// //                   borderRadius: BorderRadius.circular(8.r),
+// //                 ),
+// //                 child: GestureDetector(
+// //                   onTap: selectedCancelReason != null
+// //                       ? () {
+// //                           Navigator.pop(context);
+// //                           _showFeedbackSuccessSheet();
+// //                         }
+// //                       : null,
+// //                   child: Center(
+// //                     child: Text(
+// //                       'Submit',
+// //                       style: TextStyle(
+// //                         color: Colors.white,
+// //                         fontSize: 16.sp,
+// //                         fontWeight: FontWeight.w600,
+// //                       ),
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ],
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildCancelReason(
+// //     int index,
+// //     String reason,
+// //     StateSetter setCancelState,
+// //   ) {
+// //     final isSelected = selectedCancelReason == index;
+// //     return GestureDetector(
+// //       onTap: () {
+// //         setCancelState(() {
+// //           selectedCancelReason = index;
+// //         });
+// //       },
+// //       child: Container(
+// //         width: 353.w,
+// //         height: 40.h,
+// //         padding: EdgeInsets.all(10.w),
+// //         decoration: BoxDecoration(
+// //           color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
+// //           border: Border.all(color: Color(ConstColors.mainColor)),
+// //           borderRadius: BorderRadius.circular(15.r),
+// //         ),
+// //         child: Center(
+// //           child: Text(
+// //             reason,
+// //             style: TextStyle(
+// //               fontFamily: 'Inter',
+// //               fontSize: 14.sp,
+// //               fontWeight: FontWeight.w400,
+// //               color: isSelected ? Colors.white : Colors.black,
+// //             ),
+// //           ),
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   void _showFeedbackSuccessSheet() {
+// //     showModalBottomSheet(
+// //       context: context,
+// //       isScrollControlled: true,
+// //       shape: RoundedRectangleBorder(
+// //         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //       ),
+// //       builder: (context) => Container(
+// //         height: 400.h,
+// //         padding: EdgeInsets.all(20.w),
+// //         decoration: BoxDecoration(
+// //           color: Colors.white,
+// //           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+// //         ),
+// //         child: Column(
+// //           children: [
+// //             Container(
+// //               width: 69.w,
+// //               height: 5.h,
+// //               margin: EdgeInsets.only(bottom: 30.h),
+// //               decoration: BoxDecoration(
+// //                 color: Colors.grey.shade300,
+// //                 borderRadius: BorderRadius.circular(2.5.r),
+// //               ),
+// //             ),
+// //             Container(
+// //               width: 266.w,
+// //               height: 212.h,
+// //               margin: EdgeInsets.only(top: 30.h, left: 62.w),
+// //               child: Image.asset(
+// //                 'assets/images/Feedback_suucess.png',
+// //                 fit: BoxFit.contain,
+// //               ),
+// //             ),
+// //             Spacer(),
+// //             Container(
+// //               width: 353.w,
+// //               height: 48.h,
+// //               decoration: BoxDecoration(
+// //                 color: Color(ConstColors.mainColor),
+// //                 borderRadius: BorderRadius.circular(8.r),
+// //               ),
+// //               child: GestureDetector(
+// //                 onTap: () {
+// //                   Navigator.pop(context);
+// //                 },
+// //                 child: Center(
+// //                   child: Text(
+// //                     'GO HOME',
+// //                     style: TextStyle(
+// //                       color: Colors.white,
+// //                       fontSize: 16.sp,
+// //                       fontWeight: FontWeight.w600,
+// //                     ),
+// //                   ),
+// //                 ),
+// //               ),
+// //             ),
+// //           ],
+// //         ),
+// //       ),
+// //     );
+// //   }
+
+// //   Widget _buildDrawerItem(
+// //     String title,
+// //     String iconPath, {
+// //     VoidCallback? onTap,
+// //   }) {
+// //     return ListTile(
+// //       leading: Image.asset(iconPath, width: 24.w, height: 24.h),
+// //       title: Text(title, style: ConstTextStyles.drawerItem),
+// //       onTap: onTap,
+// //     );
+// //   }
+// // }

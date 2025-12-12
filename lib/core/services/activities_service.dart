@@ -5,7 +5,7 @@ import 'package:muvam/features/activities/data/models/ride_user.dart';
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class RidesService {
+class ActivitiesService {
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');

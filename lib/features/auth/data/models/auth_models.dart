@@ -21,6 +21,7 @@ class RegisterUserRequest {
   final String lastName;
   final String phone;
   final String role;
+  final String? location;
 
   RegisterUserRequest({
     required this.email,
@@ -28,16 +29,23 @@ class RegisterUserRequest {
     required this.lastName,
     required this.phone,
     required this.role,
+    this.location,
   });
 
-  Map<String, dynamic> toJson() => {
-    "email": email,
-    "first_name": firstName,
-    "last_name": lastName,
-    "phone": phone,
-    "role": role,
-    "service_type": "taxi",
-  };
+  Map<String, dynamic> toJson() {
+    final json = {
+      "email": email,
+      "first_name": firstName,
+      "last_name": lastName,
+      "phone": phone,
+      "role": role,
+      "service_type": "taxi",
+    };
+    if (location != null) {
+      json["location"] = location!;
+    }
+    return json;
+  }
 }
 
 class ApiResponse {
@@ -52,14 +60,14 @@ class ApiResponse {
 class VerifyOtpResponse {
   final bool isNew;
   final String message;
-  final String token;
-  final Map<String, dynamic> user;
+  final String? token;
+  final Map<String, dynamic>? user;
 
   VerifyOtpResponse({
     required this.isNew,
     required this.message,
-    required this.token,
-    required this.user,
+    this.token,
+    this.user,
   });
 
   factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) =>
@@ -73,12 +81,21 @@ class VerifyOtpResponse {
 
 class RegisterUserResponse {
   final String message;
+  final String token;
   final Map<String, dynamic> user;
 
-  RegisterUserResponse({required this.message, required this.user});
+  RegisterUserResponse({
+    required this.message,
+    required this.token,
+    required this.user,
+  });
 
   factory RegisterUserResponse.fromJson(Map<String, dynamic> json) =>
-      RegisterUserResponse(message: json['message'], user: json['user']);
+      RegisterUserResponse(
+        message: json['message'],
+        token: json['token'],
+        user: json['user'],
+      );
 }
 
 class CompleteProfileRequest {

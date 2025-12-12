@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:muvam/core/services/rides_service.dart';
+import 'package:muvam/core/services/activities_service.dart';
 import 'package:muvam/features/activities/data/models/ride_user.dart';
 
 class RidesProvider with ChangeNotifier {
-  final RidesService _ridesService = RidesService();
+  final ActivitiesService _ridesService = ActivitiesService();
 
   List<Ride> _allRides = [];
   Ride? _selectedRide;

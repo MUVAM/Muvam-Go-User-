@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/websocket_service.dart';
+import 'package:muvam/core/services/websocket_service.dart';
 
 class WebSocketProvider with ChangeNotifier {
   final WebSocketService _webSocketService = WebSocketService();
-  
+
   bool get isConnected => _webSocketService.isConnected;
 
   Future<void> connect() async {

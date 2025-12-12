@@ -70,14 +70,14 @@ class RideRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    "dest": dest,
-    "dest_address": destAddress,
-    "payment_method": paymentMethod,
     "pickup": pickup,
+    "dest": dest,
     "pickup_address": pickupAddress,
+    "dest_address": destAddress,
+    "stop_address": stopAddress ?? "No stops",
     "service_type": serviceType,
     "vehicle_type": vehicleType,
-    if (stopAddress != null && stopAddress!.isNotEmpty) "stop_address": stopAddress,
+    "payment_method": paymentMethod,
   };
 }
 
@@ -102,17 +102,16 @@ class RideResponse {
     required this.paymentMethod,
   });
 
-  factory RideResponse.fromJson(Map<String, dynamic> json) => 
-      RideResponse(
-        id: json['ID'],
-        status: json['Status'],
-        pickupAddress: json['PickupAddress'],
-        destAddress: json['DestAddress'],
-        price: json['Price'].toDouble(),
-        serviceType: json['ServiceType'],
-        vehicleType: json['VehicleType'],
-        paymentMethod: json['PaymentMethod'],
-      );
+  factory RideResponse.fromJson(Map<String, dynamic> json) => RideResponse(
+    id: json['ID'],
+    status: json['Status'],
+    pickupAddress: json['PickupAddress'],
+    destAddress: json['DestAddress'],
+    price: json['Price'].toDouble(),
+    serviceType: json['ServiceType'],
+    vehicleType: json['VehicleType'],
+    paymentMethod: json['PaymentMethod'],
+  );
 
   Map<String, dynamic> toJson() => {
     "id": id,
@@ -173,7 +172,10 @@ class ChatMessage {
     required this.isMe,
   });
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json, String currentUserId) => ChatMessage(
+  factory ChatMessage.fromJson(
+    Map<String, dynamic> json,
+    String currentUserId,
+  ) => ChatMessage(
     id: json['id'].toString(),
     message: json['message'] ?? '',
     senderId: json['sender_id'].toString(),

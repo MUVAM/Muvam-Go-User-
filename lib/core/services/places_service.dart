@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 
 class PlacesService {
-  static const String _apiKey = 'AIzaSyD-nRzdn3Slmj5FgoHSPIq5B4sMZieWofs';
+  static String get _apiKey => dotenv.env['GOOGLE_API_KEY'] ?? '';
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   Future<List<PlacePrediction>> getPlacePredictions(

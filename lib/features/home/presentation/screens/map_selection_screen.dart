@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
-import '../constants/colors.dart';
+import 'package:muvam/core/constants/colors.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   final bool isFromField;

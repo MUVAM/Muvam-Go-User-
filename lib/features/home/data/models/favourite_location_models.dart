@@ -35,13 +35,14 @@ class FavouriteLocation {
     required this.userID,
   });
 
-  factory FavouriteLocation.fromJson(Map<String, dynamic> json) => FavouriteLocation(
-    id: json['ID'] ?? 0,
-    destAddress: json['DestAddress'] ?? '',
-    destLocation: json['DestLocation'] ?? '',
-    name: json['Name'] ?? '',
-    createdAt: json['CreatedAt'] ?? '',
-    updatedAt: json['UpdatedAt'] ?? '',
-    userID: json['UserID'] ?? 0,
-  );
+  factory FavouriteLocation.fromJson(Map<String, dynamic> json) =>
+      FavouriteLocation(
+        id: json['ID'] ?? 0,
+        destAddress: json['DestAddress'] ?? '',
+        destLocation: json['DestLocation'] ?? '',
+        name: json['Name'] ?? '',
+        createdAt: json['CreatedAt'] ?? '',
+        updatedAt: json['UpdatedAt'] ?? '',
+        userID: json['UserID'] ?? 0,
+      );
 }

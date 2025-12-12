@@ -86,4 +86,13 @@ class LocationService {
       return RecentLocation(name: data['name'], address: data['address']);
     }).toList();
   }
+
+  Future<void> deleteRecentLocation(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> recentLocations =
+        prefs.getStringList('recent_locations') ?? [];
+
+    recentLocations.removeWhere((item) => jsonDecode(item)['name'] == name);
+    await prefs.setStringList('recent_locations', recentLocations);
+  }
 }

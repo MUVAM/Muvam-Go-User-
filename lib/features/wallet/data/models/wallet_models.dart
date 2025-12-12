@@ -1,4 +1,3 @@
-// Wallet Summary Response
 class WalletSummaryResponse {
   final int id;
   final double balance;

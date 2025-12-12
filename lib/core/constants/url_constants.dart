@@ -1,7 +1,8 @@
 class UrlConstants {
   static const String baseUrl = "http://44.222.121.219/api/v1";
+  static const String wsUrl = "ws://44.222.121.219/api/v1/ws";
 
-  // Authentication endpoints
+  // Authentication
   static const String sendOtp = "/otp/send";
   static const String resendOtp = "/otp/resend";
   static const String verifyOtp = "/otp/verify";
@@ -9,9 +10,15 @@ class UrlConstants {
   static const String completeProfile = "/users/profile/complete";
   static const String favouriteLocation = "/users/favouriteLocation";
 
-  // Wallet endpoints (removed duplicate /api/v1 from paths)
+  // Wallet
   static const String walletSummary = "/wallet/summary";
   static const String getVirtualAccount = "/wallet/virtual-account";
-  static const String rides = "/rides";
   static const String createVirtualAccount = "/wallet/virtual-account/create";
+
+  // Rides
+  static const String rides = "/rides";
+  static const String rideEstimate = "/rides/estimate";
+  static const String rideRequest = "/rides/request";
+  static const String nearbyRides = "/rides/nearby";
+  static const String activeRides = "/rides";
 }

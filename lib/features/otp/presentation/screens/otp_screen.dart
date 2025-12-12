@@ -3,7 +3,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
+import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'dart:async';
 
 class OtpScreen extends StatefulWidget {
@@ -167,27 +172,36 @@ class _OtpScreenState extends State<OtpScreen> {
                       }),
                     ),
                     SizedBox(height: 30.h),
-                    GestureDetector(
-                      onTap: _countdown == 0
-                          ? () {
-                              setState(() {
-                                _countdown = 20;
-                              });
-                              startTimer();
-                            }
-                          : null,
-                      child: Text(
-                        _countdown > 0
-                            ? 'Didn\'t receive code? Resend code in: 0:${_countdown.toString().padLeft(2, '0')}'
-                            : 'Resend code',
-                        style: _countdown == 0
-                            ? TextStyle(
-                                color: Color(ConstColors.mainColor),
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w500,
-                              )
-                            : ConstTextStyles.lightSubtitle,
-                      ),
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GestureDetector(
+                          onTap: _countdown == 0 && !authProvider.isLoading
+                              ? () async {
+                                  final success = await authProvider.resendOtp(
+                                    widget.phoneNumber,
+                                  );
+                                  if (success) {
+                                    setState(() {
+                                      _countdown = 20;
+                                    });
+                                    startTimer();
+                                  }
+                                }
+                              : null,
+                          child: Text(
+                            _countdown > 0
+                                ? 'Didn\'t receive code? Resend code in: 0:${_countdown.toString().padLeft(2, '0')}'
+                                : 'Resend code',
+                            style: _countdown == 0
+                                ? TextStyle(
+                                    color: Color(ConstColors.mainColor),
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w500,
+                                  )
+                                : ConstTextStyles.lightSubtitle,
+                          ),
+                        );
+                      },
                     ),
                     SizedBox(height: 20.h),
                     GestureDetector(
@@ -204,38 +218,86 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                     ),
                     SizedBox(height: 40.h),
-                    GestureDetector(
-                      onTap: isOtpComplete
-                          ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const CreateAccountScreen(),
-                                ),
-                              );
-                            }
-                          : null,
-                      child: Container(
-                        width: 353.w,
-                        height: 48.h,
-                        decoration: BoxDecoration(
-                          color: isOtpComplete
-                              ? Color(ConstColors.mainColor)
-                              : Color(ConstColors.fieldColor),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Continue',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GestureDetector(
+                          onTap: isOtpComplete && !authProvider.isLoading
+                              ? () async {
+                                  final otpCode = otpControllers
+                                      .map((c) => c.text)
+                                      .join();
+                                  final success = await authProvider.verifyOtp(
+                                    otpCode,
+                                    widget.phoneNumber,
+                                  );
+
+                                  if (success) {
+                                    final response =
+                                        authProvider.verifyOtpResponse!;
+                                    AppLogger.log(
+                                      'User data: ${response.user}',
+                                    );
+                                    AppLogger.log('Token: ${response.token}');
+                                    AppLogger.log('IsNew: ${response.isNew}');
+
+                                    if (response.isNew) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const CreateAccountScreen(),
+                                        ),
+                                      );
+                                    } else {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const HomeScreen(),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    CustomFlushbar.showOtpResent(
+                                      context: context,
+                                      message:
+                                          authProvider.errorMessage ??
+                                          'Invalid OTP',
+                                    );
+                                  }
+                                }
+                              : null,
+                          child: Container(
+                            width: 353.w,
+                            height: 48.h,
+                            decoration: BoxDecoration(
+                              color: isOtpComplete && !authProvider.isLoading
+                                  ? Color(ConstColors.mainColor)
+                                  : Color(ConstColors.fieldColor),
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+                            child: Center(
+                              child: authProvider.isLoading
+                                  ? SizedBox(
+                                      width: 20.w,
+                                      height: 20.h,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Continue',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                     SizedBox(height: 20.h),
                   ],

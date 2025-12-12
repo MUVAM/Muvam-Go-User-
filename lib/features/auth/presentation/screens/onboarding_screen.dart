@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
@@ -129,39 +133,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 SizedBox(height: 95.h),
-                GestureDetector(
-                  onTap: _isValidPhone()
-                      ? () {
-                          final fullPhone = countryCode + phoneController.text;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  OtpScreen(phoneNumber: fullPhone),
-                            ),
-                          );
-                        }
-                      : null,
-                  child: Container(
-                    width: 353.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: _isValidPhone()
-                          ? Color(ConstColors.mainColor)
-                          : Color(ConstColors.fieldColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Continue',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    return GestureDetector(
+                      onTap: _isValidPhone() && !authProvider.isLoading
+                          ? () async {
+                              final fullPhone =
+                                  countryCode + phoneController.text;
+                              final success = await authProvider.sendOtp(
+                                fullPhone,
+                              );
+
+                              if (success) {
+                                // Store phone number for registration
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString('user_phone', fullPhone);
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OtpScreen(phoneNumber: fullPhone),
+                                  ),
+                                );
+                              } else {
+                                CustomFlushbar.showError(
+                                  context: context,
+                                  message:
+                                      authProvider.errorMessage ??
+                                      'Failed to send OTP',
+                                );
+                              }
+                            }
+                          : null,
+                      child: Container(
+                        width: 353.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: _isValidPhone() && !authProvider.isLoading
+                              ? Color(ConstColors.mainColor)
+                              : Color(ConstColors.fieldColor),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Center(
+                          child: authProvider.isLoading
+                              ? SizedBox(
+                                  width: 20.w,
+                                  height: 20.h,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Continue',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 SizedBox(height: 20.h),
               ],

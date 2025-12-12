@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
-import 'package:muvam/models/auth_models.dart';
-import 'package:muvam/providers/auth_provider.dart';
+import 'package:muvam/features/auth/data/models/auth_models.dart';
+import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class EditProfileSheet extends StatelessWidget {

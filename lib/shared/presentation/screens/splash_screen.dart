@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
+import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -38,18 +40,39 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _initializeApp() async {
     try {
-      await context.read<WalletProvider>().checkVirtualAccount();
-      print('here get called...');
-    } catch (e) {
-      AppLogger.log('Failed to check virtual account: $e');
-    }
-    print('++++++++++...');
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final isTokenValid = await authProvider.checkTokenValidity();
 
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-      );
+      if (isTokenValid) {
+        try {
+          await context.read<WalletProvider>().checkVirtualAccount();
+          AppLogger.log('Virtual account check completed');
+        } catch (e) {
+          AppLogger.log('Failed to check virtual account: $e');
+        }
+      }
+
+      if (mounted) {
+        if (isTokenValid) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.log('Initialization error: $e');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
     }
   }
 

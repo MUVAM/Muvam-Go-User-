@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/data/models/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/url_constants.dart';
@@ -37,52 +38,94 @@ class AuthService {
   }
 
   Future<VerifyOtpResponse> verifyOtp(String code, String phone) async {
+    final requestBody = VerifyOtpRequest(code: code, phone: phone).toJson();
+    AppLogger.log('Verify OTP Request Body: $requestBody');
+
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.verifyOtp}'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(VerifyOtpRequest(code: code, phone: phone).toJson()),
+      body: jsonEncode(requestBody),
     );
+
+    AppLogger.log('Verify OTP Response Status: ${response.statusCode}');
+    AppLogger.log('Verify OTP Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       final result = VerifyOtpResponse.fromJson(jsonDecode(response.body));
-      await _saveToken(result.token);
+      if (result.token != null) {
+        await _saveToken(result.token!);
+      }
       return result;
     } else {
-      throw Exception('Failed to verify OTP');
+      AppLogger.log('Verify OTP Error: ${response.body}');
+      throw Exception('Failed to verify OTP: ${response.body}');
     }
   }
 
   Future<RegisterUserResponse> registerUser(RegisterUserRequest request) async {
-    final token = await getToken();
+    final requestBody = request.toJson();
+    requestBody['service_type'] = 'taxi'; // Force add service_type
+    AppLogger.log('Registration request: $requestBody');
+
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.registerUser}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(request.toJson()),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
     );
 
-    if (response.statusCode == 200) {
-      return RegisterUserResponse.fromJson(jsonDecode(response.body));
+    AppLogger.log('Register User Response Status: ${response.statusCode}');
+    AppLogger.log('Register User Response Body: ${response.body}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final result = RegisterUserResponse.fromJson(jsonDecode(response.body));
+      await _saveToken(result.token);
+      return result;
     } else {
-      throw Exception('Failed to register user');
+      AppLogger.log('Register User Error: ${response.body}');
+      throw Exception('Failed to register user: ${response.body}');
     }
   }
 
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    await prefs.setInt(
+      'token_timestamp',
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final token = prefs.getString(_tokenKey);
+    final timestamp = prefs.getInt('token_timestamp');
+
+    AppLogger.log('Stored token: $token');
+    AppLogger.log('Token timestamp: $timestamp');
+
+    if (token != null && timestamp != null) {
+      final tokenAge = DateTime.now().millisecondsSinceEpoch - timestamp;
+      AppLogger.log('Token age: ${tokenAge / 1000} seconds');
+      if (tokenAge > 7200000) {
+        // 2 hours in milliseconds
+        AppLogger.log('Token expired, clearing...');
+        await clearToken();
+        return null;
+      }
+    }
+
+    return token;
   }
 
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove('token_timestamp');
+  }
+
+  Future<bool> isTokenValid() async {
+    final token = await getToken();
+    return token != null;
   }
 
   Future<ApiResponse> completeProfile(CompleteProfileRequest request) async {

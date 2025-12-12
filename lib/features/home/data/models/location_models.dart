@@ -17,7 +17,7 @@ class FavouriteLocation {
     required this.updatedAt,
   });
 
-  factory FavouriteLocation.fromJson(Map<String, dynamic> json) => 
+  factory FavouriteLocation.fromJson(Map<String, dynamic> json) =>
       FavouriteLocation(
         id: json['id'],
         name: json['name'],

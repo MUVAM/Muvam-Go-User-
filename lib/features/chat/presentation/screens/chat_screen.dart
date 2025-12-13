@@ -10,8 +10,10 @@ import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../widgets/chat_bubble.dart';
+import 'call_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final int rideId;
@@ -168,6 +170,124 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showCallDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Text(
+              'Call ${widget.driverName}',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 30.h),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CallScreen(
+                      driverName: widget.driverName,
+                      rideId: widget.rideId,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 15.h),
+                child: Row(
+                  children: [
+                    Icon(Icons.phone_android, size: 24.sp),
+                    SizedBox(width: 15.w),
+                    Text(
+                      'Call via app',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                _makeCall();
+              },
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 15.h),
+                child: Row(
+                  children: [
+                    Icon(Icons.phone, size: 24.sp),
+                    SizedBox(width: 15.w),
+                    Text(
+                      'Call via phone',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 20.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _makeCall() async {
+    // Replace with actual driver phone number
+    const phoneNumber = '+1234567890'; // This should come from driver data
+    final uri = Uri.parse('tel:$phoneNumber');
+    
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        AppLogger.log('📞 Call initiated to: $phoneNumber', tag: 'CHAT');
+      } else {
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Cannot make phone calls on this device',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Failed to make call', error: e, tag: 'CHAT');
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Failed to make call',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,24 +332,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    width: 8.w,
-                    height: 8.h,
-                    decoration: BoxDecoration(
-                      color: isConnected ? Colors.green : Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 15.w),
+                  
                   GestureDetector(
                     onTap: () {
-                      // Add call functionality here
-                      AppLogger.log('Call button tapped for driver: ${widget.driverName}', tag: 'CHAT');
+                      AppLogger.log('📞 Call button tapped for driver: ${widget.driverName}', tag: 'CHAT');
+                      _showCallDialog();
                     },
-                    child: Icon(
-                      Icons.phone,
-                      size: 24.sp,
-                      color: Color(ConstColors.mainColor),
+                    child: Container(
+                      padding: EdgeInsets.all(4.w),
+                      child: Icon(
+                        Icons.phone,
+                        size: 24.sp,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
                 ],

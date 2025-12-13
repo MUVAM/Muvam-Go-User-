@@ -1,18 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/services/call_service.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import '../widgets/call_button.dart';
+import 'dart:async';
 
 class CallScreen extends StatefulWidget {
   final String driverName;
+  final int rideId;
 
-  const CallScreen({super.key, required this.driverName});
+  const CallScreen({super.key, required this.driverName, required this.rideId});
 
   @override
   State<CallScreen> createState() => _CallScreenState();
 }
 
 class _CallScreenState extends State<CallScreen> {
+  late CallService _callService;
+  String _callStatus = 'Connecting...';
+  bool _isMuted = false;
+  bool _isSpeakerOn = false;
+  Timer? _callTimer;
+  int _callDuration = 0;
+  int? _sessionId;
+  @override
+  void initState() {
+    super.initState();
+    _initializeCall();
+  }
+
+  @override
+  void dispose() {
+    _callTimer?.cancel();
+    _callService.endCall(_sessionId, _callDuration);
+    _callService.dispose();
+    super.dispose();
+  }
+
+  void _initializeCall() async {
+    try {
+      _callService = CallService();
+      await _callService.initialize();
+      
+      final session = await _callService.initiateCall(widget.rideId);
+      _sessionId = session['session_id'];
+      
+      setState(() {
+        _callStatus = 'Calling ${widget.driverName}...';
+      });
+
+      _callService.onCallStateChanged = (state) {
+        setState(() {
+          _callStatus = state;
+          if (state == 'Connected') {
+            _startCallTimer();
+          }
+        });
+      };
+
+    } catch (e) {
+      AppLogger.error('Failed to initialize call', error: e, tag: 'CALL');
+      setState(() {
+        _callStatus = 'Call failed';
+      });
+    }
+  }
+
+  void _startCallTimer() {
+    _callTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _callDuration++;
+      });
+    });
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _callService.toggleMute(_isMuted);
+  }
+
+  void _toggleSpeaker() {
+    setState(() {
+      _isSpeakerOn = !_isSpeakerOn;
+    });
+    _callService.toggleSpeaker(_isSpeakerOn);
+  }
+
+  void _endCall() {
+    _callTimer?.cancel();
+    _callService.endCall(_sessionId, _callDuration);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,7 +148,7 @@ class _CallScreenState extends State<CallScreen> {
                       ),
                       SizedBox(height: 5.h),
                       Text(
-                        'Calling...',
+                        _callStatus,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Inter',
@@ -71,6 +159,19 @@ class _CallScreenState extends State<CallScreen> {
                           color: Colors.grey,
                         ),
                       ),
+                      if (_callDuration > 0) ...{
+                        SizedBox(height: 5.h),
+                        Text(
+                          _formatDuration(_callDuration),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                          ),
+                        ),
+                      },
                     ],
                   ),
                 ),
@@ -108,21 +209,19 @@ class _CallScreenState extends State<CallScreen> {
                     },
                   ),
                   CallButton(
-                    icon: Icons.volume_up,
-                    iconColor: Colors.black,
-                    onTap: () {},
+                    icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
+                    iconColor: _isSpeakerOn ? Colors.blue : Colors.black,
+                    onTap: _toggleSpeaker,
                   ),
                   CallButton(
-                    icon: Icons.mic_off,
-                    iconColor: Colors.black,
-                    onTap: () {},
+                    icon: _isMuted ? Icons.mic_off : Icons.mic,
+                    iconColor: _isMuted ? Colors.red : Colors.black,
+                    onTap: _toggleMute,
                   ),
                   CallButton(
                     icon: Icons.call_end,
                     iconColor: Colors.white,
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: _endCall,
                     isEndCall: true,
                   ),
                 ],

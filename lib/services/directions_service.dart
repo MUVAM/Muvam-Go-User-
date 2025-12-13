@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_keys.dart';
 
 class DirectionsService {
-  static const String _apiKey = ApiKeys.googleMapsApiKey;
-  
+  static const String _apiKey = 'AIzaSyD-nRzdn3Slmj5FgoHSPIq5B4sMZieWofs';
+
   /// Get route polyline points between two locations
   Future<List<LatLng>> getRoutePolyline({
     required LatLng origin,
@@ -18,7 +17,8 @@ class DirectionsService {
   }) async {
     try {
       // Build the URL
-      String url = 'https://maps.googleapis.com/maps/api/directions/json?'
+      String url =
+          'https://maps.googleapis.com/maps/api/directions/json?'
           'origin=${origin.latitude},${origin.longitude}'
           '&destination=${destination.latitude},${destination.longitude}'
           '&key=$_apiKey';
@@ -32,7 +32,7 @@ class DirectionsService {
       }
 
       print('🗺️ Fetching directions from Google Maps API...');
-      
+
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -43,15 +43,17 @@ class DirectionsService {
           if (routes.isNotEmpty) {
             final route = routes[0];
             final polylinePoints = route['overview_polyline']['points'];
-            
+
             print('✅ Route fetched successfully');
-            
+
             // Decode the polyline
             return _decodePolyline(polylinePoints);
           }
         } else {
           print('❌ Directions API error: ${data['status']}');
-          print('Error message: ${data['error_message'] ?? 'No error message'}');
+          print(
+            'Error message: ${data['error_message'] ?? 'No error message'}',
+          );
         }
       } else {
         print('❌ HTTP error: ${response.statusCode}');
@@ -61,7 +63,9 @@ class DirectionsService {
     }
 
     // Return straight line as fallback (API key needed for real routes)
-    print('⚠️ Using straight line - need valid Google Maps API key for real routes');
+    print(
+      '⚠️ Using straight line - need valid Google Maps API key for real routes',
+    );
     return [origin, destination];
   }
 
@@ -114,7 +118,8 @@ class DirectionsService {
     required LatLng destination,
   }) async {
     try {
-      String url = 'https://maps.googleapis.com/maps/api/directions/json?'
+      String url =
+          'https://maps.googleapis.com/maps/api/directions/json?'
           'origin=${origin.latitude},${origin.longitude}'
           '&destination=${destination.latitude},${destination.longitude}'
           '&key=$_apiKey';

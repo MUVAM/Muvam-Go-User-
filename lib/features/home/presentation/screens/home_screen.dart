@@ -16,6 +16,7 @@ import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
@@ -25,6 +26,8 @@ import 'package:muvam/features/profile/presentation/screens/profile_screen.dart'
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
 import 'package:muvam/features/services/presentation/screens/services_screen.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/services/directions_service.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
@@ -178,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Size? size,
   }) async {
     final GlobalKey globalKey = GlobalKey();
-    
+
     final Widget wrappedWidget = MediaQuery(
       data: MediaQueryData(),
       child: Directionality(
@@ -200,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Create a temporary overlay to render the widget
     late OverlayEntry overlayEntry;
     final Completer<BitmapDescriptor> completer = Completer<BitmapDescriptor>();
-    
+
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         left: -1000, // Position off-screen
@@ -208,23 +211,24 @@ class _HomeScreenState extends State<HomeScreen> {
         child: wrappedWidget,
       ),
     );
-    
+
     Overlay.of(context).insert(overlayEntry);
-    
+
     // Wait for the widget to be rendered
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await Future.delayed(Duration(milliseconds: 100));
-        
-        final RenderRepaintBoundary boundary = globalKey.currentContext!
-            .findRenderObject() as RenderRepaintBoundary;
-        
+
+        final RenderRepaintBoundary boundary =
+            globalKey.currentContext!.findRenderObject()
+                as RenderRepaintBoundary;
+
         final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
         final ByteData? byteData = await image.toByteData(
           format: ui.ImageByteFormat.png,
         );
         final Uint8List pngBytes = byteData!.buffer.asUint8List();
-        
+
         overlayEntry.remove();
         completer.complete(BitmapDescriptor.fromBytes(pngBytes));
       } catch (e) {
@@ -232,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
         completer.completeError(e);
       }
     });
-    
+
     return completer.future;
   }
 
@@ -247,11 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: Colors.grey.shade300, width: 1),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -340,11 +340,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: Colors.grey.shade300, width: 1),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -353,14 +349,10 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 30.w,
             height: 30.h,
             decoration: BoxDecoration(
-              color:Color( ConstColors.mainColor),
+              color: Color(ConstColors.mainColor),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.location_on,
-              color: Colors.white,
-              size: 20.sp,
-            ),
+            child: Icon(Icons.location_on, color: Colors.white, size: 20.sp),
           ),
           SizedBox(width: 6.w),
           Expanded(
@@ -691,6 +683,47 @@ class _HomeScreenState extends State<HomeScreen> {
     _webSocketService.disconnect();
     _activeRideCheckTimer?.cancel();
     super.dispose();
+  }
+
+  void _navigateToWallet() async {
+    Navigator.pop(context);
+
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+      ),
+    );
+
+    // Check if user has virtual account
+    final hasAccount = await walletProvider.checkVirtualAccount();
+
+    // Close loading indicator
+    if (mounted) {
+      Navigator.pop(context);
+    }
+
+    AppLogger.log('Navigate to appropriate screen');
+    // Navigate to appropriate screen
+    if (mounted) {
+      if (hasAccount) {
+        AppLogger.log('Navigate to appropriate WalletScreen');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WalletScreen()),
+        );
+      } else {
+        AppLogger.log('Navigate to appropriate WalletEmptyScreen');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
+        );
+      }
+    }
   }
 
   void _showContactBottomSheet() {
@@ -1863,12 +1896,24 @@ class _HomeScreenState extends State<HomeScreen> {
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
             southwest: LatLng(
-              math.min(_pickupCoordinates!.latitude, _destinationCoordinates!.latitude),
-              math.min(_pickupCoordinates!.longitude, _destinationCoordinates!.longitude),
+              math.min(
+                _pickupCoordinates!.latitude,
+                _destinationCoordinates!.latitude,
+              ),
+              math.min(
+                _pickupCoordinates!.longitude,
+                _destinationCoordinates!.longitude,
+              ),
             ),
             northeast: LatLng(
-              math.max(_pickupCoordinates!.latitude, _destinationCoordinates!.latitude),
-              math.max(_pickupCoordinates!.longitude, _destinationCoordinates!.longitude),
+              math.max(
+                _pickupCoordinates!.latitude,
+                _destinationCoordinates!.latitude,
+              ),
+              math.max(
+                _pickupCoordinates!.longitude,
+                _destinationCoordinates!.longitude,
+              ),
             ),
           ),
           100.0,
@@ -2501,13 +2546,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildDrawerItem(
             'Wallet',
             ConstImages.wallet,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const WalletScreen()),
-              );
-            },
+            onTap: _navigateToWallet,
           ),
           _buildDrawerItem('Drive with us', ConstImages.car),
           _buildDrawerItem(
@@ -2777,7 +2816,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isActiveRideSheetVisible) return;
     _isActiveRideSheetVisible = true;
 
-    final bool hasArrived = _activeRide?['Status']?.toString().toLowerCase() == 'arrived';
+    final bool hasArrived =
+        _activeRide?['Status']?.toString().toLowerCase() == 'arrived';
 
     showModalBottomSheet(
       context: context,
@@ -2833,7 +2873,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasArrived ? 'Your driver has arrived' : 'Driver is on the way',
+                        hasArrived
+                            ? 'Your driver has arrived'
+                            : 'Driver is on the way',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16.sp,
@@ -2862,7 +2904,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_assignedDriver != null) ...[
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail('Driver name:', _assignedDriver!.name),
+                    child: _buildDriverDetail(
+                      'Driver name:',
+                      _assignedDriver!.name,
+                    ),
                   ),
                   SizedBox(height: 10.h),
                   Padding(
@@ -2882,11 +2927,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Spacer(),
                         Row(
                           children: [
-                            Icon(
-                              Icons.star,
-                              size: 16.sp,
-                              color: Colors.amber,
-                            ),
+                            Icon(Icons.star, size: 16.sp, color: Colors.amber),
                             SizedBox(width: 4.w),
                             Text(
                               _assignedDriver!.rating.toString(),
@@ -2914,7 +2955,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 10.h),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail('Car:', _assignedDriver!.vehicleModel),
+                    child: _buildDriverDetail(
+                      'Car:',
+                      _assignedDriver!.vehicleModel,
+                    ),
                   ),
                   SizedBox(height: 10.h),
                   Padding(
@@ -3013,7 +3057,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                             _assignedDriver?.name ?? 'Driver',
                                         driverImage:
                                             _assignedDriver?.profilePicture,
-                                        
                                       ),
                                     ),
                                   );
@@ -3045,8 +3088,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-              
-           ], ),
+              ],
+            ),
           ],
         ),
       ),
@@ -3702,7 +3745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
-                                  rideId: int.parse(_activeRide?['ID']) ,
+                                  rideId: int.parse(_activeRide?['ID']),
                                   driverName: _assignedDriver?.name ?? 'Driver',
                                   driverImage: _assignedDriver?.profilePicture,
                                   // rideId:
@@ -4935,10 +4978,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ChatScreen( rideId: int.parse(_activeRide?['ID']) ,
-                                  driverName: _assignedDriver?.name ?? 'Driver',
-                                  driverImage: _assignedDriver?.profilePicture,
-                                
+                              builder: (context) => ChatScreen(
+                                rideId: int.parse(_activeRide?['ID']),
+                                driverName: _assignedDriver?.name ?? 'Driver',
+                                driverImage: _assignedDriver?.profilePicture,
                               ),
                             ),
                           );
@@ -5010,10 +5053,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
-    final pickupLat = ride['PickupLatitude']?.toDouble() ?? _currentLocation.latitude;
-    final pickupLng = ride['PickupLongitude']?.toDouble() ?? _currentLocation.longitude;
-    final destLat = ride['DestLatitude']?.toDouble() ?? _currentLocation.latitude + 0.01;
-    final destLng = ride['DestLongitude']?.toDouble() ?? _currentLocation.longitude + 0.01;
+    final pickupLat =
+        ride['PickupLatitude']?.toDouble() ?? _currentLocation.latitude;
+    final pickupLng =
+        ride['PickupLongitude']?.toDouble() ?? _currentLocation.longitude;
+    final destLat =
+        ride['DestLatitude']?.toDouble() ?? _currentLocation.latitude + 0.01;
+    final destLng =
+        ride['DestLongitude']?.toDouble() ?? _currentLocation.longitude + 0.01;
 
     final pickupLocation = LatLng(pickupLat, pickupLng);
     final destLocation = LatLng(destLat, destLng);
@@ -5097,25 +5144,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<LatLng> _generateCurvedPath(LatLng start, LatLng end) {
     List<LatLng> points = [];
-    
+
     // Calculate midpoint with offset for curve
     double midLat = (start.latitude + end.latitude) / 2;
     double midLng = (start.longitude + end.longitude) / 2;
-    
+
     // Add curve offset (perpendicular to the line)
     double offsetLat = (end.longitude - start.longitude) * 0.002;
     double offsetLng = (start.latitude - end.latitude) * 0.002;
-    
+
     LatLng curvePoint = LatLng(midLat + offsetLat, midLng + offsetLng);
-    
+
     // Generate points along the curve
     for (int i = 0; i <= 20; i++) {
       double t = i / 20.0;
-      double lat = _quadraticBezier(start.latitude, curvePoint.latitude, end.latitude, t);
-      double lng = _quadraticBezier(start.longitude, curvePoint.longitude, end.longitude, t);
+      double lat = _quadraticBezier(
+        start.latitude,
+        curvePoint.latitude,
+        end.latitude,
+        t,
+      );
+      double lng = _quadraticBezier(
+        start.longitude,
+        curvePoint.longitude,
+        end.longitude,
+        t,
+      );
       points.add(LatLng(lat, lng));
     }
-    
+
     return points;
   }
 

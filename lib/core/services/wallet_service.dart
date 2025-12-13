@@ -93,6 +93,7 @@ class WalletService {
   }
 
   Future<WalletSummaryResponse> getWalletSummary() async {
+    print('thisss endpoint is getting called sha');
     final token = await _getToken();
 
     AppLogger.log(

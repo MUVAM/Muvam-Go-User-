@@ -33,8 +33,8 @@ class ActivitiesService {
       body: jsonEncode(body),
     );
 
-    AppLogger.log('Rides response: ${response.statusCode}');
-    AppLogger.log('Rides body: ${response.body}');
+    AppLogger.log('OMOOOOO =======: ${response.statusCode}');
+    AppLogger.log('OMOOOOOOO RIDE HEREEEE: ${response.body}');
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);

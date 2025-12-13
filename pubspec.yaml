@@ -38,6 +38,8 @@ dependencies:
   url_launcher: ^6.2.4
   image_picker: ^1.0.7
   another_flushbar: ^1.12.32
+  webview_flutter: ^4.4.2
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:

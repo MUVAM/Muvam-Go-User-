@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 
 class PlacesService {
-  static String get _apiKey => dotenv.env['GOOGLE_API_KEY'] ?? '';
+  static String get _apiKey => dotenv.env['GOOGLE_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   Future<List<PlacePrediction>> getPlacePredictions(
@@ -13,26 +13,49 @@ class PlacesService {
     String? sessionToken,
     Position? currentLocation,
   }) async {
-    if (query.isEmpty) return [];
+    AppLogger.log('🔍 Getting place predictions for: "$query"', tag: 'PLACES');
+    
+    if (query.isEmpty) {
+      AppLogger.log('❌ Query is empty, returning empty list', tag: 'PLACES');
+      return [];
+    }
+
+    if (_apiKey.isEmpty) {
+      AppLogger.error('❌ Google API key is missing!', tag: 'PLACES');
+      return [];
+    }
 
     final url = Uri.parse(
       '$_baseUrl/autocomplete/json?input=$query&key=$_apiKey&sessiontoken=${sessionToken ?? ''}&components=country:ng&types=establishment|geocode',
     );
 
+    AppLogger.log('🌐 API URL: ${url.toString().replaceAll(_apiKey, 'HIDDEN_KEY')}', tag: 'PLACES');
+
     try {
       final response = await http.get(url);
+      AppLogger.log('📊 Response status: ${response.statusCode}', tag: 'PLACES');
+      AppLogger.log('📥 Response body: ${response.body}', tag: 'PLACES');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        AppLogger.log('📋 API Status: ${data['status']}', tag: 'PLACES');
 
         if (data['status'] == 'OK') {
           final predictions = data['predictions'] as List;
+          AppLogger.log('✅ Found ${predictions.length} predictions', tag: 'PLACES');
+          
           final predictionList = predictions
               .map((prediction) => PlacePrediction.fromJson(prediction))
               .toList();
 
+          // Log each prediction
+          for (int i = 0; i < predictionList.length; i++) {
+            AppLogger.log('   ${i + 1}. ${predictionList[i].description}', tag: 'PLACES');
+          }
+
           // Calculate distances if current location is provided
           if (currentLocation != null) {
+            AppLogger.log('📍 Calculating distances from current location', tag: 'PLACES');
             for (var prediction in predictionList) {
               final placeDetails = await getPlaceDetails(
                 prediction.placeId,
@@ -51,11 +74,15 @@ class PlacesService {
           }
 
           return predictionList;
+        } else {
+          AppLogger.error('❌ API Error: ${data['status']} - ${data['error_message'] ?? 'Unknown error'}', tag: 'PLACES');
         }
+      } else {
+        AppLogger.error('❌ HTTP Error: ${response.statusCode}', tag: 'PLACES');
       }
       return [];
-    } catch (e) {
-      AppLogger.log('Error fetching place predictions: $e');
+    } catch (e, stackTrace) {
+      AppLogger.error('💥 Exception fetching place predictions', error: e, stackTrace: stackTrace, tag: 'PLACES');
       return [];
     }
   }

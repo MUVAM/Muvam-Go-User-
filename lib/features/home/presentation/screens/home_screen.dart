@@ -13,9 +13,11 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
+import 'package:muvam/core/services/payment_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
+import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
@@ -99,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _dropoffLocation = "Destination";
   LatLng? _driverLocation;
   final RideService _rideService = RideService();
+  final PaymentService _paymentService = PaymentService();
   final DirectionsService _directionsService = DirectionsService();
   List<PlacePrediction> _locationSuggestions = [];
   bool _showSuggestions = false;
@@ -2267,26 +2270,78 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: !_isBookingRide
                         ? () async {
-                            setBookingState(() {
-                              _isBookingRide = true;
-                            });
-                            try {
-                              _currentRideResponse = await _requestRide();
+                            AppLogger.log('🚀 BOOK NOW TAPPED - Payment: $selectedPaymentMethod', tag: 'BOOK_NOW');
 
-                              if (mounted) {
-                                fromController.clear();
-                                toController.clear();
-                                setState(() {
-                                  _showDestinationField = false;
-                                });
-                                Navigator.pop(context);
-                                _showBookingRequestSheet();
+                            if (selectedPaymentMethod == 'Pay with card') {
+                              AppLogger.log('💳 PAY WITH CARD - Should initialize payment flow', tag: 'BOOK_NOW');
+                              
+                              setBookingState(() {
+                                _isBookingRide = true;
+                              });
+                              
+                              try {
+                                _currentRideResponse = await _requestRide();
+                                
+                                if (_currentRideResponse != null) {
+                                  AppLogger.log('🚖 Ride created, initializing payment...', tag: 'BOOK_NOW');
+                                  
+                                  final paymentData = await _paymentService.initializePayment(
+                                    rideId: _currentRideResponse!.id,
+                                    amount: _currentRideResponse!.price,
+                                  );
+                                  
+                                  if (paymentData['authorization_url'] != null) {
+                                    AppLogger.log('🌐 Opening payment webview', tag: 'BOOK_NOW');
+                                    
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PaymentWebViewScreen(
+                                          authorizationUrl: paymentData['authorization_url'],
+                                          reference: paymentData['reference'],
+                                          onPaymentSuccess: () {
+                                            AppLogger.log('✅ Payment success callback', tag: 'BOOK_NOW');
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                    
+                                    AppLogger.log('🔙 Returned from payment: $result', tag: 'BOOK_NOW');
+                                  }
+                                }
+                              } catch (e) {
+                                AppLogger.error('❌ Card payment failed', error: e, tag: 'BOOK_NOW');
                               }
-                            } catch (e) {
+                              
                               if (mounted) {
                                 setBookingState(() {
                                   _isBookingRide = false;
                                 });
+                              }
+                            } else {
+                              AppLogger.log('🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod', tag: 'BOOK_NOW');
+                              
+                              setBookingState(() {
+                                _isBookingRide = true;
+                              });
+                              try {
+                                _currentRideResponse = await _requestRide();
+
+                                if (mounted) {
+                                  fromController.clear();
+                                  toController.clear();
+                                  setState(() {
+                                    _showDestinationField = false;
+                                  });
+                                  Navigator.pop(context);
+                                  _showBookingRequestSheet();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  setBookingState(() {
+                                    _isBookingRide = false;
+                                  });
+                                }
                               }
                             }
                           }
@@ -2392,6 +2447,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSelected = selectedPaymentMethod == method;
     return GestureDetector(
       onTap: () {
+        AppLogger.log('💳 Payment method selected: $method', tag: 'PAYMENT_METHOD');
         setState(() {
           selectedPaymentMethod = method;
         });
@@ -3052,7 +3108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ChatScreen(
-                                        rideId: int.parse(_activeRide?['ID']),
+                                        rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
                                         driverName:
                                             _assignedDriver?.name ?? 'Driver',
                                         driverImage:
@@ -3745,7 +3801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
-                                  rideId: int.parse(_activeRide?['ID']),
+                                  rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
                                   driverName: _assignedDriver?.name ?? 'Driver',
                                   driverImage: _assignedDriver?.profilePicture,
                                   // rideId:
@@ -4979,7 +5035,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
-                                rideId: int.parse(_activeRide?['ID']),
+                                rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
                                 driverName: _assignedDriver?.name ?? 'Driver',
                                 driverImage: _assignedDriver?.profilePicture,
                               ),

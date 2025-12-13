@@ -8,6 +8,8 @@ class UrlConstants {
   static const String verifyOtp = "/otp/verify";
   static const String registerUser = "/users/register";
   static const String completeProfile = "/users/profile/complete";
+  static const String userProfile = "/users/profile";
+  static const String userTip = "/users/tip";
   static const String favouriteLocation = "/users/favouriteLocation";
 
   // Wallet
@@ -21,4 +23,7 @@ class UrlConstants {
   static const String rideRequest = "/rides/request";
   static const String nearbyRides = "/rides/nearby";
   static const String activeRides = "/rides";
+
+  // Payment
+  static const String paymentInitialize = "/payment/initialize";
 }

@@ -220,6 +220,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       shape: BoxShape.circle,
                     ),
                   ),
+                  SizedBox(width: 15.w),
+                  GestureDetector(
+                    onTap: () {
+                      // Add call functionality here
+                      AppLogger.log('Call button tapped for driver: ${widget.driverName}', tag: 'CHAT');
+                    },
+                    child: Icon(
+                      Icons.phone,
+                      size: 24.sp,
+                      color: Color(ConstColors.mainColor),
+                    ),
+                  ),
                 ],
               ),
             ),

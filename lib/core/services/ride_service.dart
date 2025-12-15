@@ -13,17 +13,27 @@ class RideService {
 
   Future<RideEstimateResponse> estimateRide(RideEstimateRequest request) async {
     final token = await _getToken();
+    final requestBody = request.toJson();
+    
+    AppLogger.log('=== RIDE ESTIMATE REQUEST ===');
+    AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideEstimate}');
+    AppLogger.log('Headers: {"Content-Type": "application/json", "Authorization": "Bearer ${token?.substring(0, 20)}..."}');
+    AppLogger.log('Request Body: ${jsonEncode(requestBody)}');
+    
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideEstimate}'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode(request.toJson()),
+      body: jsonEncode(requestBody),
     );
 
-    AppLogger.log('Estimate Response Status: ${response.statusCode}');
-    AppLogger.log('Estimate Response Body: ${response.body}');
+    AppLogger.log('=== RIDE ESTIMATE RESPONSE ===');
+    AppLogger.log('Response Status: ${response.statusCode}');
+    AppLogger.log('Response Headers: ${response.headers}');
+    AppLogger.log('Response Body: ${response.body}');
+    AppLogger.log('=== END RIDE ESTIMATE ===');
 
     if (response.statusCode == 200) {
       return RideEstimateResponse.fromJson(jsonDecode(response.body));
@@ -37,13 +47,14 @@ class RideService {
     final requestBody = request.toJson();
 
     AppLogger.log('=== RIDE REQUEST DEBUG ===');
-    AppLogger.log(
-      'Request URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}',
-    );
-    AppLogger.log(
-      'Request Headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"}',
-    );
-    AppLogger.log('Request Body: ${jsonEncode(requestBody)}');
+    AppLogger.log('Request URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
+    AppLogger.log('Request Headers: {"Content-Type": "application/json", "Authorization": "Bearer ${token?.substring(0, 20)}..."}');
+    AppLogger.log('🚗 PAYMENT METHOD IN REQUEST: ${request.paymentMethod}');
+    AppLogger.log('📋 FULL REQUEST BODY: ${jsonEncode(requestBody)}');
+    AppLogger.log('🔍 REQUEST BODY BREAKDOWN:');
+    requestBody.forEach((key, value) {
+      AppLogger.log('  $key: $value');
+    });
 
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideRequest}'),
@@ -57,7 +68,22 @@ class RideService {
     AppLogger.log('=== RIDE REQUEST RESPONSE ===');
     AppLogger.log('Response Status: ${response.statusCode}');
     AppLogger.log('Response Headers: ${response.headers}');
-    AppLogger.log('Response Body: ${response.body}');
+    AppLogger.log('📥 FULL RESPONSE BODY: ${response.body}');
+    
+    if (response.body.isNotEmpty) {
+      try {
+        final responseJson = jsonDecode(response.body);
+        AppLogger.log('🔍 RESPONSE BODY BREAKDOWN:');
+        if (responseJson is Map<String, dynamic>) {
+          responseJson.forEach((key, value) {
+            AppLogger.log('  $key: $value');
+          });
+        }
+      } catch (e) {
+        AppLogger.log('❌ Failed to parse response JSON: $e');
+      }
+    }
+    AppLogger.log('=== END RIDE REQUEST ===');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return RideResponse.fromJson(jsonDecode(response.body));
@@ -111,6 +137,35 @@ class RideService {
       return {
         'success': false,
         'message': 'Failed to get active rides: ${response.body}',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> rateRide({
+    required int rideId,
+    required int score,
+    required String comment,
+  }) async {
+    final token = await _getToken();
+    
+    final response = await http.post(
+      Uri.parse('${UrlConstants.baseUrl}/api/v1/rides/$rideId/rate'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'score': score,
+        'comment': comment,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to rate ride: ${response.body}',
       };
     }
   }

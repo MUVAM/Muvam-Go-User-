@@ -40,27 +40,39 @@ class _CallScreenState extends State<CallScreen> {
 
   void _initializeCall() async {
     try {
-      _callService = CallService();
-      await _callService.initialize();
+      AppLogger.log('🚀 Starting call initialization...', tag: 'CALL');
+      AppLogger.log('👤 Driver: ${widget.driverName}', tag: 'CALL');
+      AppLogger.log('🚗 Ride ID: ${widget.rideId}', tag: 'CALL');
       
+      _callService = CallService();
+      AppLogger.log('📞 CallService instance created', tag: 'CALL');
+      
+      await _callService.initialize();
+      AppLogger.log('✅ CallService initialized', tag: 'CALL');
+      
+      AppLogger.log('📤 Initiating call to driver...', tag: 'CALL');
       final session = await _callService.initiateCall(widget.rideId);
       _sessionId = session['session_id'];
+      AppLogger.log('✅ Call initiated - Session ID: $_sessionId', tag: 'CALL');
       
       setState(() {
-        _callStatus = 'Calling ${widget.driverName}...';
+        _callStatus = 'Ringing...';
       });
+      AppLogger.log('🔔 Call status updated to: Ringing...', tag: 'CALL');
 
       _callService.onCallStateChanged = (state) {
+        AppLogger.log('📱 Call state changed to: $state', tag: 'CALL');
         setState(() {
           _callStatus = state;
           if (state == 'Connected') {
+            AppLogger.log('⏱️ Starting call timer', tag: 'CALL');
             _startCallTimer();
           }
         });
       };
 
     } catch (e) {
-      AppLogger.error('Failed to initialize call', error: e, tag: 'CALL');
+      AppLogger.error('❌ Failed to initialize call', error: e, tag: 'CALL');
       setState(() {
         _callStatus = 'Call failed';
       });
@@ -96,6 +108,8 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _endCall() {
+    AppLogger.log('📞 End call button pressed', tag: 'CALL');
+    AppLogger.log('⏱️ Call duration: $_callDuration seconds', tag: 'CALL');
     _callTimer?.cancel();
     _callService.endCall(_sessionId, _callDuration);
     Navigator.pop(context);

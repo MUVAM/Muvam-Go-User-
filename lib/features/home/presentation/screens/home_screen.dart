@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -17,12 +17,13 @@ import 'package:muvam/core/services/payment_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
-import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
+import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
-// import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
@@ -32,6 +33,7 @@ import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/services/directions_service.dart';
+import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
@@ -89,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
   BitmapDescriptor? _destinationIcon;
   LatLng? _pickupCoordinates;
   LatLng? _destinationCoordinates;
+  LatLng? _stopCoordinates;
   Set<Marker> _mapMarkers = {};
   Set<Polyline> _mapPolylines = {};
   final String _estimatedTime = '5';
@@ -193,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
           key: globalKey,
           child: Material(
             color: Colors.transparent,
-            child: Container(
+            child: SizedBox(
               width: size?.width,
               height: size?.height,
               child: widget,
@@ -263,35 +266,42 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 50.w,
             height: 50.h,
             decoration: BoxDecoration(
-              color: Color(ConstColors.mainColor),
+              color: _isDriverAssigned ? Color(ConstColors.mainColor) : Colors.white,
               shape: BoxShape.circle,
+              border: _isDriverAssigned ? null : Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _estimatedTime,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      height: 1.0,
+              child: _isDriverAssigned
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _estimatedTime,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            height: 1.0,
+                          ),
+                        ),
+                        Text(
+                          "MIN",
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            height: 1.0,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Icon(
+                      Icons.location_on,
+                      color: Color(ConstColors.mainColor),
+                      size: 24.sp,
                     ),
-                  ),
-                  Text(
-                    "MIN",
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      height: 1.0,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
           SizedBox(width: 6.w),
@@ -311,9 +321,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Text(
-                  fromController.text.isNotEmpty
-                      ? fromController.text
-                      : 'Current location',
+                  _activeRide?['PickupAddress']?.toString() ??
+                      (fromController.text.isNotEmpty
+                          ? fromController.text
+                          : 'Current location'),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12.sp,
@@ -395,6 +406,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Widget for stop marker
+  Widget _buildStopMarkerWidget() {
+    String stopText = _activeRide?['StopAddress']?.toString() ?? 'Stop';
+
+    return Container(
+      width: 200.w,
+      height: 40.h,
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
+      decoration: BoxDecoration(
+        color: Colors.orange,
+        borderRadius: BorderRadius.circular(8.r),
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.stop_circle, color: Colors.white, size: 16.sp),
+          SizedBox(width: 4.w),
+          Expanded(
+            child: Text(
+              stopText,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadFavouriteLocations() async {
     print('🔄 Loading favourite locations on home screen...');
     try {
@@ -411,6 +460,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _listenToWebSocketMessages() {
     // Set up WebSocket callbacks
+    _webSocketService.onIncomingCall = (data) {
+      AppLogger.log('📞 Incoming call received!', tag: 'CALL');
+      _showIncomingCallNotification(data);
+    };
+
     _webSocketService.onRideAccepted = (data) {
       print('🎉 Ride accepted callback triggered!');
       print('Driver data: $data');
@@ -531,6 +585,11 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
 
+        // Parse PostGIS locations and add markers to map
+        print('📍 Parsing PostGIS locations...');
+        print('PickupLocation: ${ride['PickupLocation']}');
+        print('DestLocation: ${ride['DestLocation']}');
+        
         // Add pickup and drop-off markers to map
         _addActiveRideMarkers(ride);
 
@@ -538,11 +597,20 @@ class _HomeScreenState extends State<HomeScreen> {
         if (status == 'started') {
           // Show in-car UI
         } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
+          print('✅ Showing driver accepted sheet for status: $status');
           _showDriverAcceptedSheet();
+        } else {
+          print('⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet');
         }
         break;
 
       case 'completed':
+        // Show trip completion sheet
+        if (!_hasUserDismissedSheet) {
+          _showTripCompletedSheet();
+        }
+        break;
+
       case 'cancelled':
         // Clear active ride state and map markers
         setState(() {
@@ -607,6 +675,20 @@ class _HomeScreenState extends State<HomeScreen> {
       sessionToken: _sessionToken,
     );
 
+    // Store coordinates if available
+    if (placeDetails != null) {
+      final coordinates = LatLng(
+        placeDetails.latitude,
+        placeDetails.longitude,
+      );
+      
+      if (isFrom) {
+        _pickupCoordinates = coordinates;
+      } else {
+        _destinationCoordinates = coordinates;
+      }
+    }
+
     setState(() {
       if (isFrom) {
         fromController.text = prediction.description;
@@ -658,6 +740,9 @@ class _HomeScreenState extends State<HomeScreen> {
           fromController.text = currentAddress;
           _isLocationLoaded = true;
         });
+        print(
+          '📍 Current user location: ${position.latitude}, ${position.longitude}',
+        );
       }
     } catch (e) {
       print('Error getting location: $e');
@@ -892,7 +977,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (_activeRide != null)
                     Positioned(
                       top: 66.h,
-                      right: 80.w,
+                      right: 30.w,
                       child: GestureDetector(
                         onTap: () {
                           if (_activeRide != null) {
@@ -1161,6 +1246,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 fromController
                                                                         .text =
                                                                     result['address'];
+                                                                _pickupCoordinates =
+                                                                    result['location'];
                                                                 _currentLocation =
                                                                     result['location'];
                                                               });
@@ -1397,6 +1484,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 toController
                                                                         .text =
                                                                     result['address'];
+                                                                _destinationCoordinates =
+                                                                    result['location'];
                                                               });
                                                               // Check if both fields are filled to show vehicle selection
                                                               if (fromController
@@ -1833,9 +1922,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateMapWithRoute() async {
-    // Set pickup and destination coordinates
-    _pickupCoordinates = _currentLocation;
-    _destinationCoordinates = LatLng(
+    // Use stored coordinates or fallback
+    _pickupCoordinates ??= _currentLocation;
+    _destinationCoordinates ??= LatLng(
       _currentLocation.latitude + 0.01,
       _currentLocation.longitude + 0.01,
     );
@@ -1877,6 +1966,26 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     };
 
+    // Add stop marker if stop address is provided
+    if (stopController.text.isNotEmpty) {
+      final stopIcon = await _createBitmapDescriptorFromWidget(
+        _buildStopMarkerWidget(),
+        size: Size(200.w, 40.h),
+      );
+      
+      // Calculate stop position between pickup and destination
+      final stopLat = (_pickupCoordinates!.latitude + _destinationCoordinates!.latitude) / 2;
+      final stopLng = (_pickupCoordinates!.longitude + _destinationCoordinates!.longitude) / 2;
+      _stopCoordinates = LatLng(stopLat, stopLng);
+      
+      markers.add(Marker(
+        markerId: MarkerId('stop'),
+        position: _stopCoordinates!,
+        icon: stopIcon,
+        anchor: Offset(0.5, 1.0),
+      ));
+    }
+
     // Create polyline with actual route points
     final polylines = <Polyline>{
       Polyline(
@@ -1893,30 +2002,26 @@ class _HomeScreenState extends State<HomeScreen> {
       _mapPolylines = polylines;
     });
 
-    // Fit map to show both locations with padding
+    // Fit map to show all locations with padding
     if (_mapController != null) {
+      final allLatitudes = [_pickupCoordinates!.latitude, _destinationCoordinates!.latitude];
+      final allLongitudes = [_pickupCoordinates!.longitude, _destinationCoordinates!.longitude];
+      
+      if (_stopCoordinates != null) {
+        allLatitudes.add(_stopCoordinates!.latitude);
+        allLongitudes.add(_stopCoordinates!.longitude);
+      }
+      
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
             southwest: LatLng(
-              math.min(
-                _pickupCoordinates!.latitude,
-                _destinationCoordinates!.latitude,
-              ),
-              math.min(
-                _pickupCoordinates!.longitude,
-                _destinationCoordinates!.longitude,
-              ),
+              allLatitudes.reduce(math.min),
+              allLongitudes.reduce(math.min),
             ),
             northeast: LatLng(
-              math.max(
-                _pickupCoordinates!.latitude,
-                _destinationCoordinates!.latitude,
-              ),
-              math.max(
-                _pickupCoordinates!.longitude,
-                _destinationCoordinates!.longitude,
-              ),
+              allLatitudes.reduce(math.max),
+              allLongitudes.reduce(math.max),
             ),
           ),
           100.0,
@@ -2270,64 +2375,92 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: !_isBookingRide
                         ? () async {
-                            AppLogger.log('🚀 BOOK NOW TAPPED - Payment: $selectedPaymentMethod', tag: 'BOOK_NOW');
-
+                           
                             if (selectedPaymentMethod == 'Pay with card') {
-                              AppLogger.log('💳 PAY WITH CARD - Should initialize payment flow', tag: 'BOOK_NOW');
-                              
+                             
+
                               setBookingState(() {
                                 _isBookingRide = true;
                               });
-                              
+
                               try {
+                                AppLogger.log('💳 BOOK NOW - CARD PAYMENT: Starting ride request...');
+                                AppLogger.log('💳 Selected Payment Method: $selectedPaymentMethod');
                                 _currentRideResponse = await _requestRide();
-                                
+
                                 if (_currentRideResponse != null) {
-                                  AppLogger.log('🚖 Ride created, initializing payment...', tag: 'BOOK_NOW');
+                                  AppLogger.log('✅ Ride request successful for card payment');
+                                  AppLogger.log('🎫 Ride ID: ${_currentRideResponse!.id}');
+                                  AppLogger.log('💰 Ride Price: ${_currentRideResponse!.price}');
                                   
-                                  final paymentData = await _paymentService.initializePayment(
-                                    rideId: _currentRideResponse!.id,
-                                    amount: _currentRideResponse!.price,
-                                  );
-                                  
-                                  if (paymentData['authorization_url'] != null) {
-                                    AppLogger.log('🌐 Opening payment webview', tag: 'BOOK_NOW');
-                                    
+
+                                  final paymentData = await _paymentService
+                                      .initializePayment(
+                                        rideId: _currentRideResponse!.id,
+                                        amount: _currentRideResponse!.price,
+                                      );
+
+                                  if (paymentData['authorization_url'] !=
+                                      null) {
+                                    AppLogger.log(
+                                      '🌐 Opening payment webview',
+                                      tag: 'BOOK_NOW',
+                                    );
+
                                     final result = await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => PaymentWebViewScreen(
-                                          authorizationUrl: paymentData['authorization_url'],
+                                          authorizationUrl:
+                                              paymentData['authorization_url'],
                                           reference: paymentData['reference'],
                                           onPaymentSuccess: () {
-                                            AppLogger.log('✅ Payment success callback', tag: 'BOOK_NOW');
+                                            AppLogger.log(
+                                              '✅ Payment success callback',
+                                              tag: 'BOOK_NOW',
+                                            );
                                           },
                                         ),
                                       ),
                                     );
-                                    
-                                    AppLogger.log('🔙 Returned from payment: $result', tag: 'BOOK_NOW');
+
+                                    AppLogger.log(
+                                      '🔙 Returned from payment: $result',
+                                      tag: 'BOOK_NOW',
+                                    );
                                   }
                                 }
                               } catch (e) {
-                                AppLogger.error('❌ Card payment failed', error: e, tag: 'BOOK_NOW');
+                                AppLogger.error(
+                                  '❌ Card payment failed',
+                                  error: e,
+                                  tag: 'BOOK_NOW',
+                                );
                               }
-                              
+
                               if (mounted) {
                                 setBookingState(() {
                                   _isBookingRide = false;
                                 });
                               }
                             } else {
-                              AppLogger.log('🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod', tag: 'BOOK_NOW');
-                              
+                              AppLogger.log(
+                                '🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod',
+                                tag: 'BOOK_NOW',
+                              );
+
                               setBookingState(() {
                                 _isBookingRide = true;
                               });
                               try {
+                                AppLogger.log('🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...');
+                                AppLogger.log('💳 Selected Payment Method: $selectedPaymentMethod');
                                 _currentRideResponse = await _requestRide();
 
                                 if (mounted) {
+                                  AppLogger.log('✅ Ride request successful for other payment method');
+                                  AppLogger.log('🎫 Ride ID: ${_currentRideResponse!.id}');
+                                  AppLogger.log('💰 Ride Price: ${_currentRideResponse!.price}');
                                   fromController.clear();
                                   toController.clear();
                                   setState(() {
@@ -2337,6 +2470,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                   _showBookingRequestSheet();
                                 }
                               } catch (e) {
+                                AppLogger.error(
+                                  '❌ OTHER PAYMENT - Ride request failed',
+                                  error: e,
+                                  tag: 'BOOK_NOW',
+                                );
                                 if (mounted) {
                                   setBookingState(() {
                                     _isBookingRide = false;
@@ -2447,10 +2585,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSelected = selectedPaymentMethod == method;
     return GestureDetector(
       onTap: () {
-        AppLogger.log('💳 Payment method selected: $method', tag: 'PAYMENT_METHOD');
+        AppLogger.log(
+          '💳 Payment method selected: $method',
+          tag: 'PAYMENT_METHOD',
+        );
+        AppLogger.log('💳 Previous payment method: $selectedPaymentMethod');
         setState(() {
           selectedPaymentMethod = method;
         });
+        AppLogger.log('💳 New payment method set: $selectedPaymentMethod');
         Navigator.pop(context);
       },
       child: Padding(
@@ -2874,6 +3017,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final bool hasArrived =
         _activeRide?['Status']?.toString().toLowerCase() == 'arrived';
+    final bool hasStarted =
+        _activeRide?['Status']?.toString().toLowerCase() == 'started';
 
     showModalBottomSheet(
       context: context,
@@ -2929,9 +3074,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasArrived
-                            ? 'Your driver has arrived'
-                            : 'Driver is on the way',
+                        hasStarted
+                            ? 'Enjoy your trip'
+                            : hasArrived
+                                ? 'Your driver has arrived'
+                                : 'Driver is on the way',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16.sp,
@@ -2966,41 +3113,43 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   SizedBox(height: 10.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Driver rating:',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                          ),
-                        ),
-                        Spacer(),
-                        Row(
-                          children: [
-                            Icon(Icons.star, size: 16.sp, color: Colors.amber),
-                            SizedBox(width: 4.w),
-                            Text(
-                              _assignedDriver!.rating.toString(),
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                              ),
+                  if (!hasStarted) ...[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Driver rating:',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              height: 1.0,
+                              letterSpacing: -0.32,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          Spacer(),
+                          Row(
+                            children: [
+                              Icon(Icons.star, size: 16.sp, color: Colors.amber),
+                              SizedBox(width: 4.w),
+                              Text(
+                                _assignedDriver!.rating.toString(),
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.0,
+                                  letterSpacing: -0.32,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 10.h),
+                    SizedBox(height: 10.h),
+                  ],
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: _buildDriverDetail(
@@ -3009,14 +3158,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   SizedBox(height: 10.h),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail(
-                      'Car:',
-                      _assignedDriver!.vehicleModel,
+                  if (!hasStarted) ...[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: _buildDriverDetail(
+                        'Car:',
+                        _assignedDriver!.vehicleModel,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 10.h),
+                    SizedBox(height: 10.h),
+                  ],
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: _buildDriverDetail(
@@ -3067,7 +3218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Action Buttons
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Container(
+                    child: SizedBox(
                       width: double.infinity,
                       child: Row(
                         children: [
@@ -3078,13 +3229,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    hasArrived ? Icons.cancel : Icons.edit,
+                                    hasStarted
+                                        ? Icons.sos
+                                        : hasArrived
+                                            ? Icons.cancel
+                                            : Icons.edit,
                                     size: 16.sp,
                                     color: Colors.black,
                                   ),
                                   SizedBox(width: 8.w),
                                   Text(
-                                    hasArrived ? 'Cancel' : 'Modify Trip',
+                                    hasStarted
+                                        ? 'SOS'
+                                        : hasArrived
+                                            ? 'Cancel'
+                                            : 'Modify Trip',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
@@ -3108,7 +3267,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ChatScreen(
-                                        rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
+                                        rideId: _activeRide?['ID'] is int
+                                            ? _activeRide!['ID']
+                                            : int.parse(
+                                                _activeRide?['ID']
+                                                        ?.toString() ??
+                                                    '0',
+                                              ),
                                         driverName:
                                             _assignedDriver?.name ?? 'Driver',
                                         driverImage:
@@ -3122,13 +3287,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.chat,
+                                    hasStarted ? Icons.share : Icons.chat,
                                     size: 16.sp,
                                     color: Colors.black,
                                   ),
                                   SizedBox(width: 8.w),
                                   Text(
-                                    'Chat Driver',
+                                    hasStarted ? 'Share' : 'Chat Driver',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
@@ -3801,7 +3966,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
-                                  rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
+                                  rideId: _activeRide?['ID'] is int
+                                      ? _activeRide!['ID']
+                                      : int.parse(
+                                          _activeRide?['ID']?.toString() ?? '0',
+                                        ),
                                   driverName: _assignedDriver?.name ?? 'Driver',
                                   driverImage: _assignedDriver?.profilePicture,
                                   // rideId:
@@ -4533,6 +4702,395 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showTripCompletedSheet() {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Text(
+              'Trip completed',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            _buildDriverDetail(
+              'Trip ID:',
+              _activeRide?['ID']?.toString() ?? 'N/A',
+            ),
+            SizedBox(height: 10.h),
+            _buildDriverDetail(
+              'Fare:',
+              '₦${_activeRide?['Price']?.toStringAsFixed(0) ?? '0'}',
+            ),
+            SizedBox(height: 10.h),
+            _buildDriverDetail(
+              'Tip:',
+              '₦${_activeRide?['Tip']?.toStringAsFixed(0) ?? '0'}',
+            ),
+            SizedBox(height: 10.h),
+            _buildDriverDetail(
+              'Total:',
+              '₦${((_activeRide?['Price'] ?? 0) + (_activeRide?['Tip'] ?? 0)).toStringAsFixed(0)}',
+            ),
+            SizedBox(height: 30.h),
+            Container(
+              width: 353.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRatingSheet();
+                },
+                child: Center(
+                  child: Text(
+                    'Dismiss',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showIncomingCallNotification(Map<String, dynamic> callData) {
+    final driverName = callData['caller_name'] ?? 'Driver';
+    final sessionId = callData['session_id'];
+    final rideId = callData['ride_id'];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.r),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.phone_in_talk,
+              size: 60.sp,
+              color: Color(ConstColors.mainColor),
+            ),
+            SizedBox(height: 20.h),
+            Text(
+              'Incoming Call',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 10.h),
+            Text(
+              driverName,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            SizedBox(height: 30.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _rejectCall(sessionId);
+                  },
+                  child: Container(
+                    width: 60.w,
+                    height: 60.h,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.call_end,
+                      color: Colors.white,
+                      size: 30.sp,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CallScreen(
+                          driverName: driverName,
+                          rideId: rideId,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 60.w,
+                    height: 60.h,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.call,
+                      color: Colors.white,
+                      size: 30.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _rejectCall(int sessionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      await http.post(
+        Uri.parse('http://44.222.121.219/api/v1/calls/$sessionId/reject'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      AppLogger.log('❌ Call rejected', tag: 'CALL');
+    } catch (e) {
+      AppLogger.error('Failed to reject call', error: e, tag: 'CALL');
+    }
+  }
+
+  void _showRatingSheet() {
+    int selectedRating = 0;
+    final reviewController = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setRatingState) => Container(
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Text(
+                'Rate your trip with ${_assignedDriver?.name ?? "Driver"}',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setRatingState(() {
+                        selectedRating = index + 1;
+                      });
+                    },
+                    child: Icon(
+                      index < selectedRating ? Icons.star : Icons.star_border,
+                      size: 40.sp,
+                      color: Colors.amber,
+                    ),
+                  );
+                }),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: 353.w,
+                height: 111.h,
+                padding: EdgeInsets.all(10.w),
+                decoration: BoxDecoration(
+                  color: Color(0xFFB1B1B1).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: TextField(
+                  controller: reviewController,
+                  maxLines: null,
+                  expands: true,
+                  onChanged: (value) {
+                    setRatingState(() {});
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Write a review...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: selectedRating > 0
+                      ? Color(ConstColors.mainColor)
+                      : Color(ConstColors.fieldColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: selectedRating > 0 && !isSubmitting
+                      ? () async {
+                          setRatingState(() {
+                            isSubmitting = true;
+                          });
+
+                          try {
+                            final result = await _rideService.rateRide(
+                              rideId: _activeRide?['ID'] is int
+                                  ? _activeRide!['ID']
+                                  : int.parse(
+                                      _activeRide?['ID']?.toString() ?? '0',
+                                    ),
+                              score: selectedRating,
+                              comment: reviewController.text,
+                            );
+
+                            if (result['success'] == true) {
+                              setState(() {
+                                _activeRide = null;
+                                _isDriverAssigned = false;
+                                _isRideAccepted = false;
+                                _isInCar = false;
+                                _assignedDriver = null;
+                                _mapMarkers = {};
+                                _mapPolylines = {};
+                              });
+
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Thank you for your rating!'),
+                                  ),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to submit rating'),
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: $e'),
+                                ),
+                              );
+                            }
+                          }
+
+                          if (mounted) {
+                            setRatingState(() {
+                              isSubmitting = false;
+                            });
+                          }
+                        }
+                      : null,
+                  child: Center(
+                    child: isSubmitting
+                        ? SizedBox(
+                            width: 20.w,
+                            height: 20.h,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            'Submit',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      reviewController.dispose();
+    });
+  }
+
   Widget _buildDrawerItem(
     String title,
     String iconPath, {
@@ -4827,6 +5385,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _estimateRide() async {
+    AppLogger.log('🚗 === STARTING RIDE ESTIMATE ===');
+    AppLogger.log('📍 Current Location: ${_currentLocation.latitude}, ${_currentLocation.longitude}');
+    AppLogger.log('🎯 Destination: ${toController.text}');
+    
     final request = RideEstimateRequest(
       pickup:
           "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
@@ -4836,23 +5398,49 @@ class _HomeScreenState extends State<HomeScreen> {
       vehicleType: "regular", // Default for estimate
     );
 
+    AppLogger.log('📋 Estimate Request Created: ${request.toJson()}');
     _currentEstimate = await _rideService.estimateRide(request);
+    AppLogger.log('✅ Estimate completed successfully');
     setState(() {});
   }
 
   Future<RideResponse> _requestRide() async {
+    AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
+    
     if (_currentEstimate == null || selectedVehicle == null) {
+      AppLogger.log('❌ Missing estimate or vehicle selection');
       throw Exception('No estimate or vehicle selected');
     }
 
     final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
     final vehicleType = selectedPriceData['vehicle_type'];
+    
+    AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
+    AppLogger.log('💰 Selected Price Data: $selectedPriceData');
 
-    // Use different coordinates for pickup and destination
-    final pickupCoords =
-        "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})";
-    final destCoords =
-        "POINT(${_currentLocation.longitude + 0.01} ${_currentLocation.latitude + 0.01})";
+    // Use actual selected coordinates for pickup and destination
+    final pickupLatLng = _pickupCoordinates ?? _currentLocation;
+    final destLatLng = _destinationCoordinates ?? LatLng(
+      _currentLocation.latitude + 0.01,
+      _currentLocation.longitude + 0.01,
+    );
+    
+    final pickupCoords = "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
+    final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
+
+    AppLogger.log('📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})');
+    AppLogger.log('🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})');
+    AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
+    
+    // Fix payment method conversion - "Pay in car" should become "in_car"
+    String convertedPaymentMethod;
+    if (selectedPaymentMethod == 'Pay in car') {
+      convertedPaymentMethod = 'in_car';
+    } else {
+      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(' ', '_');
+    }
+    
+    AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
 
     final request = RideRequest(
       pickup: pickupCoords,
@@ -4868,8 +5456,18 @@ class _HomeScreenState extends State<HomeScreen> {
           : "No stops",
       serviceType: _currentEstimate!.serviceType,
       vehicleType: vehicleType,
-      paymentMethod: selectedPaymentMethod.toLowerCase().replaceAll(' ', '_'),
+      paymentMethod: convertedPaymentMethod,
     );
+
+    AppLogger.log('📋 Final Ride Request Object:');
+    AppLogger.log('  - Pickup: ${request.pickup}');
+    AppLogger.log('  - Destination: ${request.dest}');
+    AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
+    AppLogger.log('  - Destination Address: ${request.destAddress}');
+    AppLogger.log('  - Stop Address: ${request.stopAddress}');
+    AppLogger.log('  - Service Type: ${request.serviceType}');
+    AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
+    AppLogger.log('  - Payment Method: ${request.paymentMethod}');
 
     return await _rideService.requestRide(request);
   }
@@ -5035,7 +5633,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
-                                rideId: _activeRide?['ID'] is int ? _activeRide!['ID'] : int.parse(_activeRide?['ID']?.toString() ?? '0'),
+                                rideId: _activeRide?['ID'] is int
+                                    ? _activeRide!['ID']
+                                    : int.parse(
+                                        _activeRide?['ID']?.toString() ?? '0',
+                                      ),
                                 driverName: _assignedDriver?.name ?? 'Driver',
                                 driverImage: _assignedDriver?.profilePicture,
                               ),
@@ -5109,17 +5711,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
-    final pickupLat =
-        ride['PickupLatitude']?.toDouble() ?? _currentLocation.latitude;
-    final pickupLng =
-        ride['PickupLongitude']?.toDouble() ?? _currentLocation.longitude;
-    final destLat =
-        ride['DestLatitude']?.toDouble() ?? _currentLocation.latitude + 0.01;
-    final destLng =
-        ride['DestLongitude']?.toDouble() ?? _currentLocation.longitude + 0.01;
+    // Parse PostGIS coordinates
+    final pickupPostGIS = ride['PickupLocation']?.toString();
+    final destPostGIS = ride['DestLocation']?.toString();
 
-    final pickupLocation = LatLng(pickupLat, pickupLng);
-    final destLocation = LatLng(destLat, destLng);
+    if (pickupPostGIS == null || destPostGIS == null) return;
+
+    final pickupCoords = _parsePostGISLocation(pickupPostGIS);
+    final destCoords = _parsePostGISLocation(destPostGIS);
+
+    if (pickupCoords == null || destCoords == null) return;
+
+    final pickupLocation = LatLng(pickupCoords['lat']!, pickupCoords['lng']!);
+    final destLocation = LatLng(destCoords['lat']!, destCoords['lng']!);
 
     // Get the actual route polyline
     final routePoints = await _directionsService.getRoutePolyline(
@@ -5152,6 +5756,34 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: dropoffIcon,
         anchor: Offset(0.5, 1.0),
       ),
+    };
+
+    // Add stop marker if exists
+    final stopAddress = ride['StopAddress']?.toString();
+    if (stopAddress != null &&
+        stopAddress.isNotEmpty &&
+        stopAddress != 'No stops') {
+      final stopIcon = await _createBitmapDescriptorFromWidget(
+        _buildStopMarkerWidget(),
+        size: Size(200.w, 40.h),
+      );
+
+      // Place stop marker between pickup and destination
+      final midLat = (pickupLocation.latitude + destLocation.latitude) / 2;
+      final midLng = (pickupLocation.longitude + destLocation.longitude) / 2;
+
+      markers.add(
+        Marker(
+          markerId: MarkerId('stop'),
+          position: LatLng(midLat, midLng),
+          icon: stopIcon,
+          anchor: Offset(0.5, 1.0),
+        ),
+      );
+    }
+
+    final finalMarkers = <Marker>{
+      ...markers,
       if (_driverLocation != null)
         Marker(
           markerId: MarkerId('driver'),
@@ -5234,6 +5866,43 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double _quadraticBezier(double p0, double p1, double p2, double t) {
     return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+
+  Map<String, double>? _parsePostGISLocation(String location) {
+    try {
+      if (location.length >= 50) {
+        final hexData = location.substring(18); // Skip SRID part
+        final lngHex = hexData.substring(0, 16);
+        final latHex = hexData.substring(16, 32);
+
+        final lngBytes = _hexToBytes(lngHex);
+        final latBytes = _hexToBytes(latHex);
+
+        final lng = _bytesToDouble(lngBytes);
+        final lat = _bytesToDouble(latBytes);
+
+        if (lat != null && lng != null) {
+          return {'lat': lat, 'lng': lng};
+        }
+      }
+    } catch (e) {
+      print('Error parsing PostGIS location: $e');
+    }
+    return null;
+  }
+
+  List<int> _hexToBytes(String hex) {
+    final bytes = <int>[];
+    for (int i = 0; i < hex.length; i += 2) {
+      bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+    }
+    return bytes.reversed.toList(); // Reverse for little-endian
+  }
+
+  double? _bytesToDouble(List<int> bytes) {
+    if (bytes.length != 8) return null;
+    final buffer = Uint8List.fromList(bytes).buffer;
+    return ByteData.view(buffer).getFloat64(0, Endian.big);
   }
 }
 

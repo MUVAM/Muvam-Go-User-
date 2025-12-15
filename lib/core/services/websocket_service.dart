@@ -20,6 +20,7 @@ class WebSocketService {
   Function(Map<String, dynamic>)? onRideUpdate;
   Function(ChatMessage)? onChatMessage;
   Function(Map<String, dynamic>)? onDriverLocation;
+  Function(Map<String, dynamic>)? onIncomingCall;
 
   bool get isConnected => _isConnected;
 
@@ -164,11 +165,15 @@ class WebSocketService {
         case 'ride_update':
           _handleRideUpdate(data);
           break;
+        case 'chat':
         case 'chat_message':
           _handleChatMessage(data);
           break;
         case 'driver_location':
           _handleDriverLocation(data);
+          break;
+        case 'call_initiate':
+          _handleIncomingCall(data);
           break;
         default:
           AppLogger.log('Unknown message type: $type');
@@ -222,6 +227,15 @@ class WebSocketService {
 
     if (onDriverLocation != null) {
       onDriverLocation!(data);
+    }
+  }
+
+  void _handleIncomingCall(Map<String, dynamic> data) {
+    AppLogger.log('📞 INCOMING CALL MESSAGE:');
+    AppLogger.log('   Data: $data');
+
+    if (onIncomingCall != null) {
+      onIncomingCall!(data);
     }
   }
 

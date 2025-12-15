@@ -40,6 +40,7 @@ dependencies:
   another_flushbar: ^1.12.32
   webview_flutter: ^4.4.2
   permission_handler: ^11.0.1
+  audioplayers: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,7 @@ flutter:
   assets:
     - assets/images/
     - assets/svg/
+    - assets/sounds/calling.mp3
     - .env
 
   fonts:

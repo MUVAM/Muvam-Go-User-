@@ -206,18 +206,38 @@ class WebSocketService {
 
   void _handleChatMessage(Map<String, dynamic> data) async {
     AppLogger.log('💬 CHAT MESSAGE:');
-    AppLogger.log('   Data: $data');
+    AppLogger.log('   Full Data: $data');
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final currentUserId = prefs.getString('user_id') ?? '';
 
-      final chatMessage = ChatMessage.fromJson(data, currentUserId);
+      // Extract message data from nested structure
+      final messageData = data['data'] ?? data;
+      AppLogger.log('   Message Data: $messageData');
+      
+      // Transform backend format to expected format
+      final transformedData = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'message': messageData['message'] ?? '',
+        'sender_id': messageData['sender_id'] ?? messageData['user_id'] ?? '',
+        'sender_type': messageData['sender_type'] ?? 'driver',
+        'timestamp': data['timestamp'] ?? DateTime.now().toIso8601String(),
+      };
+      AppLogger.log('   Transformed Data: $transformedData');
+      
+      final chatMessage = ChatMessage.fromJson(transformedData, currentUserId);
+      AppLogger.log('   Parsed ChatMessage: ${chatMessage.message}');
+      
       if (onChatMessage != null) {
         onChatMessage!(chatMessage);
+        AppLogger.log('   ✅ Chat message callback invoked');
+      } else {
+        AppLogger.log('   ⚠️ No chat message callback registered');
       }
-    } catch (e) {
-      AppLogger.log('Error handling chat message: $e');
+    } catch (e, stackTrace) {
+      AppLogger.log('❌ Error handling chat message: $e');
+      AppLogger.log('   Stack trace: $stackTrace');
     }
   }
 

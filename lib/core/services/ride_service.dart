@@ -141,24 +141,55 @@ class RideService {
     }
   }
 
+  Future<Map<String, dynamic>> getRideDetails(int rideId) async {
+    final token = await _getToken();
+    
+    final response = await http.get(
+      Uri.parse('${UrlConstants.baseUrl}/api/v1/rides/$rideId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to get ride details: ${response.body}',
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> rateRide({
     required int rideId,
     required int score,
     required String comment,
   }) async {
     final token = await _getToken();
+    final url = '${UrlConstants.baseUrl}/rides/$rideId/rate';
+    final requestBody = {
+      'comment': comment,
+      'score': score,
+    };
+    
+    AppLogger.log('=== RATE RIDE REQUEST ===', tag: 'RATING');
+    AppLogger.log('URL: $url', tag: 'RATING');
+    AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'RATING');
     
     final response = await http.post(
-      Uri.parse('${UrlConstants.baseUrl}/api/v1/rides/$rideId/rate'),
+      Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        'score': score,
-        'comment': comment,
-      }),
+      body: jsonEncode(requestBody),
     );
+
+    AppLogger.log('Response Status: ${response.statusCode}', tag: 'RATING');
+    AppLogger.log('Response Body: ${response.body}', tag: 'RATING');
+    AppLogger.log('=== END RATE RIDE ===', tag: 'RATING');
 
     if (response.statusCode == 200) {
       return {'success': true, 'data': jsonDecode(response.body)};

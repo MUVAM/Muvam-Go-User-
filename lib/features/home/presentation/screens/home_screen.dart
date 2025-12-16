@@ -120,13 +120,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBookingRide = false;
   RideResponse? _currentRideResponse;
   Driver? _assignedDriver;
-  final WebSocketService _webSocketService = WebSocketService();
+  final WebSocketService _webSocketService = WebSocketService.instance;
   final FavouriteLocationService _favouriteService = FavouriteLocationService();
   List<FavouriteLocation> _favouriteLocations = [];
   Map<String, dynamic>? _activeRide;
   Timer? _activeRideCheckTimer;
   bool _isActiveRideSheetVisible = false;
   bool _hasUserDismissedSheet = false;
+  int? _lastCompletedRideId;
+  Set<int> _dismissedRatingRides = {};
 
   @override
   void initState() {
@@ -504,6 +506,50 @@ class _HomeScreenState extends State<HomeScreen> {
       // Show driver accepted sheet
       _showDriverAcceptedSheet();
     };
+
+    // Listen for ride_completed message
+    _webSocketService.onRideCompleted = (data) {
+      AppLogger.log('🏁 Ride completed callback triggered!', tag: 'RIDE_COMPLETED');
+      AppLogger.log('RAW MESSAGE AS STRING FOR PASSENGER: "${data.toString()}"');
+      
+      try {
+        // Parse ride_id from the message (can be at root level or in data)
+        int? rideId;
+        
+        // Try to get ride_id from root level first
+        if (data['ride_id'] != null) {
+          rideId = data['ride_id'] is int ? data['ride_id'] : int.tryParse(data['ride_id'].toString());
+        }
+        
+        // If not found, try from data object
+        if (rideId == null) {
+          final messageData = data['data'] as Map<String, dynamic>?;
+          if (messageData?['ride_id'] != null) {
+            rideId = messageData!['ride_id'] is int ? messageData['ride_id'] : int.tryParse(messageData['ride_id'].toString());
+          }
+        }
+        
+        AppLogger.log('Parsed Ride ID: $rideId');
+        AppLogger.log('Last completed ride ID: $_lastCompletedRideId');
+        AppLogger.log('Dismissed rides: $_dismissedRatingRides');
+        
+        if (rideId != null && !_dismissedRatingRides.contains(rideId)) {
+          AppLogger.log('✅ Showing rating sheet for ride $rideId');
+          
+          // Store the ride ID
+          _lastCompletedRideId = rideId;
+          
+          // Show rating sheet
+          if (mounted) {
+            _showRatingSheet();
+          }
+        } else {
+          AppLogger.log('⚠️ Not showing rating - rideId: $rideId, already dismissed: ${_dismissedRatingRides.contains(rideId ?? -1)}');
+        }
+      } catch (e) {
+        AppLogger.log('❌ Error processing ride_completed message: $e');
+      }
+    };
   }
 
   Future<void> _checkActiveRides() async {
@@ -553,7 +599,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleActiveRideStatus(Map<String, dynamic> ride) {
     final status = ride['Status']?.toString().toLowerCase() ?? '';
+    final rideId = ride['ID'] as int?;
     print('Handling active ride with status: $status');
+
+    // Store ride ID when active
+    if (rideId != null && (status == 'accepted' || status == 'arrived' || status == 'started')) {
+      _lastCompletedRideId = rideId;
+    }
 
     switch (status) {
       case 'accepted':
@@ -605,9 +657,9 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
 
       case 'completed':
-        // Show trip completion sheet
-        if (!_hasUserDismissedSheet) {
-          _showTripCompletedSheet();
+        // Check if passenger has rated
+        if (_lastCompletedRideId != null && !_dismissedRatingRides.contains(_lastCompletedRideId)) {
+          _checkAndShowRating(_lastCompletedRideId!);
         }
         break;
 
@@ -764,6 +816,38 @@ class _HomeScreenState extends State<HomeScreen> {
       return '${(distanceKm * 1000).round()} m';
     }
     return '${distanceKm.toStringAsFixed(1)} km';
+  }
+
+  Future<void> _checkAndShowRating(int rideId) async {
+    try {
+      AppLogger.log('=== CHECKING RATING STATUS ===');
+      AppLogger.log('Ride ID: $rideId');
+      AppLogger.log('Calling getRideDetails...');
+      
+      final result = await _rideService.getRideDetails(rideId);
+      
+      AppLogger.log('getRideDetails result: $result');
+      
+      if (result['success'] == true) {
+        final rideData = result['data'];
+        AppLogger.log('Ride data: $rideData');
+        
+        final hasRated = rideData['passenger_rated_driver'] ?? false;
+        AppLogger.log('passenger_rated_driver: $hasRated');
+        
+        if (!hasRated && mounted) {
+          AppLogger.log('✅ Showing rating sheet');
+          _showRatingSheet();
+        } else {
+          AppLogger.log('⚠️ Not showing rating sheet - hasRated: $hasRated, mounted: $mounted');
+        }
+      } else {
+        AppLogger.log('❌ getRideDetails failed: ${result['message']}');
+      }
+      AppLogger.log('=== END CHECKING RATING STATUS ===');
+    } catch (e) {
+      AppLogger.log('❌ Error checking rating status: $e');
+    }
   }
 
   @override
@@ -4908,22 +4992,32 @@ class _HomeScreenState extends State<HomeScreen> {
     int selectedRating = 0;
     final reviewController = TextEditingController();
     bool isSubmitting = false;
+    final currentRideId = _lastCompletedRideId;
+
+    AppLogger.log('📊 Opening rating sheet for ride ID: $currentRideId', tag: 'RATING');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setRatingState) => Container(
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        builder: (context, setRatingState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 69.w,
@@ -4999,22 +5093,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: GestureDetector(
                   onTap: selectedRating > 0 && !isSubmitting
                       ? () async {
+                          AppLogger.log('🔘 Submit button pressed', tag: 'RATING');
+                          AppLogger.log('Rating: $selectedRating', tag: 'RATING');
+                          AppLogger.log('Comment: ${reviewController.text}', tag: 'RATING');
+                          AppLogger.log('Current Ride ID: $currentRideId', tag: 'RATING');
+                          
+                          if (currentRideId == null) {
+                            AppLogger.log('❌ No ride ID available!', tag: 'RATING');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: No ride ID found')),
+                            );
+                            return;
+                          }
+
                           setRatingState(() {
                             isSubmitting = true;
                           });
 
                           try {
+                            AppLogger.log('📤 Calling rateRide API with ID: $currentRideId', tag: 'RATING');
+                            
                             final result = await _rideService.rateRide(
-                              rideId: _activeRide?['ID'] is int
-                                  ? _activeRide!['ID']
-                                  : int.parse(
-                                      _activeRide?['ID']?.toString() ?? '0',
-                                    ),
+                              rideId: currentRideId,
                               score: selectedRating,
                               comment: reviewController.text,
                             );
+                            
+                            AppLogger.log('📥 API Response: $result', tag: 'RATING');
 
                             if (result['success'] == true) {
+                              // Mark ride as rated
+                              if (currentRideId != null) {
+                                _dismissedRatingRides.add(currentRideId);
+                              }
                               setState(() {
                                 _activeRide = null;
                                 _isDriverAssigned = false;
@@ -5082,12 +5193,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
     ).whenComplete(() {
       reviewController.dispose();
+      // Mark ride as dismissed if user closes without rating
+      if (currentRideId != null && selectedRating == 0) {
+        setState(() {
+          _dismissedRatingRides.add(currentRideId);
+        });
+      }
     });
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
-
+//FOR PASSENGER 
 class ChatProvider with ChangeNotifier {
   final Map<int, List<ChatMessageModel>> _messagesByRide = {};
   final Map<int, ChatModel> _chats = {};

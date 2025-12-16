@@ -1,7 +1,7 @@
 class UrlConstants {
   static const String baseUrl = "http://44.222.121.219/api/v1";
   static const String wsUrl = "ws://44.222.121.219/api/v1/ws";
-
+static const String webSocketUrl="ws://44.222.121.219/api/v1/ws";
   // Authentication
   static const String sendOtp = "/otp/send";
   static const String resendOtp = "/otp/resend";

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 
 class WebSocketProvider with ChangeNotifier {
-  final WebSocketService _webSocketService = WebSocketService();
+  // final WebSocketService _webSocketService = WebSocketService.;
+final WebSocketService _webSocketService = WebSocketService.instance;
 
   bool get isConnected => _webSocketService.isConnected;
 
@@ -11,9 +12,9 @@ class WebSocketProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void sendChatMessage(String message, String rideId) {
-    _webSocketService.sendChatMessage(message, rideId);
-  }
+  // void sendChatMessage(String message, String rideId) {
+  //   _webSocketService.sendChatMessage(message, rideId);
+  // }
 
   void sendMessage(Map<String, dynamic> message) {
     _webSocketService.sendMessage(message);

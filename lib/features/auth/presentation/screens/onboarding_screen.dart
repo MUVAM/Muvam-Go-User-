@@ -144,19 +144,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 fullPhone,
                               );
 
+                              if (!mounted) return;
+
                               if (success) {
                                 // Store phone number for registration
                                 final prefs =
                                     await SharedPreferences.getInstance();
                                 await prefs.setString('user_phone', fullPhone);
 
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        OtpScreen(phoneNumber: fullPhone),
-                                  ),
-                                );
+                                // Small delay to ensure UI updates
+                                await Future.delayed(Duration(milliseconds: 100));
+
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          OtpScreen(phoneNumber: fullPhone),
+                                    ),
+                                  );
+                                }
                               } else {
                                 CustomFlushbar.showError(
                                   context: context,

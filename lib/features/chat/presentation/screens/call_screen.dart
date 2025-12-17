@@ -319,9 +319,15 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   @override
-  void dispose() {
+  void dispose() async {
     _callTimer?.cancel();
-    _callService.endCall(_sessionId, _callDuration);
+    
+    // Ensure call is ended when screen is disposed
+    final sessionId = _sessionId ?? _callService.currentSessionId;
+    if (sessionId != null) {
+      await _callService.endCall(sessionId, _callDuration);
+    }
+    
     _callService.dispose();
     _disposeRenderers();
     super.dispose();
@@ -432,11 +438,21 @@ class _CallScreenState extends State<CallScreen> {
     _callService.toggleSpeaker(_isSpeakerOn);
   }
 
-  void _endCall() {
+  void _endCall() async {
     AppLogger.log('📞 End call button pressed', tag: 'CALL');
     AppLogger.log('⏱️ Call duration: $_callDuration seconds', tag: 'CALL');
     _callTimer?.cancel();
-    _callService.endCall(_sessionId, _callDuration);
+    
+    // Use session ID from service if local one is null
+    final sessionId = _sessionId ?? _callService.currentSessionId;
+    AppLogger.log('🆔 Using session ID: $sessionId', tag: 'CALL');
+    
+    if (sessionId != null) {
+      await _callService.endCall(sessionId, _callDuration);
+    } else {
+      AppLogger.log('⚠️ No session ID available for ending call', tag: 'CALL');
+    }
+    
     Navigator.pop(context);
   }
 

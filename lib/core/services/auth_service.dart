@@ -51,10 +51,29 @@ class AuthService {
     AppLogger.log('Verify OTP Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
-      final result = VerifyOtpResponse.fromJson(jsonDecode(response.body));
+      final responseData = jsonDecode(response.body);
+      final result = VerifyOtpResponse.fromJson(responseData);
+      
       if (result.token != null) {
         await _saveToken(result.token!);
       }
+      
+      // Store user ID and name
+      if (responseData['user'] != null) {
+        final user = responseData['user'];
+        final prefs = await SharedPreferences.getInstance();
+        
+        await prefs.setString('user_id', user['ID'].toString());
+        
+        final firstName = user['first_name'] ?? '';
+        final lastName = user['last_name'] ?? '';
+        final fullName = '$firstName $lastName'.trim();
+        await prefs.setString('user_name', fullName);
+        
+        AppLogger.log('Stored user_id: ${user['ID']}');
+        AppLogger.log('Stored user_name: $fullName');
+      }
+      
       return result;
     } else {
       AppLogger.log('Verify OTP Error: ${response.body}');

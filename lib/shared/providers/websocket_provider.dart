@@ -20,9 +20,9 @@ final WebSocketService _webSocketService = WebSocketService.instance;
     _webSocketService.sendMessage(message);
   }
 
-  void sendRideRequest(Map<String, dynamic> rideData) {
-    _webSocketService.sendRideRequest(rideData);
-  }
+  // void sendRideRequest(Map<String, dynamic> rideData) {
+  //   _webSocketService.sendRideRequest(rideData);
+  // }
 
   void disconnect() {
     _webSocketService.disconnect();

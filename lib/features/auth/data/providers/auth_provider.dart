@@ -87,6 +87,24 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // NEW METHOD: Register user with custom JSON
+  Future<bool> registerUserWithJson(Map<String, dynamic> requestJson) async {
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      _registerUserResponse = await _authService.registerUserWithJson(
+        requestJson,
+      );
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      _setLoading(false);
+      return false;
+    }
+  }
+
   Future<bool> completeProfile(CompleteProfileRequest request) async {
     _setLoading(true);
     _setError(null);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -29,6 +31,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController locationController = TextEditingController();
   final TextEditingController referralController = TextEditingController();
   String? _locationPoint;
+  String? _city; // Store city separately
 
   @override
   void initState() {
@@ -172,10 +175,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
+      // Show loading indicator
+      setState(() {
+        locationController.text = 'Getting location...';
+      });
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          setState(() {
+            locationController.clear();
+          });
+          if (!mounted) return;
           CustomFlushbar.showError(
             context: context,
             message: 'Location permission denied',
@@ -184,28 +196,119 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         }
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // Get position with longer timeout
+      Position position =
+          await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          ).timeout(
+            Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Location fetch timed out');
+            },
+          );
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+      // Store the coordinates immediately
+      _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
+      AppLogger.log('Location Point: $_locationPoint');
 
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        String address =
-            '${place.street}, ${place.locality}, ${place.administrativeArea}';
-        locationController.text = address;
-        _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
-        AppLogger.log('Location Point: $_locationPoint');
+      // Try to get address with much longer timeout and retry logic
+      String address = '';
+      bool geocodingSuccessful = false;
+
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          AppLogger.log('Geocoding attempt ${attempt + 1}...');
+
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          ).timeout(Duration(seconds: 15));
+
+          if (placemarks.isNotEmpty) {
+            Placemark place = placemarks[0];
+
+            // Extract city for API
+            _city =
+                place.locality ??
+                place.subAdministrativeArea ??
+                place.administrativeArea ??
+                'Unknown';
+            AppLogger.log('Extracted city: $_city');
+
+            // Build a readable address
+            List<String> addressParts = [];
+
+            if (place.street != null && place.street!.isNotEmpty) {
+              addressParts.add(place.street!);
+            }
+            if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+              addressParts.add(place.subLocality!);
+            }
+            if (place.locality != null && place.locality!.isNotEmpty) {
+              addressParts.add(place.locality!);
+            }
+            if (place.administrativeArea != null &&
+                place.administrativeArea!.isNotEmpty) {
+              addressParts.add(place.administrativeArea!);
+            }
+
+            address = addressParts.join(', ');
+
+            if (address.isEmpty) {
+              address = _city ?? 'Your Location';
+            }
+
+            geocodingSuccessful = true;
+            AppLogger.log('Geocoded address: $address');
+            break;
+          }
+        } on TimeoutException catch (e) {
+          AppLogger.log('Geocoding attempt ${attempt + 1} timed out: $e');
+          if (attempt == 0) {
+            await Future.delayed(Duration(milliseconds: 500));
+          }
+        } catch (e) {
+          AppLogger.log('Geocoding attempt ${attempt + 1} failed: $e');
+          break;
+        }
+      }
+
+      // Update UI with result
+      if (geocodingSuccessful && address.isNotEmpty) {
+        setState(() {
+          locationController.text = address;
+        });
+
+        if (!mounted) return;
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Location captured successfully',
+        );
+      } else {
+        // Use coordinates as fallback
+        setState(() {
+          locationController.text =
+              'Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}';
+          _city = 'Unknown'; // Set default city
+        });
+
+        if (!mounted) return;
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Location saved (showing coordinates)',
+        );
       }
     } catch (e) {
       AppLogger.log('Error getting location: $e');
+      setState(() {
+        locationController.clear();
+      });
+
+      if (!mounted) return;
+
       CustomFlushbar.showError(
         context: context,
-        message: 'Failed to get location',
+        message: 'Failed to get location. Please try again.',
       );
     }
   }
@@ -216,39 +319,90 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         return GestureDetector(
           onTap: !authProvider.isLoading
               ? () async {
+                  // Validate required fields
+                  if (firstNameController.text.isEmpty) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please enter your first name',
+                    );
+                    return;
+                  }
+
+                  if (lastNameController.text.isEmpty) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please enter your last name',
+                    );
+                    return;
+                  }
+
+                  if (dobController.text.isEmpty) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please select your date of birth',
+                    );
+                    return;
+                  }
+
+                  if (emailController.text.isEmpty) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please enter your email',
+                    );
+                    return;
+                  }
+
+                  if (_locationPoint == null || _city == null) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please select your location',
+                    );
+                    return;
+                  }
+
                   final prefs = await SharedPreferences.getInstance();
                   final phone =
                       prefs.getString('user_phone') ?? '+2341234567890';
 
+                  // Create the request object
                   final request = RegisterUserRequest(
-                    email: emailController.text,
-                    firstName: firstNameController.text,
-                    lastName: lastNameController.text,
+                    email: emailController.text.trim(),
+                    firstName: firstNameController.text.trim(),
+                    lastName: lastNameController.text.trim(),
                     phone: phone,
                     role: 'passenger',
                     location: _locationPoint,
                   );
 
+                  // Convert to JSON and add missing fields
                   final requestJson = request.toJson();
-                  requestJson['service_type'] =
-                      'taxi'; // Force add service_type
-                  AppLogger.log(
-                    'Registration request from screen: $requestJson',
-                  );
-                  AppLogger.log(
-                    'Service type in request: ${requestJson['service_type']}',
-                  );
 
-                  final success = await authProvider.registerUser(request);
+                  // Add the missing fields that API expects
+                  requestJson['middle_name'] =
+                      middleNameController.text.trim().isEmpty
+                      ? ''
+                      : middleNameController.text.trim();
+                  requestJson['date_of_birth'] = dobController.text.trim();
+                  requestJson['city'] = _city!;
+                  requestJson['service_type'] = 'taxi';
+
+                  AppLogger.log('Registration request: $requestJson');
+
+                  // Send the modified JSON directly to the provider
+                  final success = await authProvider.registerUserWithJson(
+                    requestJson,
+                  );
 
                   if (success) {
-                    Navigator.push(
+                    if (!mounted) return;
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const HomeScreen(),
                       ),
                     );
                   } else {
+                    if (!mounted) return;
                     CustomFlushbar.showError(
                       context: context,
                       message:
@@ -298,12 +452,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   ) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: DateTime(2000), // Default to year 2000
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      controller.text = "${picked.day}/${picked.month}/${picked.year}";
+      // Format as MM/DD/YYYY to match API expectation
+      String month = picked.month.toString().padLeft(2, '0');
+      String day = picked.day.toString().padLeft(2, '0');
+      controller.text = "$month/$day/${picked.year}";
+      AppLogger.log('Date selected: ${controller.text}');
     }
   }
 }

@@ -4,7 +4,8 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
-import 'package:muvam/features/profile/presentation/widgets/edit_profile_sheet.dart';
+import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
+import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -29,19 +30,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadUserProfile();
   }
 
-  void _loadUserData() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.loadUserData();
-    final userData = authProvider.userData;
+  void _loadUserProfile() async {
+    final profileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
 
-    if (userData['first_name'] != null)
-      firstNameController.text = userData['first_name']!;
-    if (userData['last_name'] != null)
-      lastNameController.text = userData['last_name']!;
-    if (userData['email'] != null) emailController.text = userData['email']!;
+    // Fetch profile from API
+    await profileProvider.fetchUserProfile();
+
+    // Populate controllers with profile data
+    if (profileProvider.userProfile != null) {
+      firstNameController.text = profileProvider.userFirstName;
+      middleNameController.text = profileProvider.userMiddleName;
+      lastNameController.text = profileProvider.userLastName;
+      emailController.text = profileProvider.userEmail;
+    }
   }
 
   Future<void> _pickImage() async {
@@ -55,193 +62,216 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            SizedBox(height: 20.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Image.asset(
-                      ConstImages.back,
-                      width: 24.w,
-                      height: 24.h,
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'My Account',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+    return Consumer<UserProfileProvider>(
+      builder: (context, profileProvider, child) {
+        if (profileProvider.isLoading && profileProvider.userProfile == null) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: CircularProgressIndicator(
+                color: Color(ConstColors.mainColor),
+              ),
+            ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Column(
+              children: [
+                SizedBox(height: 20.h),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Image.asset(
+                          ConstImages.back,
+                          width: 30.w,
+                          height: 30.h,
                         ),
                       ),
-                    ),
-                  ),
-                  SizedBox(width: 24.w),
-                ],
-              ),
-            ),
-            SizedBox(height: 40.h),
-            GestureDetector(
-              onTap: () => _showEditProfileSheet(context),
-              child: Stack(
-                children: [
-                  Container(
-                    width: 80.w,
-                    height: 80.h,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.grey.shade200,
-                    ),
-                    child: _profileImage != null
-                        ? ClipOval(
-                            child: Image.file(
-                              _profileImage!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Image.asset(
-                            ConstImages.avatar,
-                            width: 80.w,
-                            height: 80.h,
-                          ),
-                  ),
-                  Positioned(
-                    top: 6.h,
-                    left: 51.w,
-                    child: Container(
-                      width: 18.w,
-                      height: 18.h,
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(100.r),
-                      ),
-                      child: Icon(Icons.add, color: Colors.white, size: 12.sp),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 40.h),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Consumer<AuthProvider>(
-                      builder: (context, authProvider, child) {
-                        final userData = authProvider.userData;
-                        return Column(
-                          children: [
-                            ProfileField(
-                              label: 'Full name',
-                              value:
-                                  '${userData['first_name'] ?? 'Not set'} ${userData['last_name'] ?? ''}',
-                              hasEdit: true,
-                              onEditTap: () => _showEditProfileSheet(context),
-                            ),
-                            SizedBox(height: 15.h),
-                            ProfileField(
-                              label: 'Phone number',
-                              value: '+234 123 456 7890',
-                            ),
-                            SizedBox(height: 15.h),
-                            ProfileField(
-                              label: 'Date of birth',
-                              value: 'January 1, 1990',
-                            ),
-                            SizedBox(height: 15.h),
-                            ProfileField(
-                              label: 'Email address',
-                              value: userData['email'] ?? 'Not set',
-                            ),
-                            SizedBox(height: 15.h),
-                            ProfileField(label: 'State', value: 'Lagos'),
-                          ],
-                        );
-                      },
-                    ),
-                    SizedBox(height: 40.h),
-                    Container(
-                      width: 353.w,
-                      height: 47.h,
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: GestureDetector(
-                        onTap: () => _showLogoutSheet(context),
+                      Expanded(
                         child: Center(
                           child: Text(
-                            'Logout',
+                            'My Account',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
+                              fontFamily: 'Inter',
+                              fontSize: 26,
                               fontWeight: FontWeight.w600,
+                              color: Colors.black,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 20.h),
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DeleteAccountScreen(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'Delete Account',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                  ],
+                      SizedBox(width: 24.w),
+                    ],
+                  ),
                 ),
-              ),
+                SizedBox(height: 20.h),
+                GestureDetector(
+                  onTap: () => _navigateToEditProfile(context),
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 80.w,
+                        height: 80.h,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.shade200,
+                        ),
+                        child: _profileImage != null
+                            ? ClipOval(
+                                child: Image.file(
+                                  _profileImage!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : (profileProvider.userProfilePhoto.isNotEmpty &&
+                                  profileProvider.userProfilePhoto != '')
+                            ? ClipOval(
+                                child: Image.network(
+                                  profileProvider.userProfilePhoto,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      ConstImages.avatar,
+                                      width: 80.w,
+                                      height: 80.h,
+                                    );
+                                  },
+                                ),
+                              )
+                            : Image.asset(
+                                ConstImages.avatar,
+                                width: 80.w,
+                                height: 80.h,
+                              ),
+                      ),
+                      Positioned(
+                        top: 6.h,
+                        left: 51.w,
+                        child: Container(
+                          width: 18.w,
+                          height: 18.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(100.r),
+                          ),
+                          child: Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 12.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 40.h),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ProfileField(
+                          label: 'Full name',
+                          value: profileProvider.userName,
+                          hasEdit: true,
+                          onEditTap: () => _navigateToEditProfile(context),
+                        ),
+                        SizedBox(height: 15.h),
+                        ProfileField(
+                          label: 'Phone number',
+                          value: profileProvider.userPhone.isNotEmpty
+                              ? profileProvider.userPhone
+                              : 'Not set',
+                        ),
+                        SizedBox(height: 15.h),
+                        ProfileField(
+                          label: 'Date of birth',
+                          value: profileProvider.userDateOfBirth.isNotEmpty
+                              ? profileProvider.userDateOfBirth
+                              : 'Not set',
+                        ),
+                        SizedBox(height: 15.h),
+                        ProfileField(
+                          label: 'Email address',
+                          value: profileProvider.userEmail.isNotEmpty
+                              ? profileProvider.userEmail
+                              : 'Not set',
+                        ),
+                        SizedBox(height: 15.h),
+                        ProfileField(
+                          label: 'City',
+                          value: profileProvider.userCity.isNotEmpty
+                              ? profileProvider.userCity
+                              : 'Not set',
+                        ),
+                        SizedBox(height: 40.h),
+                        Container(
+                          width: 353.w,
+                          height: 47.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: GestureDetector(
+                            onTap: () => _showLogoutSheet(context),
+                            child: Center(
+                              child: Text(
+                                'Logout',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 20.h),
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DeleteAccountScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Delete Account',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 20.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  void _showEditProfileSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => EditProfileSheet(
-        profileImage: _profileImage,
-        onPickImage: _pickImage,
-        firstNameController: firstNameController,
-        middleNameController: middleNameController,
-        lastNameController: lastNameController,
-        emailController: emailController,
-        onUpdate: () => setState(() {}),
-      ),
+  void _navigateToEditProfile(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => EditProfileScreen()),
     );
   }
 
@@ -252,12 +282,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => LogoutSheet(
-        onLogout: () {
-          // Add logout logic here
+        onLogout: () async {
+          final profileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          final authProvider = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          );
+
+          await profileProvider.clearProfile();
+          await authProvider.logout();
+
           Navigator.pop(context);
+          // Navigate to login screen
         },
         onGoBack: () => Navigator.pop(context),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    firstNameController.dispose();
+    middleNameController.dispose();
+    lastNameController.dispose();
+    emailController.dispose();
+    super.dispose();
   }
 }

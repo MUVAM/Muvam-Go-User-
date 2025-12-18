@@ -53,27 +53,27 @@ class AuthService {
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
       final result = VerifyOtpResponse.fromJson(responseData);
-      
+
       if (result.token != null) {
         await _saveToken(result.token!);
       }
-      
+
       // Store user ID and name
       if (responseData['user'] != null) {
         final user = responseData['user'];
         final prefs = await SharedPreferences.getInstance();
-        
+
         await prefs.setString('user_id', user['ID'].toString());
-        
+
         final firstName = user['first_name'] ?? '';
         final lastName = user['last_name'] ?? '';
         final fullName = '$firstName $lastName'.trim();
         await prefs.setString('user_name', fullName);
-        
+
         AppLogger.log('Stored user_id: ${user['ID']}');
         AppLogger.log('Stored user_name: $fullName');
       }
-      
+
       return result;
     } else {
       AppLogger.log('Verify OTP Error: ${response.body}');
@@ -102,6 +102,55 @@ class AuthService {
     } else {
       AppLogger.log('Register User Error: ${response.body}');
       throw Exception('Failed to register user: ${response.body}');
+    }
+  }
+
+  // NEW METHOD: Register user with custom JSON
+  Future<RegisterUserResponse> registerUserWithJson(
+    Map<String, dynamic> requestBody,
+  ) async {
+    AppLogger.log('Registration request with JSON: $requestBody');
+
+    final response = await http.post(
+      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.registerUser}'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    );
+
+    AppLogger.log('Register User Response Status: ${response.statusCode}');
+    AppLogger.log('Register User Response Body: ${response.body}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      final result = RegisterUserResponse.fromJson(responseData);
+
+      // Save token
+      await _saveToken(result.token);
+
+      // Store user data
+      if (responseData['user'] != null) {
+        final user = responseData['user'];
+        final prefs = await SharedPreferences.getInstance();
+
+        await prefs.setString('user_id', user['ID'].toString());
+
+        final firstName = user['first_name'] ?? '';
+        final lastName = user['last_name'] ?? '';
+        final fullName = '$firstName $lastName'.trim();
+        await prefs.setString('user_name', fullName);
+        await prefs.setString('user_email', user['Email'] ?? '');
+
+        AppLogger.log('Stored user_id: ${user['ID']}');
+        AppLogger.log('Stored user_name: $fullName');
+      }
+
+      return result;
+    } else {
+      AppLogger.log('Register User Error: ${response.body}');
+      final errorBody = jsonDecode(response.body);
+      throw Exception(
+        errorBody['message'] ?? 'Failed to register user: ${response.body}',
+      );
     }
   }
 

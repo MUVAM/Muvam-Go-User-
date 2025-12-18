@@ -23,6 +23,7 @@ import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
 import 'package:http/http.dart' as http;
+import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
@@ -138,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _createCurrentLocationIcon();
     _createPickupIcon();
     _createDestinationIcon();
+    _loadProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(
         context,
@@ -268,9 +270,13 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 50.w,
             height: 50.h,
             decoration: BoxDecoration(
-              color: _isDriverAssigned ? Color(ConstColors.mainColor) : Colors.white,
+              color: _isDriverAssigned
+                  ? Color(ConstColors.mainColor)
+                  : Colors.white,
               shape: BoxShape.circle,
-              border: _isDriverAssigned ? null : Border.all(color: Colors.grey.shade300, width: 1),
+              border: _isDriverAssigned
+                  ? null
+                  : Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Center(
               child: _isDriverAssigned
@@ -509,42 +515,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Listen for ride_completed message
     _webSocketService.onRideCompleted = (data) {
-      AppLogger.log('🏁 Ride completed callback triggered!', tag: 'RIDE_COMPLETED');
-      AppLogger.log('RAW MESSAGE AS STRING FOR PASSENGER: "${data.toString()}"');
-      
+      AppLogger.log(
+        '🏁 Ride completed callback triggered!',
+        tag: 'RIDE_COMPLETED',
+      );
+      AppLogger.log(
+        'RAW MESSAGE AS STRING FOR PASSENGER: "${data.toString()}"',
+      );
+
       try {
         // Parse ride_id from the message (can be at root level or in data)
         int? rideId;
-        
+
         // Try to get ride_id from root level first
         if (data['ride_id'] != null) {
-          rideId = data['ride_id'] is int ? data['ride_id'] : int.tryParse(data['ride_id'].toString());
+          rideId = data['ride_id'] is int
+              ? data['ride_id']
+              : int.tryParse(data['ride_id'].toString());
         }
-        
+
         // If not found, try from data object
         if (rideId == null) {
           final messageData = data['data'] as Map<String, dynamic>?;
           if (messageData?['ride_id'] != null) {
-            rideId = messageData!['ride_id'] is int ? messageData['ride_id'] : int.tryParse(messageData['ride_id'].toString());
+            rideId = messageData!['ride_id'] is int
+                ? messageData['ride_id']
+                : int.tryParse(messageData['ride_id'].toString());
           }
         }
-        
+
         AppLogger.log('Parsed Ride ID: $rideId');
         AppLogger.log('Last completed ride ID: $_lastCompletedRideId');
         AppLogger.log('Dismissed rides: $_dismissedRatingRides');
-        
+
         if (rideId != null && !_dismissedRatingRides.contains(rideId)) {
           AppLogger.log('✅ Showing rating sheet for ride $rideId');
-          
+
           // Store the ride ID
           _lastCompletedRideId = rideId;
-          
+
           // Show rating sheet
           if (mounted) {
             _showRatingSheet();
           }
         } else {
-          AppLogger.log('⚠️ Not showing rating - rideId: $rideId, already dismissed: ${_dismissedRatingRides.contains(rideId ?? -1)}');
+          AppLogger.log(
+            '⚠️ Not showing rating - rideId: $rideId, already dismissed: ${_dismissedRatingRides.contains(rideId ?? -1)}',
+          );
         }
       } catch (e) {
         AppLogger.log('❌ Error processing ride_completed message: $e');
@@ -603,7 +620,8 @@ class _HomeScreenState extends State<HomeScreen> {
     print('Handling active ride with status: $status');
 
     // Store ride ID when active
-    if (rideId != null && (status == 'accepted' || status == 'arrived' || status == 'started')) {
+    if (rideId != null &&
+        (status == 'accepted' || status == 'arrived' || status == 'started')) {
       _lastCompletedRideId = rideId;
     }
 
@@ -641,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
         print('📍 Parsing PostGIS locations...');
         print('PickupLocation: ${ride['PickupLocation']}');
         print('DestLocation: ${ride['DestLocation']}');
-        
+
         // Add pickup and drop-off markers to map
         _addActiveRideMarkers(ride);
 
@@ -652,13 +670,16 @@ class _HomeScreenState extends State<HomeScreen> {
           print('✅ Showing driver accepted sheet for status: $status');
           _showDriverAcceptedSheet();
         } else {
-          print('⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet');
+          print(
+            '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
+          );
         }
         break;
 
       case 'completed':
         // Check if passenger has rated
-        if (_lastCompletedRideId != null && !_dismissedRatingRides.contains(_lastCompletedRideId)) {
+        if (_lastCompletedRideId != null &&
+            !_dismissedRatingRides.contains(_lastCompletedRideId)) {
           _checkAndShowRating(_lastCompletedRideId!);
         }
         break;
@@ -729,11 +750,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Store coordinates if available
     if (placeDetails != null) {
-      final coordinates = LatLng(
-        placeDetails.latitude,
-        placeDetails.longitude,
-      );
-      
+      final coordinates = LatLng(placeDetails.latitude, placeDetails.longitude);
+
       if (isFrom) {
         _pickupCoordinates = coordinates;
       } else {
@@ -823,23 +841,25 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('=== CHECKING RATING STATUS ===');
       AppLogger.log('Ride ID: $rideId');
       AppLogger.log('Calling getRideDetails...');
-      
+
       final result = await _rideService.getRideDetails(rideId);
-      
+
       AppLogger.log('getRideDetails result: $result');
-      
+
       if (result['success'] == true) {
         final rideData = result['data'];
         AppLogger.log('Ride data: $rideData');
-        
+
         final hasRated = rideData['passenger_rated_driver'] ?? false;
         AppLogger.log('passenger_rated_driver: $hasRated');
-        
+
         if (!hasRated && mounted) {
           AppLogger.log('✅ Showing rating sheet');
           _showRatingSheet();
         } else {
-          AppLogger.log('⚠️ Not showing rating sheet - hasRated: $hasRated, mounted: $mounted');
+          AppLogger.log(
+            '⚠️ Not showing rating sheet - hasRated: $hasRated, mounted: $mounted',
+          );
         }
       } else {
         AppLogger.log('❌ getRideDetails failed: ${result['message']}');
@@ -963,6 +983,14 @@ class _HomeScreenState extends State<HomeScreen> {
       _showSuggestions = false;
       _locationSuggestions = [];
     });
+  }
+
+  void _loadProfile() async {
+    final profileProvider = Provider.of<UserProfileProvider>(
+      context,
+      listen: false,
+    );
+    await profileProvider.fetchUserProfile();
   }
 
   @override
@@ -2056,18 +2084,24 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildStopMarkerWidget(),
         size: Size(200.w, 40.h),
       );
-      
+
       // Calculate stop position between pickup and destination
-      final stopLat = (_pickupCoordinates!.latitude + _destinationCoordinates!.latitude) / 2;
-      final stopLng = (_pickupCoordinates!.longitude + _destinationCoordinates!.longitude) / 2;
+      final stopLat =
+          (_pickupCoordinates!.latitude + _destinationCoordinates!.latitude) /
+          2;
+      final stopLng =
+          (_pickupCoordinates!.longitude + _destinationCoordinates!.longitude) /
+          2;
       _stopCoordinates = LatLng(stopLat, stopLng);
-      
-      markers.add(Marker(
-        markerId: MarkerId('stop'),
-        position: _stopCoordinates!,
-        icon: stopIcon,
-        anchor: Offset(0.5, 1.0),
-      ));
+
+      markers.add(
+        Marker(
+          markerId: MarkerId('stop'),
+          position: _stopCoordinates!,
+          icon: stopIcon,
+          anchor: Offset(0.5, 1.0),
+        ),
+      );
     }
 
     // Create polyline with actual route points
@@ -2088,14 +2122,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Fit map to show all locations with padding
     if (_mapController != null) {
-      final allLatitudes = [_pickupCoordinates!.latitude, _destinationCoordinates!.latitude];
-      final allLongitudes = [_pickupCoordinates!.longitude, _destinationCoordinates!.longitude];
-      
+      final allLatitudes = [
+        _pickupCoordinates!.latitude,
+        _destinationCoordinates!.latitude,
+      ];
+      final allLongitudes = [
+        _pickupCoordinates!.longitude,
+        _destinationCoordinates!.longitude,
+      ];
+
       if (_stopCoordinates != null) {
         allLatitudes.add(_stopCoordinates!.latitude);
         allLongitudes.add(_stopCoordinates!.longitude);
       }
-      
+
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
@@ -2459,24 +2499,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: !_isBookingRide
                         ? () async {
-                           
                             if (selectedPaymentMethod == 'Pay with card') {
-                             
-
                               setBookingState(() {
                                 _isBookingRide = true;
                               });
 
                               try {
-                                AppLogger.log('💳 BOOK NOW - CARD PAYMENT: Starting ride request...');
-                                AppLogger.log('💳 Selected Payment Method: $selectedPaymentMethod');
+                                AppLogger.log(
+                                  '💳 BOOK NOW - CARD PAYMENT: Starting ride request...',
+                                );
+                                AppLogger.log(
+                                  '💳 Selected Payment Method: $selectedPaymentMethod',
+                                );
                                 _currentRideResponse = await _requestRide();
 
                                 if (_currentRideResponse != null) {
-                                  AppLogger.log('✅ Ride request successful for card payment');
-                                  AppLogger.log('🎫 Ride ID: ${_currentRideResponse!.id}');
-                                  AppLogger.log('💰 Ride Price: ${_currentRideResponse!.price}');
-                                  
+                                  AppLogger.log(
+                                    '✅ Ride request successful for card payment',
+                                  );
+                                  AppLogger.log(
+                                    '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                  );
+                                  AppLogger.log(
+                                    '💰 Ride Price: ${_currentRideResponse!.price}',
+                                  );
 
                                   final paymentData = await _paymentService
                                       .initializePayment(
@@ -2537,14 +2583,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _isBookingRide = true;
                               });
                               try {
-                                AppLogger.log('🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...');
-                                AppLogger.log('💳 Selected Payment Method: $selectedPaymentMethod');
+                                AppLogger.log(
+                                  '🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...',
+                                );
+                                AppLogger.log(
+                                  '💳 Selected Payment Method: $selectedPaymentMethod',
+                                );
                                 _currentRideResponse = await _requestRide();
 
                                 if (mounted) {
-                                  AppLogger.log('✅ Ride request successful for other payment method');
-                                  AppLogger.log('🎫 Ride ID: ${_currentRideResponse!.id}');
-                                  AppLogger.log('💰 Ride Price: ${_currentRideResponse!.price}');
+                                  AppLogger.log(
+                                    '✅ Ride request successful for other payment method',
+                                  );
+                                  AppLogger.log(
+                                    '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                  );
+                                  AppLogger.log(
+                                    '💰 Ride Price: ${_currentRideResponse!.price}',
+                                  );
                                   fromController.clear();
                                   toController.clear();
                                   setState(() {
@@ -2786,6 +2842,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDrawer() {
+    final profileProvider = Provider.of<UserProfileProvider>(context);
     return Drawer(
       child: Column(
         children: [
@@ -2794,30 +2851,42 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: EdgeInsets.symmetric(horizontal: 20.w),
             child: Row(
               children: [
-                Image.asset(ConstImages.avatar, width: 60.w, height: 60.h),
+                profileProvider.userProfilePhoto.isNotEmpty
+                    ? CircleAvatar(
+                        radius: 30.r,
+                        backgroundImage: NetworkImage(
+                          profileProvider.userProfilePhoto,
+                        ),
+                      )
+                    : Image.asset(
+                        ConstImages.avatar,
+                        width: 60.w,
+                        height: 60.h,
+                      ),
                 SizedBox(width: 15.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('John Doe', style: ConstTextStyles.drawerName),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ProfileScreen()),
+                    );
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profileProvider.userShortName,
+                        style: ConstTextStyles.drawerName,
+                      ),
+                      Text(
                         'My Account',
                         style: ConstTextStyles.drawerAccount.copyWith(
                           color: Color(ConstColors.drawerAccountColor),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -3161,8 +3230,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         hasStarted
                             ? 'Enjoy your trip'
                             : hasArrived
-                                ? 'Your driver has arrived'
-                                : 'Driver is on the way',
+                            ? 'Your driver has arrived'
+                            : 'Driver is on the way',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 16.sp,
@@ -3215,7 +3284,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           Spacer(),
                           Row(
                             children: [
-                              Icon(Icons.star, size: 16.sp, color: Colors.amber),
+                              Icon(
+                                Icons.star,
+                                size: 16.sp,
+                                color: Colors.amber,
+                              ),
                               SizedBox(width: 4.w),
                               Text(
                                 _assignedDriver!.rating.toString(),
@@ -3316,8 +3389,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     hasStarted
                                         ? Icons.sos
                                         : hasArrived
-                                            ? Icons.cancel
-                                            : Icons.edit,
+                                        ? Icons.cancel
+                                        : Icons.edit,
                                     size: 16.sp,
                                     color: Colors.black,
                                   ),
@@ -3326,8 +3399,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     hasStarted
                                         ? 'SOS'
                                         : hasArrived
-                                            ? 'Cancel'
-                                            : 'Modify Trip',
+                                        ? 'Cancel'
+                                        : 'Modify Trip',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
@@ -4941,10 +5014,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CallScreen(
-                          driverName: driverName,
-                          rideId: rideId,
-                        ),
+                        builder: (context) =>
+                            CallScreen(driverName: driverName, rideId: rideId),
                       ),
                     );
                   },
@@ -4955,11 +5026,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.green,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.call,
-                      color: Colors.white,
-                      size: 30.sp,
-                    ),
+                    child: Icon(Icons.call, color: Colors.white, size: 30.sp),
                   ),
                 ),
               ],
@@ -4974,7 +5041,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      
+
       await http.post(
         Uri.parse('http://44.222.121.219/api/v1/calls/$sessionId/reject'),
         headers: {
@@ -4994,7 +5061,10 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isSubmitting = false;
     final currentRideId = _lastCompletedRideId;
 
-    AppLogger.log('📊 Opening rating sheet for ride ID: $currentRideId', tag: 'RATING');
+    AppLogger.log(
+      '📊 Opening rating sheet for ride ID: $currentRideId',
+      tag: 'RATING',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -5018,181 +5088,208 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
-              ),
-              Text(
-                'Rate your trip with ${_assignedDriver?.name ?? "Driver"}',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return GestureDetector(
-                    onTap: () {
-                      setRatingState(() {
-                        selectedRating = index + 1;
-                      });
-                    },
-                    child: Icon(
-                      index < selectedRating ? Icons.star : Icons.star_border,
-                      size: 40.sp,
-                      color: Colors.amber,
+                children: [
+                  Container(
+                    width: 69.w,
+                    height: 5.h,
+                    margin: EdgeInsets.only(bottom: 20.h),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2.5.r),
                     ),
-                  );
-                }),
-              ),
-              SizedBox(height: 20.h),
-              Container(
-                width: 353.w,
-                height: 111.h,
-                padding: EdgeInsets.all(10.w),
-                decoration: BoxDecoration(
-                  color: Color(0xFFB1B1B1).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: TextField(
-                  controller: reviewController,
-                  maxLines: null,
-                  expands: true,
-                  onChanged: (value) {
-                    setRatingState(() {});
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Write a review...',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: selectedRating > 0
-                      ? Color(ConstColors.mainColor)
-                      : Color(ConstColors.fieldColor),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: selectedRating > 0 && !isSubmitting
-                      ? () async {
-                          AppLogger.log('🔘 Submit button pressed', tag: 'RATING');
-                          AppLogger.log('Rating: $selectedRating', tag: 'RATING');
-                          AppLogger.log('Comment: ${reviewController.text}', tag: 'RATING');
-                          AppLogger.log('Current Ride ID: $currentRideId', tag: 'RATING');
-                          
-                          if (currentRideId == null) {
-                            AppLogger.log('❌ No ride ID available!', tag: 'RATING');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: No ride ID found')),
-                            );
-                            return;
-                          }
-
+                  Text(
+                    'Rate your trip with ${_assignedDriver?.name ?? "Driver"}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Divider(thickness: 1, color: Colors.grey.shade300),
+                  SizedBox(height: 20.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () {
                           setRatingState(() {
-                            isSubmitting = true;
+                            selectedRating = index + 1;
                           });
+                        },
+                        child: Icon(
+                          index < selectedRating
+                              ? Icons.star
+                              : Icons.star_border,
+                          size: 40.sp,
+                          color: Colors.amber,
+                        ),
+                      );
+                    }),
+                  ),
+                  SizedBox(height: 20.h),
+                  Container(
+                    width: 353.w,
+                    height: 111.h,
+                    padding: EdgeInsets.all(10.w),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFB1B1B1).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: TextField(
+                      controller: reviewController,
+                      maxLines: null,
+                      expands: true,
+                      onChanged: (value) {
+                        setRatingState(() {});
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Write a review...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Container(
+                    width: 353.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: selectedRating > 0
+                          ? Color(ConstColors.mainColor)
+                          : Color(ConstColors.fieldColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: GestureDetector(
+                      onTap: selectedRating > 0 && !isSubmitting
+                          ? () async {
+                              AppLogger.log(
+                                '🔘 Submit button pressed',
+                                tag: 'RATING',
+                              );
+                              AppLogger.log(
+                                'Rating: $selectedRating',
+                                tag: 'RATING',
+                              );
+                              AppLogger.log(
+                                'Comment: ${reviewController.text}',
+                                tag: 'RATING',
+                              );
+                              AppLogger.log(
+                                'Current Ride ID: $currentRideId',
+                                tag: 'RATING',
+                              );
 
-                          try {
-                            AppLogger.log('📤 Calling rateRide API with ID: $currentRideId', tag: 'RATING');
-                            
-                            final result = await _rideService.rateRide(
-                              rideId: currentRideId,
-                              score: selectedRating,
-                              comment: reviewController.text,
-                            );
-                            
-                            AppLogger.log('📥 API Response: $result', tag: 'RATING');
-
-                            if (result['success'] == true) {
-                              // Mark ride as rated
-                              if (currentRideId != null) {
-                                _dismissedRatingRides.add(currentRideId);
+                              if (currentRideId == null) {
+                                AppLogger.log(
+                                  '❌ No ride ID available!',
+                                  tag: 'RATING',
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: No ride ID found'),
+                                  ),
+                                );
+                                return;
                               }
-                              setState(() {
-                                _activeRide = null;
-                                _isDriverAssigned = false;
-                                _isRideAccepted = false;
-                                _isInCar = false;
-                                _assignedDriver = null;
-                                _mapMarkers = {};
-                                _mapPolylines = {};
+
+                              setRatingState(() {
+                                isSubmitting = true;
                               });
 
-                              if (mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Thank you for your rating!'),
-                                  ),
+                              try {
+                                AppLogger.log(
+                                  '📤 Calling rateRide API with ID: $currentRideId',
+                                  tag: 'RATING',
                                 );
-                              }
-                            } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Failed to submit rating'),
-                                  ),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error: $e'),
-                                ),
-                              );
-                            }
-                          }
 
-                          if (mounted) {
-                            setRatingState(() {
-                              isSubmitting = false;
-                            });
-                          }
-                        }
-                      : null,
-                  child: Center(
-                    child: isSubmitting
-                        ? SizedBox(
-                            width: 20.w,
-                            height: 20.h,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                                final result = await _rideService.rateRide(
+                                  rideId: currentRideId,
+                                  score: selectedRating,
+                                  comment: reviewController.text,
+                                );
+
+                                AppLogger.log(
+                                  '📥 API Response: $result',
+                                  tag: 'RATING',
+                                );
+
+                                if (result['success'] == true) {
+                                  // Mark ride as rated
+                                  if (currentRideId != null) {
+                                    _dismissedRatingRides.add(currentRideId);
+                                  }
+                                  setState(() {
+                                    _activeRide = null;
+                                    _isDriverAssigned = false;
+                                    _isRideAccepted = false;
+                                    _isInCar = false;
+                                    _assignedDriver = null;
+                                    _mapMarkers = {};
+                                    _mapPolylines = {};
+                                  });
+
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Thank you for your rating!',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to submit rating',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
+                                }
+                              }
+
+                              if (mounted) {
+                                setRatingState(() {
+                                  isSubmitting = false;
+                                });
+                              }
+                            }
+                          : null,
+                      child: Center(
+                        child: isSubmitting
+                            ? SizedBox(
+                                width: 20.w,
+                                height: 20.h,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                'Submit',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          )
-                        : Text(
-                            'Submit',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
                 ],
               ),
             ),
@@ -5505,9 +5602,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _estimateRide() async {
     AppLogger.log('🚗 === STARTING RIDE ESTIMATE ===');
-    AppLogger.log('📍 Current Location: ${_currentLocation.latitude}, ${_currentLocation.longitude}');
+    AppLogger.log(
+      '📍 Current Location: ${_currentLocation.latitude}, ${_currentLocation.longitude}',
+    );
     AppLogger.log('🎯 Destination: ${toController.text}');
-    
+
     final request = RideEstimateRequest(
       pickup:
           "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
@@ -5525,7 +5624,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<RideResponse> _requestRide() async {
     AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
-    
+
     if (_currentEstimate == null || selectedVehicle == null) {
       AppLogger.log('❌ Missing estimate or vehicle selection');
       throw Exception('No estimate or vehicle selected');
@@ -5533,32 +5632,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
     final vehicleType = selectedPriceData['vehicle_type'];
-    
+
     AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
     AppLogger.log('💰 Selected Price Data: $selectedPriceData');
 
     // Use actual selected coordinates for pickup and destination
     final pickupLatLng = _pickupCoordinates ?? _currentLocation;
-    final destLatLng = _destinationCoordinates ?? LatLng(
-      _currentLocation.latitude + 0.01,
-      _currentLocation.longitude + 0.01,
-    );
-    
-    final pickupCoords = "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
+    final destLatLng =
+        _destinationCoordinates ??
+        LatLng(
+          _currentLocation.latitude + 0.01,
+          _currentLocation.longitude + 0.01,
+        );
+
+    final pickupCoords =
+        "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
     final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
 
-    AppLogger.log('📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})');
-    AppLogger.log('🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})');
+    AppLogger.log(
+      '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
+    );
+    AppLogger.log(
+      '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
+    );
     AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
-    
+
     // Fix payment method conversion - "Pay in car" should become "in_car"
     String convertedPaymentMethod;
     if (selectedPaymentMethod == 'Pay in car') {
       convertedPaymentMethod = 'in_car';
     } else {
-      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(' ', '_');
+      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
+        ' ',
+        '_',
+      );
     }
-    
+
     AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
 
     final request = RideRequest(

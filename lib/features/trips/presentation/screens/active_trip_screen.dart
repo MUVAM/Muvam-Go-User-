@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/features/activities/data/providers/rides_provider.dart';
+import 'package:muvam/features/activities/data/providers/tabs_ride_provider.dart';
 import 'package:provider/provider.dart';
 
 class ActiveTripScreen extends StatefulWidget {
@@ -18,7 +18,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RidesProvider>().fetchRideDetails(widget.rideId);
+      context.read<TabsRideProvider>().fetchRideDetails(widget.rideId);
     });
   }
 
@@ -27,7 +27,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Consumer<RidesProvider>(
+        child: Consumer<TabsRideProvider>(
           builder: (context, provider, child) {
             if (provider.isLoadingDetails) {
               return Center(
@@ -229,7 +229,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             ),
                             SizedBox(height: 5.h),
                             Text(
-                              ride.getPaymentMethodDisplay(),
+                              ride.paymentMethod,
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14.sp,
@@ -265,7 +265,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                             ),
                             SizedBox(height: 5.h),
                             Text(
-                              ride.getVehicleTypeDisplay(),
+                              ride.vehicleType,
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14.sp,

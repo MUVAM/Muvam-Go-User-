@@ -11,12 +11,6 @@ class ActivitiesService {
     return prefs.getString('auth_token');
   }
 
-  /// Fetch rides with optional filters using POST request
-  ///
-  /// Parameters:
-  /// - status: Filter by status (prebooked, active, history)
-  /// - limit: Number of results to return (optional)
-  /// - offset: Offset for pagination (optional)
   Future<Map<String, dynamic>> getRides({
     String? status,
     int? limit,
@@ -25,17 +19,16 @@ class ActivitiesService {
     final token = await _getToken();
 
     if (token == null) {
-      AppLogger.log('❌ No auth token found');
+      AppLogger.log('No auth token found');
       return {'success': false, 'message': 'No authentication token'};
     }
 
-    // Build request body
     final requestBody = <String, dynamic>{};
     if (status != null) requestBody['status'] = status;
     if (limit != null) requestBody['limit'] = limit;
     if (offset != null) requestBody['offset'] = offset;
 
-    AppLogger.log('=== FETCHING RIDES ===');
+    AppLogger.log('FETCHING RIDES');
     AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rides}');
     AppLogger.log('Method: POST');
     AppLogger.log('Status filter: ${status ?? "all"}');
@@ -57,10 +50,12 @@ class ActivitiesService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        AppLogger.log('✅ Success: ${data.toString().substring(0, 200)}...');
+        AppLogger.log(
+          'Success: ${data.toString().substring(0, min(200, data.toString().length))}',
+        );
         return {'success': true, 'data': data};
       } else {
-        AppLogger.log('❌ Failed: ${response.body}');
+        AppLogger.log('Failed: ${response.body}');
         return {
           'success': false,
           'message':
@@ -68,28 +63,24 @@ class ActivitiesService {
         };
       }
     } catch (e) {
-      AppLogger.log('❌ Exception in getRides: $e');
+      AppLogger.log('Exception in getRides: $e');
       return {'success': false, 'message': 'Exception: $e'};
     } finally {
-      AppLogger.log('=== END FETCHING RIDES ===\n');
+      AppLogger.log('END FETCHING RIDES');
     }
   }
 
-  /// Fetch ride details by ID using GET request
-  ///
-  /// Parameters:
-  /// - rideId: The ID of the ride to fetch
   Future<Map<String, dynamic>> getRideDetails(int rideId) async {
     final token = await _getToken();
 
     if (token == null) {
-      AppLogger.log('❌ No auth token found');
+      AppLogger.log('No auth token found');
       return {'success': false, 'message': 'No authentication token'};
     }
 
     final url = '${UrlConstants.baseUrl}${UrlConstants.rides}/$rideId';
 
-    AppLogger.log('=== FETCHING RIDE DETAILS ===');
+    AppLogger.log('FETCHING RIDE DETAILS');
     AppLogger.log('URL: $url');
     AppLogger.log('Method: GET');
     AppLogger.log('Ride ID: $rideId');
@@ -109,13 +100,12 @@ class ActivitiesService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        AppLogger.log('✅ Success: Fetched ride details for ID $rideId');
         AppLogger.log(
-          'Response preview: ${data.toString().substring(0, min(200, data.toString().length))}...',
+          'Success: ${data.toString().substring(0, min(200, data.toString().length))}',
         );
         return {'success': true, 'data': data};
       } else {
-        AppLogger.log('❌ Failed: ${response.body}');
+        AppLogger.log('Failed: ${response.body}');
         return {
           'success': false,
           'message':
@@ -123,34 +113,29 @@ class ActivitiesService {
         };
       }
     } catch (e) {
-      AppLogger.log('❌ Exception in getRideDetails: $e');
+      AppLogger.log('Exception in getRideDetails: $e');
       return {'success': false, 'message': 'Exception: $e'};
     } finally {
-      AppLogger.log('=== END FETCHING RIDE DETAILS ===\n');
+      AppLogger.log('END FETCHING RIDE DETAILS');
     }
   }
 
-  /// Fetch rides by specific status
   Future<Map<String, dynamic>> getRidesByStatus(String status) async {
     return getRides(status: status);
   }
 
-  /// Fetch all rides (no status filter)
   Future<Map<String, dynamic>> getAllRides() async {
     return getRides();
   }
 
-  /// Fetch prebooked rides
   Future<Map<String, dynamic>> getPrebookedRides() async {
     return getRides(status: 'prebooked');
   }
 
-  /// Fetch active rides
   Future<Map<String, dynamic>> getActiveRides() async {
     return getRides(status: 'active');
   }
 
-  /// Fetch history rides
   Future<Map<String, dynamic>> getHistoryRides() async {
     return getRides(status: 'history');
   }

@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/features/activities/data/providers/rides_provider.dart';
+import 'package:muvam/features/activities/data/providers/tabs_ride_provider.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/trips/presentation/screens/trip_details_screen.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +13,7 @@ class PrebookingTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<RidesProvider>(
+    return Consumer<TabsRideProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
           return Center(

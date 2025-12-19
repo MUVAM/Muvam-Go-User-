@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:muvam/features/activities/data/providers/rides_provider.dart';
+import 'package:muvam/features/activities/data/providers/tabs_ride_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
             ChangeNotifierProvider(create: (_) => ChatProvider()),
             ChangeNotifierProvider(create: (_) => WebSocketProvider()),
             ChangeNotifierProvider(create: (_) => UserProfileProvider()),
+            ChangeNotifierProvider(create: (_) => TabsRideProvider()),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,

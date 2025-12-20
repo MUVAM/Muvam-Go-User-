@@ -1444,6 +1444,7 @@ class WebSocketService {
     
     print('   ✅ All handlers attached successfully');
   }
+Function(Map<String, dynamic>)? onChatNotification;
 
   void _handleMessage(Map<String, dynamic> data) {
     final type = data['type'];
@@ -1463,7 +1464,11 @@ class WebSocketService {
         print('   → chat handler');
         if (onChatMessage != null) {
           onChatMessage!(data);
-        } else {
+        }if (onChatNotification != null) {
+          onChatNotification!(
+            data,
+          ); // Pass null for context, we'll handle it in HomeScreen
+        }  else {
           print('   ⚠️ No chat handler registered!');
         }
         break;

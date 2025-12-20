@@ -5,7 +5,7 @@ import 'package:muvam/core/services/activities_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/data/models/ride_data.dart';
 
-class ActivitiesTabsProvider extends ChangeNotifier {
+class TabsRideProvider extends ChangeNotifier {
   final ActivitiesService _activitiesService = ActivitiesService();
 
   List<RideData> _prebookedRides = [];
@@ -27,7 +27,7 @@ class ActivitiesTabsProvider extends ChangeNotifier {
   bool get isLoadingDetails => _isLoadingDetails;
   String? get errorMessage => _errorMessage;
 
-  ActivitiesTabsProvider() {
+  TabsRideProvider() {
     fetchRides();
   }
 

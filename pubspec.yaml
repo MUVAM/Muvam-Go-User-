@@ -54,7 +54,7 @@ flutter:
   assets:
     - assets/images/
     - assets/svg/
-    - assets/sounds/calling.mp3
+    - assets/sounds/
     - .env
 
   fonts:

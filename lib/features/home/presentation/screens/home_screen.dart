@@ -42,29 +42,10 @@ import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 
-// import '../constants/colors.dart';
-// import '../constants/images.dart';
-// import '../constants/text_styles.dart';
-// import '../models/favourite_location_models.dart';
-// import '../models/ride_models.dart';
-// import '../providers/location_provider.dart';
-// import '../services/directions_service.dart';
-// import '../services/favourite_location_service.dart';
-// import '../services/places_service.dart';
-// import '../services/ride_service.dart';
-// import '../services/websocket_service.dart';
-// import 'activities_screen.dart';
 import 'add_favourite_screen.dart';
 import 'add_home_screen.dart';
 // import 'chat_screen.dart';
 import 'map_selection_screen.dart';
-// import 'profile_screen.dart';
-// import 'promo_code_screen.dart';
-// import 'referral_screen.dart';
-// import 'services_screen.dart';
-// import 'tip_screen.dart';
-// import 'wallet_screen.dart';
-
 
 
 
@@ -85,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int? selectedVehicle;
   int? selectedDelivery;
   String selectedPaymentMethod = 'Pay in car';
+  DateTime? _lastBackPress;
   final TextEditingController fromController = TextEditingController();
   final TextEditingController toController = TextEditingController();
   final TextEditingController stopController = TextEditingController();
@@ -522,10 +504,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
     // Set up WebSocket callbacks
-    _webSocketService.onIncomingCall = (data) {
-      AppLogger.log('📞 Incoming call received!', tag: 'CALL');
-      _showIncomingCallNotification(data);
-    };
+    // _webSocketService.onIncomingCall = (data) {
+    //   AppLogger.log('📞 Incoming call received!', tag: 'CALL');
+    //   _showIncomingCallNotification(data);
+    // };
 
     _webSocketService.onRideAccepted = (data) {
       print('🎉 Ride accepted callback triggered!');
@@ -666,7 +648,10 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
             // final passenger = _activeRide!['Passenger'] ?? {};
             final passengerName =_assignedDriver!.name ;
             final passengerImage = _assignedDriver!.profilePicture;
+            
 
+
+            
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -1124,7 +1109,31 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        
+        if (_currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+        } else {
+          final now = DateTime.now();
+          if (_lastBackPress == null || now.difference(_lastBackPress!) > Duration(seconds: 2)) {
+            _lastBackPress = now;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Press back again to exit'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: GestureDetector(
       onTap: _dismissSuggestions,
       child: Scaffold(
         key: _scaffoldKey,
@@ -2151,6 +2160,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                   ),
                 ],
               ),
+      ),
       ),
     );
   }
@@ -5076,95 +5086,95 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     );
   }
 
-  void _showIncomingCallNotification(Map<String, dynamic> callData) {
-    final driverName = callData['caller_name'] ?? 'Driver';
-    final sessionId = callData['session_id'];
-    final rideId = callData['ride_id'];
+  // void _showIncomingCallNotification(Map<String, dynamic> callData) {
+  //   final driverName = callData['caller_name'] ?? 'Driver';
+  //   final sessionId = callData['session_id'];
+  //   final rideId = callData['ride_id'];
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.phone_in_talk,
-              size: 60.sp,
-              color: Color(ConstColors.mainColor),
-            ),
-            SizedBox(height: 20.h),
-            Text(
-              'Incoming Call',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 10.h),
-            Text(
-              driverName,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-            SizedBox(height: 30.h),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _rejectCall(sessionId);
-                  },
-                  child: Container(
-                    width: 60.w,
-                    height: 60.h,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.call_end,
-                      color: Colors.white,
-                      size: 30.sp,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            CallScreen(driverName: driverName, rideId: rideId),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 60.w,
-                    height: 60.h,
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.call, color: Colors.white, size: 30.sp),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) => AlertDialog(
+  //       shape: RoundedRectangleBorder(
+  //         borderRadius: BorderRadius.circular(20.r),
+  //       ),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           Icon(
+  //             Icons.phone_in_talk,
+  //             size: 60.sp,
+  //             color: Color(ConstColors.mainColor),
+  //           ),
+  //           SizedBox(height: 20.h),
+  //           Text(
+  //             'Incoming Call',
+  //             style: TextStyle(
+  //               fontFamily: 'Inter',
+  //               fontSize: 20.sp,
+  //               fontWeight: FontWeight.w600,
+  //             ),
+  //           ),
+  //           SizedBox(height: 10.h),
+  //           Text(
+  //             driverName,
+  //             style: TextStyle(
+  //               fontFamily: 'Inter',
+  //               fontSize: 16.sp,
+  //               fontWeight: FontWeight.w400,
+  //             ),
+  //           ),
+  //           SizedBox(height: 30.h),
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  //             children: [
+  //               GestureDetector(
+  //                 onTap: () async {
+  //                   Navigator.pop(context);
+  //                   await _rejectCall(sessionId);
+  //                 },
+  //                 child: Container(
+  //                   width: 60.w,
+  //                   height: 60.h,
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.red,
+  //                     shape: BoxShape.circle,
+  //                   ),
+  //                   child: Icon(
+  //                     Icons.call_end,
+  //                     color: Colors.white,
+  //                     size: 30.sp,
+  //                   ),
+  //                 ),
+  //               ),
+  //               GestureDetector(
+  //                 onTap: () {
+  //                   Navigator.pop(context);
+  //                   Navigator.push(
+  //                     context,
+  //                     MaterialPageRoute(
+  //                       builder: (context) =>
+  //                           CallScreen(driverName: driverName, rideId: rideId),
+  //                     ),
+  //                   );
+  //                 },
+  //                 child: Container(
+  //                   width: 60.w,
+  //                   height: 60.h,
+  //                   decoration: BoxDecoration(
+  //                     color: Colors.green,
+  //                     shape: BoxShape.circle,
+  //                   ),
+  //                   child: Icon(Icons.call, color: Colors.white, size: 30.sp),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Future<void> _rejectCall(int sessionId) async {
     try {

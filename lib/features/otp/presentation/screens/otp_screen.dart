@@ -240,6 +240,34 @@ class _OtpScreenState extends State<OtpScreen> {
                                     AppLogger.log('Token: ${response.token}');
                                     AppLogger.log('IsNew: ${response.isNew}');
 
+                                    // Check if user role is driver
+                                    final userRole = response.user?['Role'] as String?;
+                                    if (userRole != null && userRole.toLowerCase() != 'passenger') {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text('Account Mismatch'),
+                                          content: Text(
+                                            'This phone number is registered on the driver app. Please use another number to log in to the passenger app.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(context).pop();
+                                              },
+                                              child: Text(
+                                                'OK',
+                                                style: TextStyle(
+                                                  color: Color(ConstColors.mainColor),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      return;
+                                    }
+
                                     if (response.isNew) {
                                       Navigator.push(
                                         context,

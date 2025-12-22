@@ -57,6 +57,8 @@ class RideRequest {
   final String serviceType;
   final String vehicleType;
   final String? stopAddress;
+  final bool? scheduled;
+  final String? scheduledAt;
 
   RideRequest({
     required this.dest,
@@ -67,18 +69,45 @@ class RideRequest {
     required this.serviceType,
     required this.vehicleType,
     this.stopAddress,
+    this.scheduled,
+    this.scheduledAt,
   });
 
-  Map<String, dynamic> toJson() => {
-    "pickup": pickup,
-    "dest": dest,
-    "pickup_address": pickupAddress,
-    "dest_address": destAddress,
-    "stop_address": stopAddress ?? "No stops",
-    "service_type": serviceType,
-    "vehicle_type": vehicleType,
-    "payment_method": paymentMethod,
-  };
+  Map<String, dynamic> toJson() {
+    final json = {
+      "pickup": pickup,
+      "dest": dest,
+      "pickup_address": pickupAddress,
+      "dest_address": destAddress,
+      "stop_address": stopAddress ?? "No stops",
+      "service_type": serviceType,
+      "vehicle_type": vehicleType,
+      "payment_method": _getPaymentMethodKey(paymentMethod),
+    };
+    
+    // Add scheduling fields if this is a pre-booked ride
+    if (scheduled == true && scheduledAt != null) {
+      json["scheduled"] = true;
+      json["scheduled_at"] = scheduledAt!;
+    }
+    
+    return json;
+  }
+
+  String _getPaymentMethodKey(String displayMethod) {
+    switch (displayMethod.toLowerCase()) {
+      case 'pay with card':
+        return 'gateway';
+      case 'pay with wallet':
+        return 'wallet';
+      case 'pay in car':
+        return 'in_car';
+      case 'pay4me':
+        return 'pay_4_me';
+      default:
+        return displayMethod;
+    }
+  }
 }
 
 class RideResponse {

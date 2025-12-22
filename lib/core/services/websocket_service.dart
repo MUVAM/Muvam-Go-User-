@@ -233,59 +233,134 @@ class WebSocketService {
   }
 Function(Map<String, dynamic>)? onChatNotification;
 
-  void _handleMessage(Map<String, dynamic> data) {
-    final type = data['type'];
-    print('🔀 Routing message type: $type');
+  // void _handleMessage(Map<String, dynamic> data) {
+  //   final type = data['type'];
+  //   print('🔀 Routing message type: $type');
 
-    switch (type) {
-      case 'ride_accepted':
-        print('   → ride_accepted handler');
-        if (onRideAccepted != null) onRideAccepted!(data);
-        break;
-      case 'ride_update':
-        print('   → ride_update handler');
-        if (onRideUpdate != null) onRideUpdate!(data);
-        break;
-      case 'chat':
-      case 'chat_message':
-        print('   → chat handler');
-        if (onChatMessage != null) {
-          onChatMessage!(data);
-        }if (onChatNotification != null) {
-          onChatNotification!(
-            data,
-          ); // Pass null for context, we'll handle it in HomeScreen
-        }  else {
-          print('   ⚠️ No chat handler registered!');
-        }
-        break;
-      case 'driver_location':
-        print('   → driver_location handler');
-        if (onDriverLocation != null) onDriverLocation!(data);
-        break;
-      case 'call_initiate':
-      case 'call_answer':
-      case 'call_reject':
-      case 'call_end':
-      case 'call_offer':
-      case 'call_answer_sdp':
-      case 'call_ice_candidate':
-        print('   → call handler');
-        if (onIncomingCall != null) onIncomingCall!(data);
-        break;
-      case 'ride_completed':
-        print('   → ride_completed handler');
-        if (onRideCompleted != null) onRideCompleted!(data);
-        break;
-      case 'ride_request':
-      case 'new_ride':
-        print('   → ride_request handler');
-        if (onRideRequest != null) onRideRequest!(data);
-        break;
-      default:
-        print('   ⚠️ Unknown message type: $type');
-    }
+  //   switch (type) {
+  //     case 'ride_accepted':
+  //       print('   → ride_accepted handler');
+  //       if (onRideAccepted != null) onRideAccepted!(data);
+  //       break;
+  //     case 'ride_update':
+  //       print('   → ride_update handler');
+  //       if (onRideUpdate != null) onRideUpdate!(data);
+  //       break;
+  //     case 'chat':
+  //     case 'chat_message':
+  //       print('   → chat handler');
+  //       if (onChatMessage != null) {
+  //         onChatMessage!(data);
+  //       }if (onChatNotification != null) {
+  //         onChatNotification!(
+  //           data,
+  //         ); // Pass null for context, we'll handle it in HomeScreen
+  //       }  else {
+  //         print('   ⚠️ No chat handler registered!');
+  //       }
+  //       break;
+  //     case 'driver_location':
+  //       print('   → driver_location handler');
+  //       if (onDriverLocation != null) onDriverLocation!(data);
+  //       break;
+  //     case 'call_initiate':
+  //     case 'call_answer':
+  //     case 'call_reject':
+  //     case 'call_end':
+  //     case 'call_offer':
+  //     case 'call_answer_sdp':
+  //     case 'call_ice_candidate':
+  //       print('   → call handler');
+  //       if (onIncomingCall != null) onIncomingCall!(data);
+  //       break;
+  //     case 'ride_completed':
+  //       print('   → ride_completed handler');
+  //       if (onRideCompleted != null) onRideCompleted!(data);
+  //       break;
+  //     case 'ride_request':
+  //     case 'new_ride':
+  //       print('   → ride_request handler');
+  //       if (onRideRequest != null) onRideRequest!(data);
+  //       break;
+  //     default:
+  //       print('   ⚠️ Unknown message type: $type');
+  //   }
+  // }
+
+
+// Replace the _handleMessage method in WebSocketService:
+
+void _handleMessage(Map<String, dynamic> data) {
+  final type = data['type'];
+  print('🔀 Routing message type: $type');
+
+  switch (type) {
+    case 'ride_accepted':
+      print('   → ride_accepted handler');
+      if (onRideAccepted != null) onRideAccepted!(data);
+      break;
+      
+    case 'ride_update':
+      print('   → ride_update handler');
+      if (onRideUpdate != null) onRideUpdate!(data);
+      break;
+      
+    case 'chat':
+    case 'chat_message':
+      print('   → chat handler');
+      if (onChatMessage != null) {
+        onChatMessage!(data);
+      }
+      if (onChatNotification != null) {
+        onChatNotification!(data);
+      } else {
+        print('   ⚠️ No chat handler registered!');
+      }
+      break;
+      
+    case 'driver_location':
+      print('   → driver_location handler');
+      if (onDriverLocation != null) onDriverLocation!(data);
+      break;
+      
+    // CRITICAL: All call-related messages go to onIncomingCall
+    case 'call_initiate':
+    case 'call_answer':
+    case 'call_reject':
+    case 'call_end':
+    case 'call_offer':
+    case 'call_answer_sdp':
+    case 'call_ice_candidate':
+      print('   → call handler');
+      print('   → Checking if onIncomingCall handler exists: ${onIncomingCall != null}');
+      
+      if (onIncomingCall != null) {
+        print('   → Calling onIncomingCall handler now...');
+        onIncomingCall!(data);
+        print('   → ✅ onIncomingCall handler called');
+      } else {
+        print('   → ❌❌❌ NO CALL HANDLER REGISTERED! ❌❌❌');
+        print('   → This is why incoming calls are not showing!');
+        print('   → Make sure to set _webSocketService.onIncomingCall before connecting');
+      }
+      break;
+      
+    case 'ride_completed':
+      print('   → ride_completed handler');
+      if (onRideCompleted != null) onRideCompleted!(data);
+      break;
+      
+    case 'ride_request':
+    case 'new_ride':
+      print('   → ride_request handler');
+      if (onRideRequest != null) onRideRequest!(data);
+      break;
+      
+    default:
+      print('   ⚠️ Unknown message type: $type');
   }
+}
+
 
   void _reconnect() async {
     final delay = _getReconnectDelay();

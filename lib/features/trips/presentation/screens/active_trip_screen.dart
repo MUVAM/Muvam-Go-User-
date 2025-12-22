@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/features/activities/data/providers/tabs_ride_provider.dart';
+import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:provider/provider.dart';
 
 class ActiveTripScreen extends StatefulWidget {
@@ -18,7 +18,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TabsRideProvider>().fetchRideDetails(widget.rideId);
+      context.read<ActivitiesTabsProvider>().fetchRideDetails(widget.rideId);
     });
   }
 
@@ -27,7 +27,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Consumer<TabsRideProvider>(
+        child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
             if (provider.isLoadingDetails) {
               return Center(

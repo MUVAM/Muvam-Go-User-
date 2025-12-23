@@ -74,7 +74,7 @@ class RideRequest {
   });
 
   Map<String, dynamic> toJson() {
-    final json = {
+    final Map<String, dynamic> json = {
       "pickup": pickup,
       "dest": dest,
       "pickup_address": pickupAddress,
@@ -85,10 +85,9 @@ class RideRequest {
       "payment_method": _getPaymentMethodKey(paymentMethod),
     };
     
-    // Add scheduling fields if this is a pre-booked ride
     if (scheduled == true && scheduledAt != null) {
-      json["scheduled"] = true;
-      json["scheduled_at"] = scheduledAt!;
+      json["scheduled"] = scheduled;
+      json["scheduled_at"] = scheduledAt;
     }
     
     return json;

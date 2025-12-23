@@ -49,8 +49,10 @@ class _MyAppState extends State<MyApp> {
   void _setupGlobalCallHandler() {
     final webSocket = WebSocketService.instance;
     
+    // CRITICAL: Set up the call handler BEFORE connecting
     webSocket.onIncomingCall = (callData) {
       AppLogger.log('📞 Global incoming call handler triggered', tag: 'MAIN_APP');
+      AppLogger.log('📞 Call data received: $callData', tag: 'MAIN_APP');
       
       // Show incoming call overlay globally
       GlobalCallService.instance.showIncomingCall(
@@ -59,8 +61,11 @@ class _MyAppState extends State<MyApp> {
           final callerName = callData['data']?['caller_name'] ?? 'Unknown';
           final rideId = callData['data']?['ride_id'] ?? 0;
           
+          AppLogger.log('✅ Call accepted - Session: $sessionId, Caller: $callerName', tag: 'MAIN_APP');
+          
           // Answer the call via API
           final callService = CallService();
+          await callService.initialize();
           await callService.answerCall(sessionId);
           
           // Navigate to call screen
@@ -74,12 +79,17 @@ class _MyAppState extends State<MyApp> {
           );
         },
         onReject: (sessionId) async {
+          AppLogger.log('❌ Call rejected - Session: $sessionId', tag: 'MAIN_APP');
+          
           // Reject the call via API
           final callService = CallService();
+          await callService.initialize();
           await callService.rejectCall(sessionId);
         },
       );
     };
+    
+    AppLogger.log('✅ Global call handler setup complete', tag: 'MAIN_APP');
   }
 
   @override

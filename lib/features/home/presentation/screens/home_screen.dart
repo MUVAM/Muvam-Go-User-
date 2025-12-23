@@ -12,6 +12,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/message_notification_handler.dart';
 import 'package:muvam/core/services/payment_service.dart';
@@ -131,6 +132,7 @@ final CallService _callService = CallService();
   void initState() {
     super.initState();
 
+    // CRITICAL: Initialize call service first, then setup WebSocket
     _initializeCallService();
     _getCurrentLocation();
     _createDriverIcon();
@@ -138,14 +140,21 @@ final CallService _callService = CallService();
     _createPickupIcon();
     _createDestinationIcon();
     _loadProfile();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(
         context,
         listen: false,
       ).loadFavouriteLocations();
       _loadFavouriteLocations();
-      _webSocketService.connect();
-      _listenToWebSocketMessages();
+      
+      // IMPORTANT: Connect WebSocket AFTER call handlers are set up
+      AppLogger.log('🔌 Connecting WebSocket after handlers setup...', tag: 'HOME_INIT');
+      _webSocketService.connect().then((_) {
+        AppLogger.log('✅ WebSocket connected, setting up message listeners...', tag: 'HOME_INIT');
+        _listenToWebSocketMessages();
+      });
+      
       _checkActiveRides();
       _startActiveRideChecking();
     });
@@ -156,22 +165,11 @@ final CallService _callService = CallService();
 Future<void> _initializeCallService() async {
   AppLogger.log('🔧 Initializing call service for passenger...', tag: 'PASSENGER_CALL');
   
+  // IMPORTANT: Don't set up duplicate call handlers here
+  // The global handler in main.dart will handle incoming calls
   await _callService.initialize();
   
-  // Set up incoming call handler
-  _callService.onIncomingCall = (callData) {
-    AppLogger.log('📞 Incoming call received in passenger app!', tag: 'PASSENGER_CALL');
-    AppLogger.log('Call data: $callData', tag: 'PASSENGER_CALL');
-    
-    if (mounted) {
-      setState(() {
-        _incomingCall = callData;
-      });
-      _showIncomingCallDialog();
-    }
-  };
-  
-  AppLogger.log('✅ Call service initialized for passenger', tag: 'PASSENGER_CALL');
+  AppLogger.log('✅ Call service initialized for passenger (no duplicate handlers)', tag: 'PASSENGER_CALL');
 }
 
 void _showIncomingCallDialog() {
@@ -627,34 +625,30 @@ void _showIncomingCallDialog() {
   }
 
   void _listenToWebSocketMessages() {
+    // CRITICAL: Ensure WebSocket connects AFTER call handler is set up
+    AppLogger.log('🔌 Setting up WebSocket message listeners...', tag: 'HOME_WEBSOCKET');
 
+    _webSocketService.onChatMessage = (chatData) {
+      AppLogger.log('💬 Global chat handler called in HomeScreen');
+      _handleGlobalChatMessage(chatData);
+    };
 
-     _webSocketService.onChatMessage = (chatData) {
-    AppLogger.log('💬 Global chat handler called in HomeScreen');
-    _handleGlobalChatMessage(chatData);
-  };
-
-  // NEW: Send "Hello" message to open WebSocket channel
-  if (_activeRide != null) {
-    AppLogger.log('📤 Sending initialization message to open WebSocket channel...');
-    Future.delayed(Duration(seconds: 3), () {
-      if (_webSocketService.isConnected) {
-        _webSocketService.sendMessage({
-          "type": "chat",
-          "data": {
-            "ride_id": _activeRide!['ID'],
-            "message": "Hello",
-          },
-        });
-        AppLogger.log('✅ Initialization message sent');
-      }
-    });
-  }
-    // Set up WebSocket callbacks
-    // _webSocketService.onIncomingCall = (data) {
-    //   AppLogger.log('📞 Incoming call received!', tag: 'CALL');
-    //   _showIncomingCallNotification(data);
-    // };
+    // NEW: Send "Hello" message to open WebSocket channel
+    if (_activeRide != null) {
+      AppLogger.log('📤 Sending initialization message to open WebSocket channel...');
+      Future.delayed(Duration(seconds: 3), () {
+        if (_webSocketService.isConnected) {
+          _webSocketService.sendMessage({
+            "type": "chat",
+            "data": {
+              "ride_id": _activeRide!['ID'],
+              "message": "Hello",
+            },
+          });
+          AppLogger.log('✅ Initialization message sent');
+        }
+      });
+    }
 
     _webSocketService.onRideAccepted = (data) {
       print('🎉 Ride accepted callback triggered!');
@@ -750,6 +744,8 @@ void _showIncomingCallDialog() {
         AppLogger.log('❌ Error processing ride_completed message: $e');
       }
     };
+    
+    AppLogger.log('✅ WebSocket message listeners setup complete', tag: 'HOME_WEBSOCKET');
   }
 
 // Add this new method to handle global chat messages
@@ -1173,27 +1169,27 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     return await _rideService.requestRide(request);
   }
 
-  Future<void> _estimateRide() async {
-    if (_pickupCoordinates == null || _destinationCoordinates == null) {
-      return;
-    }
+  // Future<void> _estimateRide() async {
+  //   if (_pickupCoordinates == null || _destinationCoordinates == null) {
+  //     return;
+  //   }
 
-    final request = RideEstimateRequest(
-      pickup: '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}',
-      dest: '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}',
-      destAddress: toController.text,
-      serviceType: 'taxi',
-      vehicleType: 'regular', // Default for estimation
-    );
+  //   final request = RideEstimateRequest(
+  //     pickup: '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}',
+  //     dest: '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}',
+  //     destAddress: toController.text,
+  //     serviceType: 'taxi',
+  //     vehicleType: 'regular', // Default for estimation
+  //   );
 
-    try {
-      _currentEstimate = await _rideService.estimateRide(request);
-      setState(() {});
-    } catch (e) {
-      print('Error estimating ride: $e');
-      throw e;
-    }
-  }
+  //   try {
+  //     _currentEstimate = await _rideService.estimateRide(request);
+  //     setState(() {});
+  //   } catch (e) {
+  //     print('Error estimating ride: $e');
+  //     throw e;
+  //   }
+  // }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
     // Parse PostGIS POINT format: "POINT(longitude latitude)"
@@ -1314,108 +1310,108 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     );
   }
 
-  void _showRatingSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setRatingState) {
-          int selectedRating = 0;
-          final TextEditingController commentController = TextEditingController();
+  // void _showRatingSheet() {
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     isDismissible: false,
+  //     enableDrag: false,
+  //     shape: RoundedRectangleBorder(
+  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+  //     ),
+  //     builder: (context) => StatefulBuilder(
+  //       builder: (context, setRatingState) {
+  //         int selectedRating = 0;
+  //         final TextEditingController commentController = TextEditingController();
 
-          return Container(
-            height: 400.h,
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Rate your driver',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 20.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return GestureDetector(
-                      onTap: () {
-                        setRatingState(() {
-                          selectedRating = index + 1;
-                        });
-                      },
-                      child: Icon(
-                        Icons.star,
-                        size: 40.sp,
-                        color: index < selectedRating ? Colors.amber : Colors.grey,
-                      ),
-                    );
-                  }),
-                ),
-                SizedBox(height: 20.h),
-                TextField(
-                  controller: commentController,
-                  decoration: InputDecoration(
-                    hintText: 'Add a comment (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          if (_lastCompletedRideId != null) {
-                            _dismissedRatingRides.add(_lastCompletedRideId!);
-                          }
-                          Navigator.pop(context);
-                        },
-                        child: Text('Skip'),
-                      ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: selectedRating > 0
-                            ? () async {
-                                if (_lastCompletedRideId != null) {
-                                  try {
-                                    await _rideService.rateRide(
-                                      rideId: _lastCompletedRideId!,
-                                      score: selectedRating,
-                                      comment: commentController.text,
-                                    );
-                                    Navigator.pop(context);
-                                  } catch (e) {
-                                    print('Error rating ride: $e');
-                                  }
-                                }
-                              }
-                            : null,
-                        child: Text('Submit'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+  //         return Container(
+  //           height: 400.h,
+  //           padding: EdgeInsets.all(20.w),
+  //           decoration: BoxDecoration(
+  //             color: Colors.white,
+  //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+  //           ),
+  //           child: Column(
+  //             children: [
+  //               Text(
+  //                 'Rate your driver',
+  //                 style: TextStyle(
+  //                   fontSize: 18.sp,
+  //                   fontWeight: FontWeight.w600,
+  //                 ),
+  //               ),
+  //               SizedBox(height: 20.h),
+  //               Row(
+  //                 mainAxisAlignment: MainAxisAlignment.center,
+  //                 children: List.generate(5, (index) {
+  //                   return GestureDetector(
+  //                     onTap: () {
+  //                       setRatingState(() {
+  //                         selectedRating = index + 1;
+  //                       });
+  //                     },
+  //                     child: Icon(
+  //                       Icons.star,
+  //                       size: 40.sp,
+  //                       color: index < selectedRating ? Colors.amber : Colors.grey,
+  //                     ),
+  //                   );
+  //                 }),
+  //               ),
+  //               SizedBox(height: 20.h),
+  //               TextField(
+  //                 controller: commentController,
+  //                 decoration: InputDecoration(
+  //                   hintText: 'Add a comment (optional)',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //                 maxLines: 3,
+  //               ),
+  //               Spacer(),
+  //               Row(
+  //                 children: [
+  //                   Expanded(
+  //                     child: TextButton(
+  //                       onPressed: () {
+  //                         if (_lastCompletedRideId != null) {
+  //                           _dismissedRatingRides.add(_lastCompletedRideId!);
+  //                         }
+  //                         Navigator.pop(context);
+  //                       },
+  //                       child: Text('Skip'),
+  //                     ),
+  //                   ),
+  //                   SizedBox(width: 10.w),
+  //                   Expanded(
+  //                     child: ElevatedButton(
+  //                       onPressed: selectedRating > 0
+  //                           ? () async {
+  //                               if (_lastCompletedRideId != null) {
+  //                                 try {
+  //                                   await _rideService.rateRide(
+  //                                     rideId: _lastCompletedRideId!,
+  //                                     score: selectedRating,
+  //                                     comment: commentController.text,
+  //                                   );
+  //                                   Navigator.pop(context);
+  //                                 } catch (e) {
+  //                                   print('Error rating ride: $e');
+  //                                 }
+  //                               }
+  //                             }
+  //                           : null,
+  //                       child: Text('Submit'),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ],
+  //           ),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
 
   Widget _buildDrawerItem(String title, String iconPath, {VoidCallback? onTap}) {
     return ListTile(
@@ -5915,18 +5911,6 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     });
   }
 
-  Widget _buildDrawerItem(
-    String title,
-    String iconPath, {
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      leading: Image.asset(iconPath, width: 24.w, height: 24.h),
-      title: Text(title, style: ConstTextStyles.drawerItem),
-      onTap: onTap,
-    );
-  }
-
   Widget _buildPickupWidget() {
     // Show when there's an active ride
     if (_activeRide == null) return SizedBox.shrink();
@@ -6208,11 +6192,8 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     );
   }
 
+
   Future<void> _estimateRide() async {
-    AppLogger.log('🚗 === STARTING RIDE ESTIMATE ===');
-    AppLogger.log(
-      '📍 Current Location: ${_currentLocation.latitude}, ${_currentLocation.longitude}',
-    );
     AppLogger.log('🎯 Destination: ${toController.text}');
 
     final request = RideEstimateRequest(
@@ -6230,83 +6211,83 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     setState(() {});
   }
 
-  Future<RideResponse> _requestRide() async {
-    AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
+  // Future<RideResponse> _requestRide() async {
+  //   AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
 
-    if (_currentEstimate == null || selectedVehicle == null) {
-      AppLogger.log('❌ Missing estimate or vehicle selection');
-      throw Exception('No estimate or vehicle selected');
-    }
+  //   if (_currentEstimate == null || selectedVehicle == null) {
+  //     AppLogger.log('❌ Missing estimate or vehicle selection');
+  //     throw Exception('No estimate or vehicle selected');
+  //   }
 
-    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
-    final vehicleType = selectedPriceData['vehicle_type'];
+  //   final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
+  //   final vehicleType = selectedPriceData['vehicle_type'];
 
-    AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
-    AppLogger.log('💰 Selected Price Data: $selectedPriceData');
+  //   AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
+  //   AppLogger.log('💰 Selected Price Data: $selectedPriceData');
 
-    // Use actual selected coordinates for pickup and destination
-    final pickupLatLng = _pickupCoordinates ?? _currentLocation;
-    final destLatLng =
-        _destinationCoordinates ??
-        LatLng(
-          _currentLocation.latitude + 0.01,
-          _currentLocation.longitude + 0.01,
-        );
+  //   // Use actual selected coordinates for pickup and destination
+  //   final pickupLatLng = _pickupCoordinates ?? _currentLocation;
+  //   final destLatLng =
+  //       _destinationCoordinates ??
+  //       LatLng(
+  //         _currentLocation.latitude + 0.01,
+  //         _currentLocation.longitude + 0.01,
+  //       );
 
-    final pickupCoords =
-        "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
-    final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
+  //   final pickupCoords =
+  //       "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
+  //   final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
 
-    AppLogger.log(
-      '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
-    );
-    AppLogger.log(
-      '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
-    );
-    AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
+  //   AppLogger.log(
+  //     '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
+  //   );
+  //   AppLogger.log(
+  //     '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
+  //   );
+  //   AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
 
-    // Fix payment method conversion - "Pay in car" should become "in_car"
-    String convertedPaymentMethod;
-    if (selectedPaymentMethod == 'Pay in car') {
-      convertedPaymentMethod = 'in_car';
-    } else {
-      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
-        ' ',
-        '_',
-      );
-    }
+  //   // Fix payment method conversion - "Pay in car" should become "in_car"
+  //   String convertedPaymentMethod;
+  //   if (selectedPaymentMethod == 'Pay in car') {
+  //     convertedPaymentMethod = 'in_car';
+  //   } else {
+  //     convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
+  //       ' ',
+  //       '_',
+  //     );
+  //   }
 
-    AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
+  //   AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
 
-    final request = RideRequest(
-      pickup: pickupCoords,
-      dest: destCoords,
-      pickupAddress: fromController.text.isNotEmpty
-          ? fromController.text
-          : "Current location",
-      destAddress: toController.text.isNotEmpty
-          ? toController.text
-          : "Destination",
-      stopAddress: stopController.text.isNotEmpty
-          ? stopController.text
-          : "No stops",
-      serviceType: _currentEstimate!.serviceType,
-      vehicleType: vehicleType,
-      paymentMethod: convertedPaymentMethod,
-    );
+  //   final request = RideRequest(
+  //     pickup: pickupCoords,
+  //     dest: destCoords,
+  //     pickupAddress: fromController.text.isNotEmpty
+  //         ? fromController.text
+  //         : "Current location",
+  //     destAddress: toController.text.isNotEmpty
+  //         ? toController.text
+  //         : "Destination",
+  //     stopAddress: stopController.text.isNotEmpty
+  //         ? stopController.text
+  //         : "No stops",
+  //     serviceType: _currentEstimate!.serviceType,
+  //     vehicleType: vehicleType,
+  //     paymentMethod: convertedPaymentMethod,
+  //   );
 
-    AppLogger.log('📋 Final Ride Request Object:');
-    AppLogger.log('  - Pickup: ${request.pickup}');
-    AppLogger.log('  - Destination: ${request.dest}');
-    AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
-    AppLogger.log('  - Destination Address: ${request.destAddress}');
-    AppLogger.log('  - Stop Address: ${request.stopAddress}');
-    AppLogger.log('  - Service Type: ${request.serviceType}');
-    AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
-    AppLogger.log('  - Payment Method: ${request.paymentMethod}');
+  //   AppLogger.log('📋 Final Ride Request Object:');
+  //   AppLogger.log('  - Pickup: ${request.pickup}');
+  //   AppLogger.log('  - Destination: ${request.dest}');
+  //   AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
+  //   AppLogger.log('  - Destination Address: ${request.destAddress}');
+  //   AppLogger.log('  - Stop Address: ${request.stopAddress}');
+  //   AppLogger.log('  - Service Type: ${request.serviceType}');
+  //   AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
+  //   AppLogger.log('  - Payment Method: ${request.paymentMethod}');
 
-    return await _rideService.requestRide(request);
-  }
+  //   return await _rideService.requestRide(request);
+  // }
 
   void _showActiveRideSheet() {
     if (_activeRide == null || _isActiveRideSheetVisible) return;
@@ -6546,126 +6527,6 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     }
   }
 
-  void _addActiveRideMarkers(Map<String, dynamic> ride) async {
-    // Parse PostGIS coordinates
-    final pickupPostGIS = ride['PickupLocation']?.toString();
-    final destPostGIS = ride['DestLocation']?.toString();
-
-    if (pickupPostGIS == null || destPostGIS == null) return;
-
-    final pickupCoords = _parsePostGISLocation(pickupPostGIS);
-    final destCoords = _parsePostGISLocation(destPostGIS);
-
-    if (pickupCoords == null || destCoords == null) return;
-
-    final pickupLocation = LatLng(pickupCoords['lat']!, pickupCoords['lng']!);
-    final destLocation = LatLng(destCoords['lat']!, destCoords['lng']!);
-
-    // Get the actual route polyline
-    final routePoints = await _directionsService.getRoutePolyline(
-      origin: pickupLocation,
-      destination: destLocation,
-    );
-
-    // Create custom marker icons
-    final pickupIcon = await _createBitmapDescriptorFromWidget(
-      _buildPickupMarkerWidget(),
-      size: Size(247.w, 50.h),
-    );
-
-    final dropoffIcon = await _createBitmapDescriptorFromWidget(
-      _buildDropoffMarkerWidget(),
-      size: Size(242.w, 48.h),
-    );
-
-    // Create markers
-    final markers = <Marker>{
-      Marker(
-        markerId: MarkerId('pickup'),
-        position: pickupLocation,
-        icon: pickupIcon,
-        anchor: Offset(0.5, 1.0),
-      ),
-      Marker(
-        markerId: MarkerId('dropoff'),
-        position: destLocation,
-        icon: dropoffIcon,
-        anchor: Offset(0.5, 1.0),
-      ),
-    };
-
-    // Add stop marker if exists
-    final stopAddress = ride['StopAddress']?.toString();
-    if (stopAddress != null &&
-        stopAddress.isNotEmpty &&
-        stopAddress != 'No stops') {
-      final stopIcon = await _createBitmapDescriptorFromWidget(
-        _buildStopMarkerWidget(),
-        size: Size(200.w, 40.h),
-      );
-
-      // Place stop marker between pickup and destination
-      final midLat = (pickupLocation.latitude + destLocation.latitude) / 2;
-      final midLng = (pickupLocation.longitude + destLocation.longitude) / 2;
-
-      markers.add(
-        Marker(
-          markerId: MarkerId('stop'),
-          position: LatLng(midLat, midLng),
-          icon: stopIcon,
-          anchor: Offset(0.5, 1.0),
-        ),
-      );
-    }
-
-    final finalMarkers = <Marker>{
-      ...markers,
-      if (_driverLocation != null)
-        Marker(
-          markerId: MarkerId('driver'),
-          position: _driverLocation!,
-          icon: _driverIcon ?? BitmapDescriptor.defaultMarker,
-        ),
-    };
-
-    // Create polyline with actual route
-    final polylines = <Polyline>{
-      Polyline(
-        polylineId: PolylineId('active_route'),
-        points: routePoints,
-        color: Color(ConstColors.mainColor),
-        width: 5,
-        geodesic: true,
-      ),
-    };
-
-    setState(() {
-      _mapMarkers = markers;
-      _mapPolylines = polylines;
-      _pickupCoordinates = pickupLocation;
-      _destinationCoordinates = destLocation;
-    });
-
-    // Center map on ride
-    if (_mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(
-              math.min(pickupLocation.latitude, destLocation.latitude),
-              math.min(pickupLocation.longitude, destLocation.longitude),
-            ),
-            northeast: LatLng(
-              math.max(pickupLocation.latitude, destLocation.latitude),
-              math.max(pickupLocation.longitude, destLocation.longitude),
-            ),
-          ),
-          100.0,
-        ),
-      );
-    }
-  }
-
   List<LatLng> _generateCurvedPath(LatLng start, LatLng end) {
     List<LatLng> points = [];
 
@@ -6741,6 +6602,8 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     return ByteData.view(buffer).getFloat64(0, Endian.big);
   }
 }
+
+
 
 
 

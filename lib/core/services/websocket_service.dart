@@ -293,6 +293,7 @@ Function(Map<String, dynamic>)? onChatNotification;
 void _handleMessage(Map<String, dynamic> data) {
   final type = data['type'];
   print('🔀 Routing message type: $type');
+  print('📊 Message data: $data');
 
   switch (type) {
     case 'ride_accepted':
@@ -331,17 +332,22 @@ void _handleMessage(Map<String, dynamic> data) {
     case 'call_offer':
     case 'call_answer_sdp':
     case 'call_ice_candidate':
-      print('   → call handler');
+      print('   → 📞 CALL MESSAGE DETECTED: $type');
       print('   → Checking if onIncomingCall handler exists: ${onIncomingCall != null}');
       
       if (onIncomingCall != null) {
-        print('   → Calling onIncomingCall handler now...');
+        print('   → 📢 Calling onIncomingCall handler now...');
+        print('   → 📊 Call data being passed: $data');
         onIncomingCall!(data);
-        print('   → ✅ onIncomingCall handler called');
+        print('   → ✅ onIncomingCall handler called successfully');
       } else {
         print('   → ❌❌❌ NO CALL HANDLER REGISTERED! ❌❌❌');
         print('   → This is why incoming calls are not showing!');
         print('   → Make sure to set _webSocketService.onIncomingCall before connecting');
+        print('   → Current handlers status:');
+        print('   →   - onIncomingCall: ${onIncomingCall != null}');
+        print('   →   - onRideAccepted: ${onRideAccepted != null}');
+        print('   →   - onChatMessage: ${onChatMessage != null}');
       }
       break;
       
@@ -358,6 +364,7 @@ void _handleMessage(Map<String, dynamic> data) {
       
     default:
       print('   ⚠️ Unknown message type: $type');
+      print('   ⚠️ Full message: $data');
   }
 }
 

@@ -18,7 +18,7 @@ dependencies:
   flutter_ringtone_player: ^4.0.0+2
   flutter_screenutil: ^5.9.3
   flutter_svg: ^2.2.3
-  flutter_webrtc: ^1.2.1
+  agora_rtc_engine: ^6.3.2
   geocoding: ^2.1.1
   geolocator: ^10.1.0
   google_maps_flutter: ^2.5.0

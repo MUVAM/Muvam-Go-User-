@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -273,6 +274,71 @@ class RideService {
     } else {
       AppLogger.log('Failed to fetch ride details: ${response.body}');
       throw Exception('Failed to fetch ride details');
+    }
+  }
+
+  Future<void> dismissRide(int rideId) async {
+    final token = await _getToken();
+    // User specified endpoint: rides/dismiss/{ride_id}
+    final url = '${UrlConstants.baseUrl}/rides/dismiss/$rideId';
+
+    AppLogger.log('=== DISMISS RIDE REQUEST ===', tag: 'DISMISS');
+    AppLogger.log('URL: $url', tag: 'DISMISS');
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    AppLogger.log('Response Status: ${response.statusCode}', tag: 'DISMISS');
+    AppLogger.log('Response Body: ${response.body}', tag: 'DISMISS');
+    AppLogger.log('=== END DISMISS RIDE ===', tag: 'DISMISS');
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to dismiss ride: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> sendSOS({
+    required String location,
+    required String locationAddress,
+    required int rideId,
+  }) async {
+    final token = await _getToken();
+    final url = '${UrlConstants.baseUrl}${UrlConstants.sos}';
+    final requestBody = {
+      'location': location,
+      'location_address': locationAddress,
+      'ride_id': rideId,
+    };
+
+    AppLogger.log('=== SOS REQUEST ===', tag: 'SOS');
+    AppLogger.log('URL: $url', tag: 'SOS');
+    AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'SOS');
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    AppLogger.log('Response Status: ${response.statusCode}', tag: 'SOS');
+    AppLogger.log('Response Body: ${response.body}', tag: 'SOS');
+    AppLogger.log('=== END SOS REQUEST ===', tag: 'SOS');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to send SOS: ${response.body}',
+      };
     }
   }
 }

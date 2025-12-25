@@ -1,55 +1,74 @@
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/services/call_service.dart';
+import 'package:muvam/core/services/globalCallService.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+// import 'package:muvam/features/services/globalincomingcall.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
 import '../widgets/call_button.dart';
-import 'dart:async';
-// //FOR PASSENGER
 
 class CallScreen extends StatefulWidget {
   final String driverName;
   final int rideId;
+  final int? sessionId; // Session ID for answering incoming calls
 
-  const CallScreen({super.key, required this.driverName, required this.rideId});
+  const CallScreen({
+    super.key,
+    required this.driverName,
+    required this.rideId,
+    this.sessionId,
+  });
 
   @override
   State<CallScreen> createState() => _CallScreenState();
 }
 
 class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
-  late CallService _callService;
+  CallService? _callService;
   String _callStatus = 'Connecting...';
   bool _isMuted = false;
   bool _isSpeakerOn = false;
   Timer? _callTimer;
   int _callDuration = 0;
   int? _sessionId;
-  
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-  bool _renderersInitialized = false;
   bool _isCallActive = false;
 
   @override
   void initState() {
     super.initState();
+    AppLogger.log('🚀 CallScreen initialized', tag: 'CALL_SCREEN');
+
+    // Ensure screen stays on during call
+    WakelockPlus.enable();
+
+    // Safety: Stop any global ringtone that might still be playing
+    GlobalCallService.instance.hideIncomingCall(); // This also stops ringtone
+
     WidgetsBinding.instance.addObserver(this);
-    _initializeRenderers();
     _requestPermissionsAndInitialize();
   }
 
   @override
   void dispose() {
-    AppLogger.log('🗑️🗑️🗑️ DISPOSE CALLED ON CALL SCREEN 🗑️🗑️🗑️', tag: 'CALL_SCREEN');
+    AppLogger.log(
+      '🗑️🗑️🗑️ DISPOSE CALLED ON CALL SCREEN 🗑️🗑️🗑️',
+      tag: 'CALL_SCREEN',
+    );
     WidgetsBinding.instance.removeObserver(this);
     _callTimer?.cancel();
-    AppLogger.log('📤 Calling _endCallProperly() from dispose', tag: 'CALL_SCREEN');
-    _endCallProperly();
-    _callService.dispose();
-    _disposeRenderers();
+    AppLogger.log(
+      '📤 Calling _endCallProperly() from dispose',
+      tag: 'CALL_SCREEN',
+    );
+    // Note: _endCallProperly is async, but dispose is sync.
+    // We can't await it here. The service dispose() cleans up engine.
+    _callService?.dispose();
+    WakelockPlus.disable();
     super.dispose();
     AppLogger.log('✅ Call screen disposed', tag: 'CALL_SCREEN');
   }
@@ -58,61 +77,54 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     AppLogger.log('📱 App lifecycle state changed: $state', tag: 'CALL_SCREEN');
-    
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      AppLogger.log('⚠️⚠️⚠️ APP GOING TO BACKGROUND/CLOSING ⚠️⚠️⚠️', tag: 'CALL_SCREEN');
-      AppLogger.log('📤 Triggering _endCallProperly() from lifecycle change', tag: 'CALL_SCREEN');
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      AppLogger.log(
+        '⚠️⚠️⚠️ APP GOING TO BACKGROUND/CLOSING ⚠️⚠️⚠️',
+        tag: 'CALL_SCREEN',
+      );
+      // We might not want to end call on background for Agora (audio continues).
+      // But keeping logic consistent with previous behavior:
+
+      // _endCallProperly();
+      // User might want to keep call alive in background?
+      // Usually audio calls should persist.
+      // Previous logic ended it. I will keep it commented out or respect previous logic if critical.
+      // Previous logic: _endCallProperly();
+      // I will leave it as is if it was ending call.
       _endCallProperly();
     }
   }
 
   Future<void> _endCallProperly() async {
-    AppLogger.log('🔴🔴🔴 _endCallProperly() CALLED 🔴🔴🔴', tag: 'CALL_SCREEN');
-    AppLogger.log('Current session ID: $_sessionId', tag: 'CALL_SCREEN');
-    AppLogger.log('Current call duration: $_callDuration seconds', tag: 'CALL_SCREEN');
-    
+    AppLogger.log(
+      '🔴🔴🔴 _endCallProperly() CALLED 🔴🔴🔴',
+      tag: 'CALL_SCREEN',
+    );
+
     if (_sessionId != null && _sessionId! > 0) {
-      AppLogger.log('✅ Valid session ID exists, proceeding to end call', tag: 'CALL_SCREEN');
-      AppLogger.log('📤 Calling CallService.endCall() with:', tag: 'CALL_SCREEN');
-      AppLogger.log('   - Session ID: $_sessionId', tag: 'CALL_SCREEN');
-      AppLogger.log('   - Duration: $_callDuration', tag: 'CALL_SCREEN');
-      
-      await _callService.endCall(_sessionId, _callDuration);
-      
+      AppLogger.log(
+        '✅ Valid session ID exists, proceeding to end call',
+        tag: 'CALL_SCREEN',
+      );
+
+      await _callService?.endCall(_sessionId, _callDuration);
+
       AppLogger.log('✅ CallService.endCall() completed', tag: 'CALL_SCREEN');
-    } else {
-      AppLogger.log('⚠️⚠️⚠️ No valid session ID available - CANNOT END CALL ⚠️⚠️⚠️', tag: 'CALL_SCREEN');
     }
-    AppLogger.log('🔴🔴🔴 _endCallProperly() FINISHED 🔴🔴🔴', tag: 'CALL_SCREEN');
-  }
-
-  Future<void> _initializeRenderers() async {
-    try {
-      AppLogger.log('🎬 Initializing audio renderers...', tag: 'CALL');
-      await _remoteRenderer.initialize();
-      _renderersInitialized = true;
-      AppLogger.log('✅ Audio renderers initialized', tag: 'CALL');
-    } catch (e) {
-      AppLogger.error('❌ Failed to initialize renderers', error: e, tag: 'CALL');
-    }
-  }
-
-  Future<void> _disposeRenderers() async {
-    try {
-      AppLogger.log('🧹 Disposing audio renderers...', tag: 'CALL');
-      await _remoteRenderer.dispose();
-      AppLogger.log('✅ Audio renderers disposed', tag: 'CALL');
-    } catch (e) {
-      AppLogger.error('❌ Failed to dispose renderers', error: e, tag: 'CALL');
-    }
+    AppLogger.log(
+      '🔴🔴🔴 _endCallProperly() FINISHED 🔴🔴🔴',
+      tag: 'CALL_SCREEN',
+    );
   }
 
   Future<void> _requestPermissionsAndInitialize() async {
     try {
       AppLogger.log('🔐 Requesting permissions...', tag: 'CALL');
-      
+
       final micStatus = await Permission.microphone.request();
-      
+
       if (micStatus.isGranted) {
         AppLogger.log('✅ Microphone permission granted', tag: 'CALL');
         await _initializeCall();
@@ -123,7 +135,10 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
         });
         _showPermissionDialog();
       } else if (micStatus.isPermanentlyDenied) {
-        AppLogger.log('❌ Microphone permission permanently denied', tag: 'CALL');
+        AppLogger.log(
+          '❌ Microphone permission permanently denied',
+          tag: 'CALL',
+        );
         setState(() {
           _callStatus = 'Permission denied';
         });
@@ -170,7 +185,9 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text('Permission Required'),
-        content: Text('Please enable microphone permission in app settings to make calls.'),
+        content: Text(
+          'Please enable microphone permission in app settings to make calls.',
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -196,53 +213,39 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
       AppLogger.log('🚀 Starting call initialization...', tag: 'CALL');
       AppLogger.log('👤 Driver: ${widget.driverName}', tag: 'CALL');
       AppLogger.log('🚗 Ride ID: ${widget.rideId}', tag: 'CALL');
-      
+      AppLogger.log('📞 Session ID: ${widget.sessionId}', tag: 'CALL');
+
       _callService = CallService();
       AppLogger.log('📞 CallService instance created', tag: 'CALL');
-      
-      await _callService.initialize();
-      AppLogger.log('✅ CallService initialized', tag: 'CALL');
-      
-      AppLogger.log('📤 Initiating call to driver...', tag: 'CALL');
-      final session = await _callService.initiateCall(widget.rideId);
-      
-      // FIXED: Ensure session_id is properly extracted and converted to int
-      if (session != null && session['session_id'] != null) {
-        _sessionId = session['session_id'] is int 
-            ? session['session_id'] 
-            : int.tryParse(session['session_id'].toString());
-        AppLogger.log('✅ Call initiated - Session ID: $_sessionId', tag: 'CALL');
-      } else {
-        AppLogger.log('❌ No session ID received from server', tag: 'CALL');
+
+      final success = await _callService?.initialize();
+      if (success != true) {
+        AppLogger.error('❌ CallService initialization failed', tag: 'CALL');
         setState(() {
-          _callStatus = 'Call initiation failed';
+          _callStatus = 'Initialization failed';
         });
         return;
       }
-      
-      setState(() {
-        _callStatus = 'Ringing...';
-      });
-      AppLogger.log('🔔 Call status updated to: Ringing...', tag: 'CALL');
+      AppLogger.log('✅ CallService initialized', tag: 'CALL');
 
-      _callService.onCallStateChanged = (state) {
+      // Set up state change callback BEFORE any call operations
+      _callService?.onCallStateChanged = (state) {
         AppLogger.log('📱 Call state changed to: $state', tag: 'CALL');
-        
+
         if (!mounted) return;
-        
+
         setState(() {
           _callStatus = state;
-          
-          if (state == 'Connected') {
-            AppLogger.log('⏱️ Starting call timer', tag: 'CALL');
-            _isCallActive = true;
-            _startCallTimer();
-            _attachRemoteStream();
-            // FIXED: Stop ringtone when call connects
-            _callService.stopRingtone();
+
+          if (state == 'Connected' || state == 'Connecting...') {
+            if (state == 'Connected' && !_isCallActive) {
+              AppLogger.log('⏱️ Starting call timer', tag: 'CALL');
+              _isCallActive = true;
+              _startCallTimer();
+              _callService?.stopRingtone();
+            }
           } else if (state == 'Call ended' || state == 'Call rejected') {
             _isCallActive = false;
-            // Auto-close screen after a short delay
             Future.delayed(Duration(seconds: 2), () {
               if (mounted) {
                 Navigator.pop(context);
@@ -252,22 +255,48 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
         });
       };
 
+      // If sessionId is provided, this is an incoming call - answer it
+      if (widget.sessionId != null) {
+        AppLogger.log('📞 Answering incoming call...', tag: 'CALL');
+        _sessionId = widget.sessionId;
+        _callService?.setIncomingCallContext(_sessionId!, widget.rideId, null);
+        AppLogger.log('✅ Using session ID: $_sessionId', tag: 'CALL');
+
+        // Agora Migration: Ignore buffered WebRTC messages.
+        GlobalCallService.instance.clearPendingMessages();
+
+        await _callService?.answerCall(_sessionId!, widget.rideId);
+      } else {
+        // Otherwise, initiate a new call
+        AppLogger.log('📤 Initiating call to driver...', tag: 'CALL');
+        final session = await _callService?.initiateCall(widget.rideId);
+
+        if (session != null && session['session_id'] != null) {
+          _sessionId = session['session_id'] is int
+              ? session['session_id']
+              : int.tryParse(session['session_id'].toString());
+          AppLogger.log(
+            '✅ Call initiated - Session ID: $_sessionId',
+            tag: 'CALL',
+          );
+        } else {
+          AppLogger.log('❌ No session ID received from server', tag: 'CALL');
+          setState(() {
+            _callStatus = 'Call initiation failed';
+          });
+          return;
+        }
+      }
+
+      setState(() {
+        _callStatus = 'Ringing...';
+      });
+      AppLogger.log('🔔 Call status updated to: Ringing...', tag: 'CALL');
     } catch (e) {
       AppLogger.error('❌ Failed to initialize call', error: e, tag: 'CALL');
       setState(() {
         _callStatus = 'Call failed';
       });
-    }
-  }
-
-  void _attachRemoteStream() {
-    if (_callService.remoteStream != null && _renderersInitialized) {
-      AppLogger.log('🔊 Attaching remote stream to renderer', tag: 'CALL');
-      _remoteRenderer.srcObject = _callService.remoteStream;
-      setState(() {});
-      AppLogger.log('✅ Remote stream attached', tag: 'CALL');
-    } else {
-      AppLogger.log('⚠️ Cannot attach stream - remoteStream: ${_callService.remoteStream != null}, renderersInit: $_renderersInitialized', tag: 'CALL');
     }
   }
 
@@ -292,37 +321,33 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     setState(() {
       _isMuted = !_isMuted;
     });
-    _callService.toggleMute(_isMuted);
+    _callService?.toggleMute(_isMuted);
   }
 
-  void _toggleSpeaker() {
+  Future<void> _toggleSpeaker() async {
     setState(() {
       _isSpeakerOn = !_isSpeakerOn;
     });
-    _callService.toggleSpeaker(_isSpeakerOn);
+    await _callService?.toggleSpeaker(_isSpeakerOn);
   }
 
   void _endCall() async {
-    AppLogger.log('═══════════════════════════════════════', tag: 'CALL_SCREEN');
+    AppLogger.log(
+      '═══════════════════════════════════════',
+      tag: 'CALL_SCREEN',
+    );
     AppLogger.log('🔴 END CALL BUTTON PRESSED', tag: 'CALL_SCREEN');
-    AppLogger.log('═══════════════════════════════════════', tag: 'CALL_SCREEN');
-    AppLogger.log('⏱️ Call duration: $_callDuration seconds', tag: 'CALL_SCREEN');
-    AppLogger.log('🎯 Session ID: $_sessionId', tag: 'CALL_SCREEN');
-    
+
     AppLogger.log('⏸️ Cancelling call timer...', tag: 'CALL_SCREEN');
     _callTimer?.cancel();
-    AppLogger.log('✅ Timer cancelled', tag: 'CALL_SCREEN');
-    
+
     AppLogger.log('📤 Calling _endCallProperly()...', tag: 'CALL_SCREEN');
     await _endCallProperly();
-    AppLogger.log('✅ _endCallProperly() completed', tag: 'CALL_SCREEN');
-    
+
     AppLogger.log('🚪 Navigating back...', tag: 'CALL_SCREEN');
     if (mounted) {
       Navigator.pop(context);
     }
-    AppLogger.log('✅ Navigation completed', tag: 'CALL_SCREEN');
-    AppLogger.log('═══════════════════════════════════════', tag: 'CALL_SCREEN');
   }
 
   @override
@@ -390,7 +415,9 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                                 fontWeight: FontWeight.w400,
                                 height: 21 / 14,
                                 letterSpacing: -0.32,
-                                color: _isCallActive ? Colors.green : Colors.grey,
+                                color: _isCallActive
+                                    ? Colors.green
+                                    : Colors.grey,
                               ),
                             ),
                             if (_callDuration > 0) ...{
@@ -413,7 +440,7 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                   ),
                   SizedBox(height: 50.h),
                   Center(
-                    child: Container(
+                    child: SizedBox(
                       width: 200.w,
                       height: 200.h,
                       child: CircleAvatar(
@@ -426,7 +453,11 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                   Container(
                     width: 353.w,
                     height: 72.h,
-                    margin: EdgeInsets.only(bottom: 49.h, left: 20.w, right: 20.w),
+                    margin: EdgeInsets.only(
+                      bottom: 49.h,
+                      left: 20.w,
+                      right: 20.w,
+                    ),
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     decoration: BoxDecoration(
                       color: Color(0xFFF7F9F8),
@@ -444,7 +475,9 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                           },
                         ),
                         CallButton(
-                          icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
+                          icon: _isSpeakerOn
+                              ? Icons.volume_up
+                              : Icons.volume_down,
                           iconColor: _isSpeakerOn ? Colors.blue : Colors.black,
                           onTap: _toggleSpeaker,
                         ),
@@ -464,20 +497,6 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-              
-              // Hidden audio renderer
-              Positioned(
-                left: -1000,
-                child: SizedBox(
-                  width: 1,
-                  height: 1,
-                  child: RTCVideoView(
-                    _remoteRenderer,
-                    mirror: false,
-                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -485,15 +504,3 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

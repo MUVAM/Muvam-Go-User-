@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
@@ -23,13 +24,11 @@ import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
-import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
+import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
-import 'package:http/http.dart' as http;
-import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
+import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
@@ -42,14 +41,12 @@ import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'add_favourite_screen.dart';
 import 'add_home_screen.dart';
 // import 'chat_screen.dart';
 import 'map_selection_screen.dart';
-
-
-
 
 //FOR PASSENGER
 class HomeScreen extends StatefulWidget {
@@ -60,15 +57,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
-
-
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isBottomSheetVisible = true;
   bool _showDestinationField = false;
 
-Map<String, dynamic>? _incomingCall;
-final CallService _callService = CallService();
+  Map<String, dynamic>? _incomingCall;
+  final CallService _callService = CallService();
   int _currentIndex = 0;
   int? selectedVehicle;
   int? selectedDelivery;
@@ -118,7 +112,7 @@ final CallService _callService = CallService();
   bool _isBookingRide = false;
   RideResponse? _currentRideResponse;
   Driver? _assignedDriver;
-  final WebSocketService _webSocketService = WebSocketService.instance;
+  WebSocketService _webSocketService = WebSocketService.instance;
   final FavouriteLocationService _favouriteService = FavouriteLocationService();
   List<FavouriteLocation> _favouriteLocations = [];
   Map<String, dynamic>? _activeRide;
@@ -126,167 +120,201 @@ final CallService _callService = CallService();
   bool _isActiveRideSheetVisible = false;
   bool _hasUserDismissedSheet = false;
   int? _lastCompletedRideId;
-  Set<int> _dismissedRatingRides = {};
+  final Set<int> _dismissedRatingRides = {};
 
   @override
   void initState() {
     super.initState();
 
-    // CRITICAL: Initialize call service first, then setup WebSocket
-    _initializeCallService();
+    AppLogger.log(
+      '🏠 ═══════════════════════════════════════',
+      tag: 'HOME_INIT',
+    );
+    AppLogger.log('🏠 PASSENGER HomeScreen.initState()', tag: 'HOME_INIT');
+    AppLogger.log(
+      '🏠 ═══════════════════════════════════════',
+      tag: 'HOME_INIT',
+    );
+
+    // Get WebSocket instance
+    _webSocketService = WebSocketService.instance;
+
     _getCurrentLocation();
+    _forceUpdateLocation();
     _createDriverIcon();
     _createCurrentLocationIcon();
     _createPickupIcon();
     _createDestinationIcon();
     _loadProfile();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(
         context,
         listen: false,
       ).loadFavouriteLocations();
       _loadFavouriteLocations();
-      
-      // IMPORTANT: Connect WebSocket AFTER call handlers are set up
-      AppLogger.log('🔌 Connecting WebSocket after handlers setup...', tag: 'HOME_INIT');
+
+      // Set up call handler BEFORE connecting
+      // _setupCallHandler();
+
+      AppLogger.log(
+        '✅ Call handler set BEFORE connect: ${_webSocketService.onIncomingCall != null}',
+        tag: 'HOME_INIT',
+      );
+
+      // NOW connect WebSocket - handler is already set
+      AppLogger.log(
+        '🔌 Connecting WebSocket from HomeScreen...',
+        tag: 'HOME_INIT',
+      );
+
       _webSocketService.connect().then((_) {
-        AppLogger.log('✅ WebSocket connected, setting up message listeners...', tag: 'HOME_INIT');
-        _listenToWebSocketMessages();
+        AppLogger.log('✅ WebSocket connected', tag: 'HOME_INIT');
+
+        // Set up OTHER message listeners (not call handler!)
+        _setupOtherWebSocketListeners();
       });
-      
+
       _checkActiveRides();
       _startActiveRideChecking();
     });
   }
 
+  Map<String, dynamic>?
+  _incomingOffer; // NEW: Store incoming offer for CallScreen
 
+  void _setupOtherWebSocketListeners() {
+    AppLogger.log(
+      '🎧 Setting up other WebSocket listeners...',
+      tag: 'HOME_WEBSOCKET',
+    );
 
-Future<void> _initializeCallService() async {
-  AppLogger.log('🔧 Initializing call service for passenger...', tag: 'PASSENGER_CALL');
-  
-  // IMPORTANT: Don't set up duplicate call handlers here
-  // The global handler in main.dart will handle incoming calls
-  await _callService.initialize();
-  
-  AppLogger.log('✅ Call service initialized for passenger (no duplicate handlers)', tag: 'PASSENGER_CALL');
-}
+    // Call handler is already set before connection - don't overwrite it!
+    AppLogger.log(
+      '🔍 Verifying call handler still exists: ${_webSocketService.onIncomingCall != null}',
+      tag: 'HOME_WEBSOCKET',
+    );
 
-void _showIncomingCallDialog() {
-  if (_incomingCall == null) return;
-  
-  final callData = _incomingCall!['data'] ?? {};
-  final callerName = callData['caller_name'] ?? 'Driver';
-  final sessionId = callData['session_id'];
-  final rideId = callData['ride_id'];
-  
-  AppLogger.log('📞 Showing incoming call dialog', tag: 'PASSENGER_CALL');
-  AppLogger.log('   Caller: $callerName', tag: 'PASSENGER_CALL');
-  AppLogger.log('   Session ID: $sessionId', tag: 'PASSENGER_CALL');
-  
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.phone_in_talk,
-            size: 60.sp,
-            color: Color(ConstColors.mainColor),
-          ),
-          SizedBox(height: 20.h),
-          Text(
-            'Incoming Call',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 20.sp,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 10.h),
-          Text(
-            callerName,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          SizedBox(height: 30.h),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Reject button
-              GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _callService.rejectCall(sessionId);
-                  setState(() {
-                    _incomingCall = null;
-                  });
-                },
-                child: Container(
-                  width: 60.w,
-                  height: 60.h,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.call_end,
-                    color: Colors.white,
-                    size: 30.sp,
-                  ),
-                ),
-              ),
-              // Accept button
-              GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _callService.answerCall(sessionId);
-                  
-                  // Navigate to call screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CallScreen(
-                        driverName: callerName,
-                        rideId: rideId,
-                      ),
-                    ),
-                  );
-                  
-                  setState(() {
-                    _incomingCall = null;
-                  });
-                },
-                child: Container(
-                  width: 60.w,
-                  height: 60.h,
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.call,
-                    color: Colors.white,
-                    size: 30.sp,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-}
+    // Chat messages
+    _webSocketService.onChatMessage = (chatData) {
+      AppLogger.log('💬 Global chat handler called in HomeScreen');
+      _handleGlobalChatMessage(chatData);
+    };
 
+    // Ride accepted
+    _webSocketService.onRideAccepted = (data) {
+      AppLogger.log('🎉 Ride accepted callback triggered!');
+
+      // Extract driver information from WebSocket data
+      final driverData = data['driver'] ?? {};
+      _assignedDriver = Driver(
+        id: driverData['id']?.toString() ?? 'driver_123',
+        name: driverData['name']?.toString() ?? 'Driver',
+        profilePicture: driverData['profile_picture']?.toString() ?? '',
+        phoneNumber: driverData['phone_number']?.toString() ?? '',
+        rating: (driverData['rating'] ?? 4.5).toDouble(),
+        vehicleModel: driverData['vehicle_model']?.toString() ?? 'Vehicle',
+        plateNumber: driverData['plate_number']?.toString() ?? 'ABC-123',
+      );
+
+      setState(() {
+        _isDriverAssigned = true;
+        _isRideAccepted = true;
+        _driverArrivalTime = data['estimated_arrival']?.toString() ?? '5';
+        _pickupLocation =
+            _currentRideResponse?.pickupAddress ?? "Your current location";
+        _dropoffLocation = _currentRideResponse?.destAddress ?? "Destination";
+
+        if (data['driver_location'] != null) {
+          final location = data['driver_location'];
+          _driverLocation = LatLng(
+            location['latitude']?.toDouble() ??
+                _currentLocation.latitude + 0.01,
+            location['longitude']?.toDouble() ??
+                _currentLocation.longitude + 0.01,
+          );
+        }
+      });
+
+      _showDriverAcceptedSheet();
+    };
+
+    // Ride completed
+    _webSocketService.onRideCompleted = (data) {
+      AppLogger.log(
+        '🏁 Ride completed callback triggered!',
+        tag: 'RIDE_COMPLETED',
+      );
+
+      try {
+        int? rideId;
+
+        if (data['ride_id'] != null) {
+          rideId = data['ride_id'] is int
+              ? data['ride_id']
+              : int.tryParse(data['ride_id'].toString());
+        }
+
+        if (rideId == null) {
+          final messageData = data['data'] as Map<String, dynamic>?;
+          if (messageData?['ride_id'] != null) {
+            rideId = messageData!['ride_id'] is int
+                ? messageData['ride_id']
+                : int.tryParse(messageData['ride_id'].toString());
+          }
+        }
+
+        if (rideId != null && !_dismissedRatingRides.contains(rideId)) {
+          _lastCompletedRideId = rideId;
+
+          String price = '0.00';
+          // Try to get price from active ride if matches
+          if (_activeRide != null &&
+              (_activeRide!['ID'] == rideId ||
+                  _activeRide!['ID'].toString() == rideId.toString())) {
+            price = _activeRide!['Price']?.toString() ?? '0.00';
+          }
+          // Fallback to data payload
+          else if (data['amount'] != null) {
+            price = data['amount'].toString();
+          } else if (data['data'] != null && data['data']['amount'] != null) {
+            price = data['data']['amount'].toString();
+          }
+
+          if (mounted) {
+            _showTripCompleteSheet(rideId, price);
+          }
+        }
+      } catch (e) {
+        AppLogger.log('❌ Error processing ride_completed message: $e');
+      }
+    };
+
+    AppLogger.log(
+      '✅ Non-call WebSocket listeners setup complete',
+      tag: 'HOME_WEBSOCKET',
+    );
+    AppLogger.log(
+      '🔍 Final handler check: ${_webSocketService.onIncomingCall != null}',
+      tag: 'HOME_WEBSOCKET',
+    );
+  }
+
+  Future<void> _initializeCallService() async {
+    AppLogger.log(
+      '🔧 Initializing call service for passenger...',
+      tag: 'PASSENGER_CALL',
+    );
+
+    // IMPORTANT: Don't set up duplicate call handlers here
+    // The global handler in main.dart will handle incoming calls
+    await _callService.initialize();
+
+    AppLogger.log(
+      '✅ Call service initialized for passenger (no duplicate handlers)',
+      tag: 'PASSENGER_CALL',
+    );
+  }
 
   Future<void> _createDriverIcon() async {
     _driverIcon = await BitmapDescriptor.fromAssetImage(
@@ -319,29 +347,6 @@ void _showIncomingCallDialog() {
     );
     setState(() {});
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // Method to convert widget to BitmapDescriptor
   Future<BitmapDescriptor> _createBitmapDescriptorFromWidget(
@@ -551,9 +556,10 @@ void _showIncomingCallDialog() {
                   ),
                 ),
                 Text(
-                  toController.text.isNotEmpty
-                      ? toController.text
-                      : 'Destination',
+                  _activeRide?['DestAddress']?.toString() ??
+                      (toController.text.isNotEmpty
+                          ? toController.text
+                          : 'Destination'),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12.sp,
@@ -626,7 +632,10 @@ void _showIncomingCallDialog() {
 
   void _listenToWebSocketMessages() {
     // CRITICAL: Ensure WebSocket connects AFTER call handler is set up
-    AppLogger.log('🔌 Setting up WebSocket message listeners...', tag: 'HOME_WEBSOCKET');
+    AppLogger.log(
+      '🔌 Setting up WebSocket message listeners...',
+      tag: 'HOME_WEBSOCKET',
+    );
 
     _webSocketService.onChatMessage = (chatData) {
       AppLogger.log('💬 Global chat handler called in HomeScreen');
@@ -635,15 +644,14 @@ void _showIncomingCallDialog() {
 
     // NEW: Send "Hello" message to open WebSocket channel
     if (_activeRide != null) {
-      AppLogger.log('📤 Sending initialization message to open WebSocket channel...');
+      AppLogger.log(
+        '📤 Sending initialization message to open WebSocket channel...',
+      );
       Future.delayed(Duration(seconds: 3), () {
         if (_webSocketService.isConnected) {
           _webSocketService.sendMessage({
             "type": "chat",
-            "data": {
-              "ride_id": _activeRide!['ID'],
-              "message": "Hello",
-            },
+            "data": {"ride_id": _activeRide!['ID'], "message": "Hello"},
           });
           AppLogger.log('✅ Initialization message sent');
         }
@@ -744,88 +752,106 @@ void _showIncomingCallDialog() {
         AppLogger.log('❌ Error processing ride_completed message: $e');
       }
     };
-    
-    AppLogger.log('✅ WebSocket message listeners setup complete', tag: 'HOME_WEBSOCKET');
+
+    AppLogger.log(
+      '✅ WebSocket message listeners setup complete',
+      tag: 'HOME_WEBSOCKET',
+    );
   }
 
-// Add this new method to handle global chat messages
-void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
-  try {
-    AppLogger.log('📨 Processing global chat message');
-    final data = chatData['data'] ?? {};
-    final messageText = data['message'] ?? '';
-    final senderName = data['sender_name'] ?? 'Unknown User';
-    final senderImage = data['sender_image'];
-    final senderId = data['sender_id']?.toString() ?? '';
-    final rideId = data['ride_id'] ?? 0;
-    final timestamp = chatData['timestamp'] ?? DateTime.now().toIso8601String();
+  // Add this new method to handle global chat messages
+  void _handleGlobalChatMessage(Map<String, dynamic> chatData) async {
+    try {
+      AppLogger.log('📨 Processing global chat message');
+      final data = chatData['data'] ?? {};
+      final messageText = data['message'] ?? '';
+      final senderName = data['sender_name'] ?? 'Unknown User';
+      final senderImage = data['sender_image'];
+      final senderId = data['sender_id']?.toString() ?? '';
+      final rideId = data['ride_id'] ?? 0;
+      final timestamp =
+          chatData['timestamp'] ?? DateTime.now().toIso8601String();
 
-    AppLogger.log('   Message: "$messageText"');
-    AppLogger.log('   From: $senderName (ID: $senderId)');
-    AppLogger.log('   Ride: $rideId');
+      AppLogger.log('   Message: "$messageText"');
+      AppLogger.log('   From: $senderName (ID: $senderId)');
+      AppLogger.log('   Ride: $rideId');
 
-    // Add message to ChatProvider so it's available when user opens ChatScreen
-    if (mounted && rideId > 0) {
-      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      final message = ChatMessageModel(
-        message: messageText,
-        timestamp: timestamp,
-        rideId: rideId,
-        userId: senderId,
-      );
-      
-      chatProvider.addMessage(rideId, message);
-      AppLogger.log('✅ Message added to ChatProvider');
+      // Get current user ID to check if this is our own message
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getString('user_id');
 
-      // Show notification
-      ChatNotificationService.showChatNotification(
-        context,
-        senderName: senderName,
-        message: messageText,
-        senderImage: senderImage,
-        onTap: () {
-          AppLogger.log('🔔 Notification tapped, navigating to chat');
+      AppLogger.log('   Current User ID: $currentUserId');
+      AppLogger.log('   Sender ID: $senderId');
 
-          // Navigate to chat screen
-          if (_activeRide != null) {
-            // final passenger = _activeRide!['Passenger'] ?? {};
-            final passengerName =_assignedDriver!.name ;
-            final passengerImage = _assignedDriver!.profilePicture;
-            
+      // Add message to ChatProvider so it's available when user opens ChatScreen
+      if (mounted && rideId > 0) {
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+        final message = ChatMessageModel(
+          message: messageText,
+          timestamp: timestamp,
+          rideId: rideId,
+          userId: senderId,
+        );
 
+        chatProvider.addMessage(rideId, message);
+        AppLogger.log('✅ Message added to ChatProvider');
 
-            
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatScreen(
-                  rideId: rideId,
-                  driverName: passengerName,
-                  driverImage: passengerImage,
-                ),
-              ),
-            );
-          } else {
-            // Fallback if no active ride
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatScreen(
-                  rideId: rideId,
-                  driverName: senderName,
-                  driverImage: senderImage,
-                ),
-              ),
-            );
-          }
-        },
-      );
+        // Only show notification if the message is NOT from the current user
+        if (senderId != currentUserId &&
+            senderId.isNotEmpty &&
+            currentUserId != null) {
+          AppLogger.log('📢 Showing notification (message from other user)');
+
+          // Show notification
+          ChatNotificationService.showChatNotification(
+            context,
+            senderName: senderName,
+            message: messageText,
+            senderImage: senderImage,
+            onTap: () {
+              AppLogger.log('🔔 Notification tapped, navigating to chat');
+
+              // Navigate to chat screen
+              if (_activeRide != null) {
+                // final passenger = _activeRide!['Passenger'] ?? {};
+                final passengerName = _assignedDriver!.name;
+                final passengerImage = _assignedDriver!.profilePicture;
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      rideId: rideId,
+                      driverName: passengerName,
+                      driverImage: passengerImage,
+                    ),
+                  ),
+                );
+              } else {
+                // Fallback if no active ride
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      rideId: rideId,
+                      driverName: senderName,
+                      driverImage: senderImage,
+                    ),
+                  ),
+                );
+              }
+            },
+          );
+        } else {
+          AppLogger.log('🔇 Skipping notification (message from current user)');
+        }
+      }
+    } catch (e, stack) {
+      AppLogger.log('❌ Error handling global chat message: $e');
+      AppLogger.log('Stack: $stack');
     }
-  } catch (e, stack) {
-    AppLogger.log('❌ Error handling global chat message: $e');
-    AppLogger.log('Stack: $stack');
   }
-}
+
   Future<void> _checkActiveRides() async {
     print('=== CHECKING ACTIVE RIDES ===');
     try {
@@ -1127,47 +1153,47 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     }
   }
 
-  Future<RideResponse?> _requestRide({bool isScheduled = false}) async {
-    if (_currentEstimate == null || selectedVehicle == null) {
-      throw Exception('No estimate or vehicle selected');
-    }
+  // Future<RideResponse?> _requestRide({bool isScheduled = false}) async {
+  //   if (_currentEstimate == null || selectedVehicle == null) {
+  //     throw Exception('No estimate or vehicle selected');
+  //   }
 
-    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
-    final vehicleType = selectedPriceData['vehicle_type'];
+  //   final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
+  //   final vehicleType = selectedPriceData['vehicle_type'];
 
-    String? scheduledDateTime;
-    if (isScheduled) {
-      final scheduledDate = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        selectedTime.hour,
-        selectedTime.minute,
-      );
-      scheduledDateTime = scheduledDate.toIso8601String();
-    }
+  //   String? scheduledDateTime;
+  //   if (isScheduled) {
+  //     final scheduledDate = DateTime(
+  //       selectedDate.year,
+  //       selectedDate.month,
+  //       selectedDate.day,
+  //       selectedTime.hour,
+  //       selectedTime.minute,
+  //     );
+  //     scheduledDateTime = scheduledDate.toIso8601String();
+  //   }
 
-    final request = RideRequest(
-      pickup: _pickupCoordinates != null
-          ? '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}'
-          : '${_currentLocation.latitude},${_currentLocation.longitude}',
-      dest: _destinationCoordinates != null
-          ? '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}'
-          : '${_currentLocation.latitude + 0.01},${_currentLocation.longitude + 0.01}',
-      pickupAddress: fromController.text.isNotEmpty
-          ? fromController.text
-          : 'Current location',
-      destAddress: toController.text,
-      stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
-      serviceType: 'taxi',
-      vehicleType: vehicleType,
-      paymentMethod: selectedPaymentMethod,
-      scheduled: isScheduled,
-      scheduledAt: scheduledDateTime,
-    );
+  //   final request = RideRequest(
+  //     pickup: _pickupCoordinates != null
+  //         ? '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}'
+  //         : '${_currentLocation.latitude},${_currentLocation.longitude}',
+  //     dest: _destinationCoordinates != null
+  //         ? '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}'
+  //         : '${_currentLocation.latitude + 0.01},${_currentLocation.longitude + 0.01}',
+  //     pickupAddress: fromController.text.isNotEmpty
+  //         ? fromController.text
+  //         : 'Current location',
+  //     destAddress: toController.text,
+  //     stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
+  //     serviceType: 'taxi',
+  //     vehicleType: vehicleType,
+  //     paymentMethod: selectedPaymentMethod,
+  //     scheduled: isScheduled,
+  //     scheduledAt: scheduledDateTime,
+  //   );
 
-    return await _rideService.requestRide(request);
-  }
+  //   return await _rideService.requestRide(request);
+  // }
 
   // Future<void> _estimateRide() async {
   //   if (_pickupCoordinates == null || _destinationCoordinates == null) {
@@ -1192,75 +1218,216 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
   // }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
+    AppLogger.log('📍 === ADDING ACTIVE RIDE MARKERS ===', tag: 'MARKERS');
+
     // Parse PostGIS POINT format: "POINT(longitude latitude)"
     final pickupLocation = ride['PickupLocation']?.toString();
     final destLocation = ride['DestLocation']?.toString();
     final stopLocation = ride['StopLocation']?.toString();
 
+    AppLogger.log('📍 Raw PickupLocation: $pickupLocation', tag: 'MARKERS');
+    AppLogger.log('📍 Raw DestLocation: $destLocation', tag: 'MARKERS');
+    AppLogger.log('📍 Raw StopLocation: $stopLocation', tag: 'MARKERS');
+
     LatLng? pickupCoords;
     LatLng? destCoords;
     LatLng? stopCoords;
 
-    if (pickupLocation != null && pickupLocation.contains('POINT')) {
+    // Check if location is in WKB format (hex string) or POINT format
+    if (pickupLocation != null &&
+        (pickupLocation.startsWith('0101000020') ||
+            pickupLocation.contains('POINT'))) {
       final coords = _parsePostGISPoint(pickupLocation);
-      if (coords != null) pickupCoords = coords;
+      if (coords != null) {
+        pickupCoords = coords;
+        AppLogger.log('✅ Pickup coords parsed: $coords', tag: 'MARKERS');
+      } else {
+        AppLogger.log('❌ Failed to parse pickup coords', tag: 'MARKERS');
+      }
+    } else {
+      AppLogger.log(
+        '⚠️ Pickup location is null or not in recognized format',
+        tag: 'MARKERS',
+      );
     }
 
-    if (destLocation != null && destLocation.contains('POINT')) {
+    if (destLocation != null &&
+        (destLocation.startsWith('0101000020') ||
+            destLocation.contains('POINT'))) {
       final coords = _parsePostGISPoint(destLocation);
-      if (coords != null) destCoords = coords;
+      if (coords != null) {
+        destCoords = coords;
+        AppLogger.log('✅ Dest coords parsed: $coords', tag: 'MARKERS');
+      } else {
+        AppLogger.log('❌ Failed to parse dest coords', tag: 'MARKERS');
+      }
+    } else {
+      AppLogger.log(
+        '⚠️ Dest location is null or not in recognized format',
+        tag: 'MARKERS',
+      );
     }
 
-    if (stopLocation != null && stopLocation.contains('POINT')) {
+    // Handle stop location - if "No stops", place marker at midpoint
+    final stopAddress = ride['StopAddress']?.toString() ?? '';
+    if (stopAddress == 'No stops' &&
+        pickupCoords != null &&
+        destCoords != null) {
+      // Calculate midpoint between pickup and destination
+      stopCoords = LatLng(
+        (pickupCoords.latitude + destCoords.latitude) / 2,
+        (pickupCoords.longitude + destCoords.longitude) / 2,
+      );
+      AppLogger.log(
+        '✅ Stop coords calculated as midpoint: $stopCoords',
+        tag: 'MARKERS',
+      );
+    } else if (stopLocation != null &&
+        (stopLocation.startsWith('0101000020') ||
+            stopLocation.contains('POINT'))) {
       final coords = _parsePostGISPoint(stopLocation);
-      if (coords != null) stopCoords = coords;
+      if (coords != null) {
+        stopCoords = coords;
+        AppLogger.log('✅ Stop coords parsed: $coords', tag: 'MARKERS');
+      } else {
+        AppLogger.log('❌ Failed to parse stop coords', tag: 'MARKERS');
+      }
+    } else {
+      AppLogger.log(
+        '⚠️ Stop location is null or not in recognized format',
+        tag: 'MARKERS',
+      );
     }
 
     // Create markers
     final markers = <Marker>{};
 
     if (pickupCoords != null) {
-      final pickupIcon = await _createBitmapDescriptorFromWidget(
-        _buildPickupMarkerWidget(),
-        size: Size(247.w, 50.h),
-      );
-      markers.add(Marker(
-        markerId: MarkerId('active_pickup'),
-        position: pickupCoords,
-        icon: pickupIcon,
-        anchor: Offset(0.5, 1.0),
-      ));
+      AppLogger.log('🎨 Creating pickup marker widget...', tag: 'MARKERS');
+      try {
+        final pickupIcon = await _createBitmapDescriptorFromWidget(
+          _buildPickupMarkerWidget(),
+          size: Size(247.w, 50.h),
+        );
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_pickup'),
+            position: pickupCoords,
+            icon: pickupIcon,
+            anchor: Offset(0.5, 1.0),
+          ),
+        );
+        AppLogger.log('✅ Pickup marker added with custom icon', tag: 'MARKERS');
+      } catch (e) {
+        AppLogger.log(
+          '⚠️ Failed to create custom pickup marker, using default: $e',
+          tag: 'MARKERS',
+        );
+        // Fallback to default marker
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_pickup'),
+            position: pickupCoords,
+            infoWindow: InfoWindow(
+              title: 'Pickup',
+              snippet:
+                  _activeRide?['PickupAddress']?.toString() ??
+                  'Pickup Location',
+            ),
+          ),
+        );
+      }
     }
 
     if (destCoords != null) {
-      final dropoffIcon = await _createBitmapDescriptorFromWidget(
-        _buildDropoffMarkerWidget(),
-        size: Size(242.w, 48.h),
-      );
-      markers.add(Marker(
-        markerId: MarkerId('active_dropoff'),
-        position: destCoords,
-        icon: dropoffIcon,
-        anchor: Offset(0.5, 1.0),
-      ));
+      AppLogger.log('🎨 Creating dropoff marker widget...', tag: 'MARKERS');
+      try {
+        final dropoffIcon = await _createBitmapDescriptorFromWidget(
+          _buildDropoffMarkerWidget(),
+          size: Size(242.w, 48.h),
+        );
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_dropoff'),
+            position: destCoords,
+            icon: dropoffIcon,
+            anchor: Offset(0.5, 1.0),
+          ),
+        );
+        AppLogger.log(
+          '✅ Dropoff marker added with custom icon',
+          tag: 'MARKERS',
+        );
+      } catch (e) {
+        AppLogger.log(
+          '⚠️ Failed to create custom dropoff marker, using default: $e',
+          tag: 'MARKERS',
+        );
+        // Fallback to default marker
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_dropoff'),
+            position: destCoords,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRed,
+            ),
+            infoWindow: InfoWindow(
+              title: 'Destination',
+              snippet: _activeRide?['DestAddress']?.toString() ?? 'Destination',
+            ),
+          ),
+        );
+      }
     }
 
     if (stopCoords != null) {
-      final stopIcon = await _createBitmapDescriptorFromWidget(
-        _buildStopMarkerWidget(),
-        size: Size(200.w, 40.h),
-      );
-      markers.add(Marker(
-        markerId: MarkerId('active_stop'),
-        position: stopCoords,
-        icon: stopIcon,
-        anchor: Offset(0.5, 1.0),
-      ));
+      AppLogger.log('🎨 Creating stop marker widget...', tag: 'MARKERS');
+      try {
+        final stopIcon = await _createBitmapDescriptorFromWidget(
+          _buildStopMarkerWidget(),
+          size: Size(200.w, 40.h),
+        );
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_stop'),
+            position: stopCoords,
+            icon: stopIcon,
+            anchor: Offset(0.5, 1.0),
+          ),
+        );
+        AppLogger.log('✅ Stop marker added with custom icon', tag: 'MARKERS');
+      } catch (e) {
+        AppLogger.log(
+          '⚠️ Failed to create custom stop marker, using default: $e',
+          tag: 'MARKERS',
+        );
+        // Fallback to default marker
+        markers.add(
+          Marker(
+            markerId: MarkerId('active_stop'),
+            position: stopCoords,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange,
+            ),
+            infoWindow: InfoWindow(
+              title: 'Stop',
+              snippet: _activeRide?['StopAddress']?.toString() ?? 'Stop',
+            ),
+          ),
+        );
+      }
     }
+
+    AppLogger.log(
+      '📊 Total markers created: ${markers.length}',
+      tag: 'MARKERS',
+    );
 
     setState(() {
       _mapMarkers = markers;
     });
+
+    AppLogger.log('✅ Markers set in state', tag: 'MARKERS');
 
     // Fit camera to show all markers
     if (markers.isNotEmpty && _mapController != null) {
@@ -1269,17 +1436,40 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(bounds, 100.0),
       );
+      AppLogger.log('📷 Camera adjusted to fit markers', tag: 'MARKERS');
+    } else {
+      AppLogger.log(
+        '⚠️ Cannot adjust camera: markers=${markers.length}, controller=${_mapController != null}',
+        tag: 'MARKERS',
+      );
     }
+
+    AppLogger.log('📍 === MARKERS SETUP COMPLETE ===', tag: 'MARKERS');
   }
 
   LatLng? _parsePostGISPoint(String pointString) {
     try {
+      // Check if it's WKB format (hex string)
+      if (pointString.startsWith('0101000020')) {
+        AppLogger.log('🔍 Parsing WKB format: $pointString', tag: 'WKB_PARSER');
+        final result = _parsePostGISLocation(pointString);
+        if (result != null && result['lat'] != null && result['lng'] != null) {
+          final latLng = LatLng(result['lat']!, result['lng']!);
+          AppLogger.log('✅ WKB parsed to LatLng: $latLng', tag: 'WKB_PARSER');
+          return latLng;
+        } else {
+          AppLogger.log('❌ Failed to parse WKB format', tag: 'WKB_PARSER');
+          return null;
+        }
+      }
+
+      // Otherwise, try POINT format
       // Remove "POINT(" and ")" and split by space
       final coords = pointString
           .replaceAll('POINT(', '')
           .replaceAll(')', '')
           .split(' ');
-      
+
       if (coords.length == 2) {
         final longitude = double.parse(coords[0]);
         final latitude = double.parse(coords[1]);
@@ -1413,7 +1603,11 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
   //   );
   // }
 
-  Widget _buildDrawerItem(String title, String iconPath, {VoidCallback? onTap}) {
+  Widget _buildDrawerItem(
+    String title,
+    String iconPath, {
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       leading: Image.asset(iconPath, width: 24.w, height: 24.h),
       title: Text(title),
@@ -1426,7 +1620,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     _webSocketService.disconnect();
     _activeRideCheckTimer?.cancel();
 
-      _callService.dispose(); // Add this line
+    _callService.dispose(); // Add this line
 
     super.dispose();
   }
@@ -1547,20 +1741,56 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     await profileProvider.fetchUserProfile();
   }
 
+  Future<void> _forceUpdateLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+          _userCurrentLocation = position;
+        });
+
+        _mapController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: _currentLocation, zoom: 16.0),
+          ),
+        );
+        AppLogger.log('📍 Map centered to: $_currentLocation', tag: 'LOCATION');
+      }
+    } catch (e) {
+      AppLogger.error('Error getting location: $e', tag: 'LOCATION');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        
+
         if (_currentIndex != 0) {
           setState(() {
             _currentIndex = 0;
           });
         } else {
           final now = DateTime.now();
-          if (_lastBackPress == null || now.difference(_lastBackPress!) > Duration(seconds: 2)) {
+          if (_lastBackPress == null ||
+              now.difference(_lastBackPress!) > Duration(seconds: 2)) {
             _lastBackPress = now;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1574,961 +1804,871 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
         }
       },
       child: GestureDetector(
-      onTap: _dismissSuggestions,
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: _buildDrawer(),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          backgroundColor: Colors.white,
-          selectedItemColor: Color(ConstColors.mainColor),
-          unselectedItemColor: Colors.grey,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: [
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                ConstImages.homeIcon,
-                width: 24.w,
-                height: 24.h,
-                color: _currentIndex == 0
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+        onTap: _dismissSuggestions,
+        child: Scaffold(
+          key: _scaffoldKey,
+          drawer: _buildDrawer(),
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            backgroundColor: Colors.white,
+            selectedItemColor: Color(ConstColors.mainColor),
+            unselectedItemColor: Colors.grey,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: [
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  ConstImages.homeIcon,
+                  width: 24.w,
+                  height: 24.h,
+                  color: _currentIndex == 0
+                      ? Color(ConstColors.mainColor)
+                      : Colors.grey,
+                ),
+                label: 'Home',
               ),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                ConstImages.services,
-                width: 24.w,
-                height: 24.h,
-                color: _currentIndex == 1
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  ConstImages.services,
+                  width: 24.w,
+                  height: 24.h,
+                  color: _currentIndex == 1
+                      ? Color(ConstColors.mainColor)
+                      : Colors.grey,
+                ),
+                label: 'Services',
               ),
-              label: 'Services',
-            ),
-            BottomNavigationBarItem(
-              icon: Image.asset(
-                ConstImages.activities,
-                width: 24.w,
-                height: 24.h,
-                color: _currentIndex == 2
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+              BottomNavigationBarItem(
+                icon: Image.asset(
+                  ConstImages.activities,
+                  width: 24.w,
+                  height: 24.h,
+                  color: _currentIndex == 2
+                      ? Color(ConstColors.mainColor)
+                      : Colors.grey,
+                ),
+                label: 'Activities',
               ),
-              label: 'Activities',
-            ),
-          ],
-        ),
-        body: _currentIndex == 1
-            ? const ServicesScreen()
-            : _currentIndex == 2
-            ? ActivitiesScreen()
-            : Stack(
-                children: [
-                  // Google Maps background
-                  GoogleMap(
-                    onMapCreated: (GoogleMapController controller) {
-                      _mapController = controller;
-                    },
-                    initialCameraPosition: CameraPosition(
-                      target: _currentLocation,
-                      zoom: 15.0,
-                    ),
-                    markers: _mapMarkers,
-                    polylines: _mapPolylines,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                  ),
-
-                  // Drawer date
-                  Positioned(
-                    top: 66.h,
-                    left: 20.w,
-                    child: GestureDetector(
-                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                      child: Container(
-                        width: 50.w,
-                        height: 50.h,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(25.r),
-                        ),
-                        padding: EdgeInsets.all(10.w),
-                        child: Icon(Icons.menu, size: 24.sp),
+            ],
+          ),
+          body: _currentIndex == 1
+              ? const ServicesScreen()
+              : _currentIndex == 2
+              ? ActivitiesScreen()
+              : Stack(
+                  children: [
+                    // Google Maps background
+                    GoogleMap(
+                      onMapCreated: (GoogleMapController controller) {
+                        _mapController = controller;
+                        _forceUpdateLocation();
+                      },
+                      initialCameraPosition: CameraPosition(
+                        target: _currentLocation,
+                        zoom: 15.0,
                       ),
+                      markers: _mapMarkers,
+                      polylines: _mapPolylines,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
                     ),
-                  ),
-                  // Active ride indicator
-                  if (_activeRide != null)
+
+                    // Drawer date
                     Positioned(
                       top: 66.h,
-                      right: 30.w,
+                      left: 20.w,
                       child: GestureDetector(
-                        onTap: () {
-                          if (_activeRide != null) {
-                            _hasUserDismissedSheet = false;
-                            _showDriverAcceptedSheet();
-                          }
-                        },
+                        onTap: () => _scaffoldKey.currentState?.openDrawer(),
                         child: Container(
                           width: 50.w,
                           height: 50.h,
                           decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(25.r),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
                           ),
                           padding: EdgeInsets.all(10.w),
-                          child: Icon(
-                            Icons.directions_car,
-                            size: 24.sp,
-                            color: Colors.white,
-                          ),
+                          child: Icon(Icons.menu, size: 24.sp),
                         ),
                       ),
                     ),
-                  // Bottom sheet
-                  Positioned(
-                    bottom: _isBottomSheetVisible ? 0 : -294.h,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 344.h,
-                      width: 393.w,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(20.r),
-                          topRight: Radius.circular(20.r),
+                    // Active ride indicator
+                    if (_activeRide != null)
+                      Positioned(
+                        top: 66.h,
+                        right: 30.w,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_activeRide != null) {
+                              _hasUserDismissedSheet = false;
+                              _showDriverAcceptedSheet();
+                            }
+                          },
+                          child: Container(
+                            width: 50.w,
+                            height: 50.h,
+                            decoration: BoxDecoration(
+                              color: Color(ConstColors.mainColor),
+                              borderRadius: BorderRadius.circular(25.r),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            padding: EdgeInsets.all(10.w),
+                            child: Icon(
+                              Icons.directions_car,
+                              size: 24.sp,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isBottomSheetVisible =
-                                      !_isBottomSheetVisible;
-                                });
-                              },
-                              child: SizedBox(
-                                height: 50.h,
-                                child: Column(
+                    // Bottom sheet
+                    Positioned(
+                      bottom: _isBottomSheetVisible ? 0 : -294.h,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 344.h,
+                        width: 393.w,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20.r),
+                            topRight: Radius.circular(20.r),
+                          ),
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isBottomSheetVisible =
+                                        !_isBottomSheetVisible;
+                                  });
+                                },
+                                child: SizedBox(
+                                  height: 50.h,
+                                  child: Column(
+                                    children: [
+                                      SizedBox(height: 11.75.h),
+                                      Container(
+                                        width: 69.w,
+                                        height: 5.h,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade300,
+                                          borderRadius: BorderRadius.circular(
+                                            2.5.r,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 10.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                                child: Row(
                                   children: [
-                                    SizedBox(height: 11.75.h),
-                                    Container(
-                                      width: 69.w,
-                                      height: 5.h,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade300,
-                                        borderRadius: BorderRadius.circular(
-                                          2.5.r,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 10.h),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    width: 14.w,
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          width: 14.w,
-                                          height: 14.h,
-                                          decoration: BoxDecoration(
-                                            color: Color(ConstColors.mainColor),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        if (_showDestinationField) ...[
-                                          SizedBox(height: 5.h),
-                                          Container(
-                                            width: 2.w,
-                                            height: 8.h,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(height: 4.h),
-                                          Container(
-                                            width: 2.w,
-                                            height: 8.h,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(height: 4.h),
-                                          Container(
-                                            width: 2.w,
-                                            height: 8.h,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(height: 4.h),
-
+                                    SizedBox(
+                                      width: 14.w,
+                                      child: Column(
+                                        children: [
                                           Container(
                                             width: 14.w,
                                             height: 14.h,
                                             decoration: BoxDecoration(
-                                              color: Colors.black,
+                                              color: Color(
+                                                ConstColors.mainColor,
+                                              ),
                                               shape: BoxShape.circle,
                                             ),
                                           ),
-                                          SizedBox(height: 25.h),
-                                          Container(
-                                            width: 2.w,
-                                            height: 8.h,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(height: 4.h),
-                                          Container(
-                                            width: 2.w,
-                                            height: 8.h,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(height: 25.h),
-                                          Container(
-                                            width: 14.w,
-                                            height: 14.h,
-                                            decoration: BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(width: 15.w),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          width: 338.w,
-                                          height: 50.h,
-                                          decoration: BoxDecoration(
-                                            color: Color(
-                                              ConstColors.fieldColor,
-                                            ).withOpacity(0.12),
-                                            borderRadius: BorderRadius.circular(
-                                              8.r,
-                                            ),
-                                          ),
-                                          child: TextField(
-                                            controller: fromController,
-                                            readOnly: _showDestinationField
-                                                ? !_isFromFieldEditable
-                                                : false,
-                                            onTap: () {
-                                              if (!_showDestinationField) {
-                                                setState(() {
-                                                  _showDestinationField = true;
-                                                  _isFromFieldFocused = true;
-                                                  _showSuggestions = false;
-                                                });
-                                              } else if (!_isFromFieldEditable &&
-                                                  _isLocationLoaded) {
-                                                setState(() {
-                                                  _isFromFieldEditable = true;
-                                                  _isFromFieldFocused = true;
-                                                });
-                                              } else {
-                                                setState(() {
-                                                  _isFromFieldFocused = true;
-                                                });
-                                              }
-                                            },
-                                            onChanged: (value) {
-                                              if (_isFromFieldFocused ||
-                                                  !_showDestinationField) {
-                                                _searchLocations(value);
-                                              }
-                                            },
-                                            decoration: InputDecoration(
-                                              hintText: _showDestinationField
-                                                  ? 'From?'
-                                                  : 'Where to?',
-                                              prefixIcon: Icon(
-                                                Icons.search,
-                                                size: 20.sp,
-                                                color: Colors.grey,
-                                              ),
-                                              suffixIcon: _showDestinationField
-                                                  ? Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        if (fromController
-                                                            .text
-                                                            .isNotEmpty)
-                                                          GestureDetector(
-                                                            onTap: () {
-                                                              setState(() {
-                                                                fromController
-                                                                    .clear();
-                                                                _isFromFieldEditable =
-                                                                    false;
-                                                              });
-                                                            },
-                                                            child: Container(
-                                                              width: 24.w,
-                                                              height: 24.h,
-                                                              margin:
-                                                                  EdgeInsets.only(
-                                                                    right: 8.w,
-                                                                  ),
-                                                              child: Icon(
-                                                                Icons.clear,
-                                                                size: 16.sp,
-                                                                color:
-                                                                    Colors.grey,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        GestureDetector(
-                                                          onTap: () async {
-                                                            setState(() {
-                                                              _showMapTooltip =
-                                                                  true;
-                                                            });
-                                                            Future.delayed(
-                                                              Duration(
-                                                                seconds: 2,
-                                                              ),
-                                                              () {
-                                                                if (mounted) {
-                                                                  setState(() {
-                                                                    _showMapTooltip =
-                                                                        false;
-                                                                  });
-                                                                }
-                                                              },
-                                                            );
-                                                            final result = await Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                builder: (context) =>
-                                                                    MapSelectionScreen(
-                                                                      isFromField:
-                                                                          true,
-                                                                      initialLocation:
-                                                                          _currentLocation,
-                                                                    ),
-                                                              ),
-                                                            );
-                                                            if (result !=
-                                                                null) {
-                                                              setState(() {
-                                                                fromController
-                                                                        .text =
-                                                                    result['address'];
-                                                                _pickupCoordinates =
-                                                                    result['location'];
-                                                                _currentLocation =
-                                                                    result['location'];
-                                                              });
-                                                              // Check if both fields are filled to show vehicle selection
-                                                              if (toController
-                                                                  .text
-                                                                  .isNotEmpty) {
-                                                                _checkBothFields();
-                                                              }
-                                                            }
-                                                          },
-                                                          child: Stack(
-                                                            children: [
-                                                              Container(
-                                                                width: 24.w,
-                                                                height: 24.h,
-                                                                margin:
-                                                                    EdgeInsets.only(
-                                                                      right:
-                                                                          8.w,
-                                                                    ),
-                                                                child: Icon(
-                                                                  Icons.map,
-                                                                  size: 16.sp,
-                                                                  color: Color(
-                                                                    ConstColors
-                                                                        .mainColor,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              if (_showMapTooltip)
-                                                                Positioned(
-                                                                  right: 35.w,
-                                                                  top: -25.h,
-                                                                  child: Container(
-                                                                    padding: EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8.w,
-                                                                      vertical:
-                                                                          4.h,
-                                                                    ),
-                                                                    decoration: BoxDecoration(
-                                                                      color: Colors
-                                                                          .black87,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            4.r,
-                                                                          ),
-                                                                    ),
-                                                                    child: Text(
-                                                                      'Select from map',
-                                                                      style: TextStyle(
-                                                                        color: Colors
-                                                                            .white,
-                                                                        fontSize:
-                                                                            10.sp,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    )
-                                                  : null,
-                                              border: InputBorder.none,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                    horizontal: 10.w,
-                                                    vertical: 8.h,
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
-                                        if (_showDestinationField)
-                                          Column(
-                                            children: [
-                                              SizedBox(height: 10.h),
-                                              Container(
-                                                width: 338.w,
-                                                height: 50.h,
-                                                decoration: BoxDecoration(
-                                                  color: Color(
-                                                    ConstColors.fieldColor,
-                                                  ).withOpacity(0.12),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        8.r,
-                                                      ),
-                                                ),
-                                                child: TextField(
-                                                  controller: stopController,
-                                                  decoration: InputDecoration(
-                                                    hintText:
-                                                        'Add stop (optional)',
-                                                    prefixIcon: Icon(
-                                                      Icons.add_location,
-                                                      size: 20.sp,
-                                                      color: Colors.grey,
-                                                    ),
-                                                    suffixIcon:
-                                                        stopController
-                                                            .text
-                                                            .isNotEmpty
-                                                        ? GestureDetector(
-                                                            onTap: () {
-                                                              setState(() {
-                                                                stopController
-                                                                    .clear();
-                                                              });
-                                                            },
-                                                            child: Container(
-                                                              width: 24.w,
-                                                              height: 24.h,
-                                                              margin:
-                                                                  EdgeInsets.only(
-                                                                    right: 8.w,
-                                                                  ),
-                                                              child: Icon(
-                                                                Icons.clear,
-                                                                size: 16.sp,
-                                                                color:
-                                                                    Colors.grey,
-                                                              ),
-                                                            ),
-                                                          )
-                                                        : null,
-                                                    border: InputBorder.none,
-                                                    contentPadding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 10.w,
-                                                          vertical: 8.h,
-                                                        ),
-                                                  ),
-                                                  onChanged: (value) =>
-                                                      setState(() {}),
-                                                ),
-                                              ),
-                                              SizedBox(height: 10.h),
-                                              Container(
-                                                width: 338.w,
-                                                height: 50.h,
-                                                decoration: BoxDecoration(
-                                                  color: Color(
-                                                    ConstColors.fieldColor,
-                                                  ).withOpacity(0.12),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        8.r,
-                                                      ),
-                                                ),
-                                                child: TextField(
-                                                  controller: toController,
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _isFromFieldFocused =
-                                                          false;
-                                                    });
-                                                  },
-                                                  onChanged: (value) {
-                                                    _searchLocations(value);
-                                                  },
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Where to?',
-                                                    prefixIcon: Icon(
-                                                      Icons.search,
-                                                      size: 20.sp,
-                                                      color: Colors.grey,
-                                                    ),
-                                                    suffixIcon: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        if (toController
-                                                            .text
-                                                            .isNotEmpty)
-                                                          GestureDetector(
-                                                            onTap: () {
-                                                              setState(() {
-                                                                toController
-                                                                    .clear();
-                                                              });
-                                                            },
-                                                            child: Container(
-                                                              width: 24.w,
-                                                              height: 24.h,
-                                                              margin:
-                                                                  EdgeInsets.only(
-                                                                    right: 8.w,
-                                                                  ),
-                                                              child: Icon(
-                                                                Icons.clear,
-                                                                size: 16.sp,
-                                                                color:
-                                                                    Colors.grey,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        GestureDetector(
-                                                          onTap: () async {
-                                                            setState(() {
-                                                              _showMapTooltip =
-                                                                  true;
-                                                            });
-                                                            Future.delayed(
-                                                              Duration(
-                                                                seconds: 2,
-                                                              ),
-                                                              () {
-                                                                if (mounted) {
-                                                                  setState(() {
-                                                                    _showMapTooltip =
-                                                                        false;
-                                                                  });
-                                                                }
-                                                              },
-                                                            );
-                                                            final result = await Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                builder: (context) =>
-                                                                    MapSelectionScreen(
-                                                                      isFromField:
-                                                                          false,
-                                                                      initialLocation:
-                                                                          _currentLocation,
-                                                                    ),
-                                                              ),
-                                                            );
-                                                            if (result !=
-                                                                null) {
-                                                              setState(() {
-                                                                toController
-                                                                        .text =
-                                                                    result['address'];
-                                                                _destinationCoordinates =
-                                                                    result['location'];
-                                                              });
-                                                              // Check if both fields are filled to show vehicle selection
-                                                              if (fromController
-                                                                  .text
-                                                                  .isNotEmpty) {
-                                                                _checkBothFields();
-                                                              }
-                                                            }
-                                                          },
-                                                          child: Stack(
-                                                            children: [
-                                                              Container(
-                                                                width: 24.w,
-                                                                height: 24.h,
-                                                                margin:
-                                                                    EdgeInsets.only(
-                                                                      right:
-                                                                          8.w,
-                                                                    ),
-                                                                child: Icon(
-                                                                  Icons.map,
-                                                                  size: 16.sp,
-                                                                  color: Color(
-                                                                    ConstColors
-                                                                        .mainColor,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              if (_showMapTooltip)
-                                                                Positioned(
-                                                                  right: 35.w,
-                                                                  top: -25.h,
-                                                                  child: Container(
-                                                                    padding: EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8.w,
-                                                                      vertical:
-                                                                          4.h,
-                                                                    ),
-                                                                    decoration: BoxDecoration(
-                                                                      color: Colors
-                                                                          .black87,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            4.r,
-                                                                          ),
-                                                                    ),
-                                                                    child: Text(
-                                                                      'Select from map',
-                                                                      style: TextStyle(
-                                                                        color: Colors
-                                                                            .white,
-                                                                        fontSize:
-                                                                            10.sp,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    border: InputBorder.none,
-                                                    contentPadding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 10.w,
-                                                          vertical: 8.h,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (_showSuggestions &&
-                                _locationSuggestions.isNotEmpty)
-                              Container(
-                                margin: EdgeInsets.symmetric(
-                                  horizontal: 20.w,
-                                  vertical: 10.h,
-                                ),
-                                constraints: BoxConstraints(maxHeight: 300.h),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8.r),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withOpacity(0.3),
-                                      spreadRadius: 1,
-                                      blurRadius: 5,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ListView.separated(
-                                  shrinkWrap: true,
-                                  itemCount: _locationSuggestions.length,
-                                  separatorBuilder: (context, index) => Divider(
-                                    height: 1,
-                                    color: Colors.grey.shade200,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final prediction =
-                                        _locationSuggestions[index];
-                                    return ListTile(
-                                      dense: true,
-                                      leading: Icon(
-                                        Icons.location_on,
-                                        size: 20.sp,
-                                        color: Color(ConstColors.mainColor),
-                                      ),
-                                      title: Text(
-                                        prediction.mainText,
-                                        style: TextStyle(
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle:
-                                          prediction.secondaryText.isNotEmpty
-                                          ? Text(
-                                              prediction.secondaryText,
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                                color: Colors.grey[600],
-                                              ),
-                                            )
-                                          : null,
-                                      trailing: prediction.distance != null
-                                          ? Text(
-                                              prediction.distance!,
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                                color: Colors.grey[600],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            )
-                                          : null,
-                                      onTap: () => _selectLocation(
-                                        prediction,
-                                        _isFromFieldFocused,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            SizedBox(height: 15.h),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Saved location',
-                                  style: ConstTextStyles.savedLocation,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 10.h),
-                            Divider(thickness: 1, color: Colors.grey.shade300),
-                            ListTile(
-                              leading: Image.asset(
-                                ConstImages.add,
-                                width: 24.w,
-                                height: 24.h,
-                              ),
-                              title: Text(
-                                'Add home location',
-                                style: ConstTextStyles.locationItem,
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AddHomeScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            Divider(thickness: 1, color: Colors.grey.shade300),
-                            ListTile(
-                              leading: Image.asset(
-                                ConstImages.add,
-                                width: 24.w,
-                                height: 24.h,
-                              ),
-                              title: Text(
-                                'Add work location',
-                                style: ConstTextStyles.locationItem,
-                              ),
-                            ),
-                            Divider(thickness: 1, color: Colors.grey.shade300),
-                            ListTile(
-                              leading: Image.asset(
-                                ConstImages.add,
-                                width: 24.w,
-                                height: 24.h,
-                              ),
-                              title: Text(
-                                'Add favourite location',
-                                style: ConstTextStyles.locationItem,
-                              ),
-                              onTap: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AddFavouriteScreen(),
-                                  ),
-                                );
-                                if (result == true) {
-                                  _loadFavouriteLocations();
-                                }
-                              },
-                            ),
-                            SizedBox(height: 15.h),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  'Recent locations',
-                                  style: ConstTextStyles.recentLocation
-                                      .copyWith(
-                                        color: Color(
-                                          ConstColors.recentLocationColor,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 10.h),
-                            Divider(thickness: 1, color: Colors.grey.shade300),
-                            Consumer<LocationProvider>(
-                              builder: (context, locationProvider, child) {
-                                final allLocations = <Widget>[];
-
-                                // Add favourite locations with star icon
-                                for (final fav in _favouriteLocations) {
-                                  allLocations.add(
-                                    Column(
-                                      children: [
-                                        ListTile(
-                                          leading: Image.asset(
-                                            ConstImages.locationPin,
-                                            width: 24.w,
-                                            height: 24.h,
-                                          ),
-                                          title: Text(
-                                            fav.name,
-                                            style: ConstTextStyles.drawerItem1,
-                                          ),
-                                          subtitle: Text(
-                                            fav.destAddress,
-                                            style: TextStyle(
-                                              fontSize: 12.sp,
+                                          if (_showDestinationField) ...[
+                                            SizedBox(height: 5.h),
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
                                               color: Colors.grey,
                                             ),
-                                          ),
-                                          trailing: Icon(
-                                            Icons.star,
-                                            size: 20.sp,
-                                            color: Colors.amber,
-                                          ),
-                                          onTap: () {
-                                            toController.text = fav.destAddress;
-                                            if (fromController
-                                                .text
-                                                .isNotEmpty) {
-                                              _checkBothFields();
-                                            }
-                                          },
-                                          onLongPress: () async {
-                                            final shouldDelete = await showDialog<bool>(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: Text('Delete Favourite'),
-                                                content: Text(
-                                                  'Are you sure you want to remove "${fav.name}" from favourites?',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          false,
-                                                        ),
-                                                    child: Text('Cancel'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          true,
-                                                        ),
-                                                    child: Text(
-                                                      'Delete',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
+                                            SizedBox(height: 4.h),
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 4.h),
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 4.h),
 
-                                            if (shouldDelete == true) {
-                                              try {
-                                                await _favouriteService
-                                                    .deleteFavouriteLocation(
-                                                      fav.id,
-                                                    );
-                                                _loadFavouriteLocations();
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Favourite removed',
+                                            Container(
+                                              width: 14.w,
+                                              height: 14.h,
+                                              decoration: BoxDecoration(
+                                                color: Colors.black,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            SizedBox(height: 25.h),
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 4.h),
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 25.h),
+                                            Container(
+                                              width: 14.w,
+                                              height: 14.h,
+                                              decoration: BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(width: 15.w),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Container(
+                                            width: 338.w,
+                                            height: 50.h,
+                                            decoration: BoxDecoration(
+                                              color: Color(
+                                                ConstColors.fieldColor,
+                                              ).withOpacity(0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(8.r),
+                                            ),
+                                            child: TextField(
+                                              controller: fromController,
+                                              readOnly: _showDestinationField
+                                                  ? !_isFromFieldEditable
+                                                  : false,
+                                              onTap: () {
+                                                if (!_showDestinationField) {
+                                                  setState(() {
+                                                    _showDestinationField =
+                                                        true;
+                                                    _isFromFieldFocused = true;
+                                                    _showSuggestions = false;
+                                                  });
+                                                } else if (!_isFromFieldEditable &&
+                                                    _isLocationLoaded) {
+                                                  setState(() {
+                                                    _isFromFieldEditable = true;
+                                                    _isFromFieldFocused = true;
+                                                  });
+                                                } else {
+                                                  setState(() {
+                                                    _isFromFieldFocused = true;
+                                                  });
+                                                }
+                                              },
+                                              onChanged: (value) {
+                                                if (_isFromFieldFocused ||
+                                                    !_showDestinationField) {
+                                                  _searchLocations(value);
+                                                }
+                                              },
+                                              decoration: InputDecoration(
+                                                hintText: _showDestinationField
+                                                    ? 'From?'
+                                                    : 'Where to?',
+                                                prefixIcon: Icon(
+                                                  Icons.search,
+                                                  size: 20.sp,
+                                                  color: Colors.grey,
+                                                ),
+                                                suffixIcon:
+                                                    _showDestinationField
+                                                    ? Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          if (fromController
+                                                              .text
+                                                              .isNotEmpty)
+                                                            GestureDetector(
+                                                              onTap: () {
+                                                                setState(() {
+                                                                  fromController
+                                                                      .clear();
+                                                                  _isFromFieldEditable =
+                                                                      false;
+                                                                });
+                                                              },
+                                                              child: Container(
+                                                                width: 24.w,
+                                                                height: 24.h,
+                                                                margin:
+                                                                    EdgeInsets.only(
+                                                                      right:
+                                                                          8.w,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons.clear,
+                                                                  size: 16.sp,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          GestureDetector(
+                                                            onTap: () async {
+                                                              setState(() {
+                                                                _showMapTooltip =
+                                                                    true;
+                                                              });
+                                                              Future.delayed(
+                                                                Duration(
+                                                                  seconds: 2,
+                                                                ),
+                                                                () {
+                                                                  if (mounted) {
+                                                                    setState(() {
+                                                                      _showMapTooltip =
+                                                                          false;
+                                                                    });
+                                                                  }
+                                                                },
+                                                              );
+                                                              final result = await Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder: (context) => MapSelectionScreen(
+                                                                    isFromField:
+                                                                        true,
+                                                                    initialLocation:
+                                                                        _currentLocation,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                              if (result !=
+                                                                  null) {
+                                                                setState(() {
+                                                                  fromController
+                                                                          .text =
+                                                                      result['address'];
+                                                                  _pickupCoordinates =
+                                                                      result['location'];
+                                                                  _currentLocation =
+                                                                      result['location'];
+                                                                });
+                                                                // Check if both fields are filled to show vehicle selection
+                                                                if (toController
+                                                                    .text
+                                                                    .isNotEmpty) {
+                                                                  _checkBothFields();
+                                                                }
+                                                              }
+                                                            },
+                                                            child: Stack(
+                                                              children: [
+                                                                Container(
+                                                                  width: 24.w,
+                                                                  height: 24.h,
+                                                                  margin:
+                                                                      EdgeInsets.only(
+                                                                        right:
+                                                                            8.w,
+                                                                      ),
+                                                                  child: Icon(
+                                                                    Icons.map,
+                                                                    size: 16.sp,
+                                                                    color: Color(
+                                                                      ConstColors
+                                                                          .mainColor,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                if (_showMapTooltip)
+                                                                  Positioned(
+                                                                    right: 35.w,
+                                                                    top: -25.h,
+                                                                    child: Container(
+                                                                      padding: EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            8.w,
+                                                                        vertical:
+                                                                            4.h,
+                                                                      ),
+                                                                      decoration: BoxDecoration(
+                                                                        color: Colors
+                                                                            .black87,
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(
+                                                                              4.r,
+                                                                            ),
+                                                                      ),
+                                                                      child: Text(
+                                                                        'Select from map',
+                                                                        style: TextStyle(
+                                                                          color:
+                                                                              Colors.white,
+                                                                          fontSize:
+                                                                              10.sp,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      )
+                                                    : null,
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                      horizontal: 10.w,
+                                                      vertical: 8.h,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (_showDestinationField)
+                                            Column(
+                                              children: [
+                                                SizedBox(height: 10.h),
+                                                Container(
+                                                  width: 338.w,
+                                                  height: 50.h,
+                                                  decoration: BoxDecoration(
+                                                    color: Color(
+                                                      ConstColors.fieldColor,
+                                                    ).withOpacity(0.12),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8.r,
+                                                        ),
+                                                  ),
+                                                  child: TextField(
+                                                    controller: stopController,
+                                                    decoration: InputDecoration(
+                                                      hintText:
+                                                          'Add stop (optional)',
+                                                      prefixIcon: Icon(
+                                                        Icons.add_location,
+                                                        size: 20.sp,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      suffixIcon:
+                                                          stopController
+                                                              .text
+                                                              .isNotEmpty
+                                                          ? GestureDetector(
+                                                              onTap: () {
+                                                                setState(() {
+                                                                  stopController
+                                                                      .clear();
+                                                                });
+                                                              },
+                                                              child: Container(
+                                                                width: 24.w,
+                                                                height: 24.h,
+                                                                margin:
+                                                                    EdgeInsets.only(
+                                                                      right:
+                                                                          8.w,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons.clear,
+                                                                  size: 16.sp,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                            )
+                                                          : null,
+                                                      border: InputBorder.none,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal: 10.w,
+                                                            vertical: 8.h,
+                                                          ),
+                                                    ),
+                                                    onChanged: (value) =>
+                                                        setState(() {}),
+                                                  ),
+                                                ),
+                                                SizedBox(height: 10.h),
+                                                Container(
+                                                  width: 338.w,
+                                                  height: 50.h,
+                                                  decoration: BoxDecoration(
+                                                    color: Color(
+                                                      ConstColors.fieldColor,
+                                                    ).withOpacity(0.12),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8.r,
+                                                        ),
+                                                  ),
+                                                  child: TextField(
+                                                    controller: toController,
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _isFromFieldFocused =
+                                                            false;
+                                                      });
+                                                    },
+                                                    onChanged: (value) {
+                                                      _searchLocations(value);
+                                                    },
+                                                    decoration: InputDecoration(
+                                                      hintText: 'Where to?',
+                                                      prefixIcon: Icon(
+                                                        Icons.search,
+                                                        size: 20.sp,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      suffixIcon: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          if (toController
+                                                              .text
+                                                              .isNotEmpty)
+                                                            GestureDetector(
+                                                              onTap: () {
+                                                                setState(() {
+                                                                  toController
+                                                                      .clear();
+                                                                });
+                                                              },
+                                                              child: Container(
+                                                                width: 24.w,
+                                                                height: 24.h,
+                                                                margin:
+                                                                    EdgeInsets.only(
+                                                                      right:
+                                                                          8.w,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons.clear,
+                                                                  size: 16.sp,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          GestureDetector(
+                                                            onTap: () async {
+                                                              setState(() {
+                                                                _showMapTooltip =
+                                                                    true;
+                                                              });
+                                                              Future.delayed(
+                                                                Duration(
+                                                                  seconds: 2,
+                                                                ),
+                                                                () {
+                                                                  if (mounted) {
+                                                                    setState(() {
+                                                                      _showMapTooltip =
+                                                                          false;
+                                                                    });
+                                                                  }
+                                                                },
+                                                              );
+                                                              final result = await Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder: (context) => MapSelectionScreen(
+                                                                    isFromField:
+                                                                        false,
+                                                                    initialLocation:
+                                                                        _currentLocation,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                              if (result !=
+                                                                  null) {
+                                                                setState(() {
+                                                                  toController
+                                                                          .text =
+                                                                      result['address'];
+                                                                  _destinationCoordinates =
+                                                                      result['location'];
+                                                                });
+                                                                // Check if both fields are filled to show vehicle selection
+                                                                if (fromController
+                                                                    .text
+                                                                    .isNotEmpty) {
+                                                                  _checkBothFields();
+                                                                }
+                                                              }
+                                                            },
+                                                            child: Stack(
+                                                              children: [
+                                                                Container(
+                                                                  width: 24.w,
+                                                                  height: 24.h,
+                                                                  margin:
+                                                                      EdgeInsets.only(
+                                                                        right:
+                                                                            8.w,
+                                                                      ),
+                                                                  child: Icon(
+                                                                    Icons.map,
+                                                                    size: 16.sp,
+                                                                    color: Color(
+                                                                      ConstColors
+                                                                          .mainColor,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                if (_showMapTooltip)
+                                                                  Positioned(
+                                                                    right: 35.w,
+                                                                    top: -25.h,
+                                                                    child: Container(
+                                                                      padding: EdgeInsets.symmetric(
+                                                                        horizontal:
+                                                                            8.w,
+                                                                        vertical:
+                                                                            4.h,
+                                                                      ),
+                                                                      decoration: BoxDecoration(
+                                                                        color: Colors
+                                                                            .black87,
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(
+                                                                              4.r,
+                                                                            ),
+                                                                      ),
+                                                                      child: Text(
+                                                                        'Select from map',
+                                                                        style: TextStyle(
+                                                                          color:
+                                                                              Colors.white,
+                                                                          fontSize:
+                                                                              10.sp,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      border: InputBorder.none,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal: 10.w,
+                                                            vertical: 8.h,
+                                                          ),
                                                     ),
                                                   ),
-                                                );
-                                              } catch (e) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Failed to remove favourite',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                        ),
+                                                ),
+                                              ],
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_showSuggestions &&
+                                  _locationSuggestions.isNotEmpty)
+                                Container(
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: 20.w,
+                                    vertical: 10.h,
+                                  ),
+                                  constraints: BoxConstraints(maxHeight: 300.h),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8.r),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.3),
+                                        spreadRadius: 1,
+                                        blurRadius: 5,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    itemCount: _locationSuggestions.length,
+                                    separatorBuilder: (context, index) =>
                                         Divider(
-                                          thickness: 1,
-                                          color: Colors.grey.shade300,
+                                          height: 1,
+                                          color: Colors.grey.shade200,
                                         ),
-                                      ],
+                                    itemBuilder: (context, index) {
+                                      final prediction =
+                                          _locationSuggestions[index];
+                                      return ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          Icons.location_on,
+                                          size: 20.sp,
+                                          color: Color(ConstColors.mainColor),
+                                        ),
+                                        title: Text(
+                                          prediction.mainText,
+                                          style: TextStyle(
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle:
+                                            prediction.secondaryText.isNotEmpty
+                                            ? Text(
+                                                prediction.secondaryText,
+                                                style: TextStyle(
+                                                  fontSize: 12.sp,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              )
+                                            : null,
+                                        trailing: prediction.distance != null
+                                            ? Text(
+                                                prediction.distance!,
+                                                style: TextStyle(
+                                                  fontSize: 12.sp,
+                                                  color: Colors.grey[600],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              )
+                                            : null,
+                                        onTap: () => _selectLocation(
+                                          prediction,
+                                          _isFromFieldFocused,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              SizedBox(height: 15.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Saved location',
+                                    style: ConstTextStyles.savedLocation,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 10.h),
+                              Divider(
+                                thickness: 1,
+                                color: Colors.grey.shade300,
+                              ),
+                              ListTile(
+                                leading: Image.asset(
+                                  ConstImages.add,
+                                  width: 24.w,
+                                  height: 24.h,
+                                ),
+                                title: Text(
+                                  'Add home location',
+                                  style: ConstTextStyles.locationItem,
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const AddHomeScreen(),
                                     ),
                                   );
-                                }
+                                },
+                              ),
+                              Divider(
+                                thickness: 1,
+                                color: Colors.grey.shade300,
+                              ),
+                              ListTile(
+                                leading: Image.asset(
+                                  ConstImages.add,
+                                  width: 24.w,
+                                  height: 24.h,
+                                ),
+                                title: Text(
+                                  'Add work location',
+                                  style: ConstTextStyles.locationItem,
+                                ),
+                              ),
+                              Divider(
+                                thickness: 1,
+                                color: Colors.grey.shade300,
+                              ),
+                              ListTile(
+                                leading: Image.asset(
+                                  ConstImages.add,
+                                  width: 24.w,
+                                  height: 24.h,
+                                ),
+                                title: Text(
+                                  'Add favourite location',
+                                  style: ConstTextStyles.locationItem,
+                                ),
+                                onTap: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          AddFavouriteScreen(),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _loadFavouriteLocations();
+                                  }
+                                },
+                              ),
+                              SizedBox(height: 15.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Recent locations',
+                                    style: ConstTextStyles.recentLocation
+                                        .copyWith(
+                                          color: Color(
+                                            ConstColors.recentLocationColor,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 10.h),
+                              Divider(
+                                thickness: 1,
+                                color: Colors.grey.shade300,
+                              ),
+                              Consumer<LocationProvider>(
+                                builder: (context, locationProvider, child) {
+                                  final allLocations = <Widget>[];
 
-                                // Add recent locations without star
-                                for (final recent
-                                    in locationProvider.recentLocations) {
-                                  if (!recent.isFavourite) {
+                                  // Add favourite locations with star icon
+                                  for (final fav in _favouriteLocations) {
                                     allLocations.add(
                                       Column(
                                         children: [
@@ -2539,68 +2679,187 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                               height: 24.h,
                                             ),
                                             title: Text(
-                                              recent.name,
+                                              fav.name,
                                               style:
                                                   ConstTextStyles.drawerItem1,
                                             ),
                                             subtitle: Text(
-                                              recent.address,
+                                              fav.destAddress,
                                               style: TextStyle(
                                                 fontSize: 12.sp,
                                                 color: Colors.grey,
                                               ),
                                             ),
-                                            trailing: GestureDetector(
-                                              onTap: () async {
-                                                await locationProvider
-                                                    .deleteRecentLocation(
-                                                      recent.name,
-                                                    );
-                                              },
-                                              child: Icon(
-                                                Icons.close,
-                                                size: 20.sp,
-                                                color: Colors.grey,
-                                              ),
+                                            trailing: Icon(
+                                              Icons.star,
+                                              size: 20.sp,
+                                              color: Colors.amber,
                                             ),
                                             onTap: () {
-                                              toController.text = recent.name;
+                                              toController.text =
+                                                  fav.destAddress;
                                               if (fromController
                                                   .text
                                                   .isNotEmpty) {
                                                 _checkBothFields();
                                               }
                                             },
+                                            onLongPress: () async {
+                                              final shouldDelete =
+                                                  await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (context) =>
+                                                        AlertDialog(
+                                                          title: Text(
+                                                            'Delete Favourite',
+                                                          ),
+                                                          content: Text(
+                                                            'Are you sure you want to remove "${fav.name}" from favourites?',
+                                                          ),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                    context,
+                                                                    false,
+                                                                  ),
+                                                              child: Text(
+                                                                'Cancel',
+                                                              ),
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                    context,
+                                                                    true,
+                                                                  ),
+                                                              child: Text(
+                                                                'Delete',
+                                                                style: TextStyle(
+                                                                  color: Colors
+                                                                      .red,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                  );
+
+                                              if (shouldDelete == true) {
+                                                try {
+                                                  await _favouriteService
+                                                      .deleteFavouriteLocation(
+                                                        fav.id,
+                                                      );
+                                                  _loadFavouriteLocations();
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Favourite removed',
+                                                      ),
+                                                    ),
+                                                  );
+                                                } catch (e) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Failed to remove favourite',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
                                           ),
-                                          if (allLocations.length <
-                                              _favouriteLocations.length +
-                                                  locationProvider
-                                                      .recentLocations
-                                                      .where(
-                                                        (r) => !r.isFavourite,
-                                                      )
-                                                      .length)
-                                            Divider(
-                                              thickness: 1,
-                                              color: Colors.grey.shade300,
-                                            ),
+                                          Divider(
+                                            thickness: 1,
+                                            color: Colors.grey.shade300,
+                                          ),
                                         ],
                                       ),
                                     );
                                   }
-                                }
 
-                                return Column(children: allLocations);
-                              },
-                            ),
-                          ],
+                                  // Add recent locations without star
+                                  for (final recent
+                                      in locationProvider.recentLocations) {
+                                    if (!recent.isFavourite) {
+                                      allLocations.add(
+                                        Column(
+                                          children: [
+                                            ListTile(
+                                              leading: Image.asset(
+                                                ConstImages.locationPin,
+                                                width: 24.w,
+                                                height: 24.h,
+                                              ),
+                                              title: Text(
+                                                recent.name,
+                                                style:
+                                                    ConstTextStyles.drawerItem1,
+                                              ),
+                                              subtitle: Text(
+                                                recent.address,
+                                                style: TextStyle(
+                                                  fontSize: 12.sp,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              trailing: GestureDetector(
+                                                onTap: () async {
+                                                  await locationProvider
+                                                      .deleteRecentLocation(
+                                                        recent.name,
+                                                      );
+                                                },
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 20.sp,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                toController.text = recent.name;
+                                                if (fromController
+                                                    .text
+                                                    .isNotEmpty) {
+                                                  _checkBothFields();
+                                                }
+                                              },
+                                            ),
+                                            if (allLocations.length <
+                                                _favouriteLocations.length +
+                                                    locationProvider
+                                                        .recentLocations
+                                                        .where(
+                                                          (r) => !r.isFavourite,
+                                                        )
+                                                        .length)
+                                              Divider(
+                                                thickness: 1,
+                                                color: Colors.grey.shade300,
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+                                  }
+
+                                  return Column(children: allLocations);
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-      ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -3688,15 +3947,27 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                       child: GestureDetector(
                         onTap: () async {
                           Navigator.pop(context);
-                          
+
+                          // Combine selected date and time into DateTime
+                          final scheduledDateTime = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            selectedTime.hour,
+                            selectedTime.minute,
+                          );
+
                           // Book the scheduled ride
                           setState(() {
                             _isBookingRide = true;
                           });
-                          
+
                           try {
-                            _currentRideResponse = await _requestRide(isScheduled: true);
-                            
+                            _currentRideResponse = await _requestRide(
+                              isScheduled: true,
+                              scheduledDateTime: scheduledDateTime,
+                            );
+
                             if (_currentRideResponse != null) {
                               fromController.clear();
                               toController.clear();
@@ -3711,7 +3982,9 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                               _isBookingRide = false;
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to schedule ride: $e')),
+                              SnackBar(
+                                content: Text('Failed to schedule ride: $e'),
+                              ),
                             );
                           }
                         },
@@ -3895,7 +4168,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                               ),
                               SizedBox(width: 4.w),
                               Text(
-                                _assignedDriver!.rating.toString(),
+                                _assignedDriver!.rating.toStringAsFixed(1),
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 16.sp,
@@ -3985,7 +4258,139 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                         children: [
                           Expanded(
                             child: GestureDetector(
-                              onTap: () {},
+                              onTap: () async {
+                                if (hasStarted) {
+                                  // SOS functionality
+                                  if (_activeRide != null) {
+                                    try {
+                                      // Show loading indicator
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (context) => Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+
+                                      // Get current location
+                                      final position =
+                                          await Geolocator.getCurrentPosition(
+                                            desiredAccuracy:
+                                                LocationAccuracy.high,
+                                          );
+
+                                      // Get address from coordinates
+                                      String locationAddress =
+                                          'Unknown location';
+                                      try {
+                                        final placemarks =
+                                            await placemarkFromCoordinates(
+                                              position.latitude,
+                                              position.longitude,
+                                            );
+                                        if (placemarks.isNotEmpty) {
+                                          final placemark = placemarks.first;
+                                          locationAddress =
+                                              '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
+                                        }
+                                      } catch (e) {
+                                        AppLogger.log(
+                                          'Failed to get address: $e',
+                                          tag: 'SOS',
+                                        );
+                                      }
+
+                                      // Format location as POINT
+                                      final location =
+                                          'POINT(${position.longitude} ${position.latitude})';
+
+                                      // Get ride ID
+                                      final rideId = _activeRide?['ID'] is int
+                                          ? _activeRide!['ID']
+                                          : int.parse(
+                                              _activeRide?['ID']?.toString() ??
+                                                  '0',
+                                            );
+
+                                      // Send SOS
+                                      final result = await _rideService.sendSOS(
+                                        location: location,
+                                        locationAddress: locationAddress,
+                                        rideId: rideId,
+                                      );
+
+                                      // Close loading dialog
+                                      Navigator.pop(context);
+
+                                      // Show result
+                                      if (result['success'] == true) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '🆘 SOS alert sent successfully!',
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to send SOS: ${result['message']}',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      // Close loading dialog if still open
+                                      Navigator.pop(context);
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error sending SOS: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      AppLogger.error(
+                                        'SOS Error',
+                                        error: e,
+                                        tag: 'SOS',
+                                      );
+                                    }
+                                  }
+                                } else if (hasArrived) {
+                                  // Cancel functionality
+                                } else {
+                                  // Call Driver functionality
+                                  if (_assignedDriver != null &&
+                                      _activeRide != null) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => CallScreen(
+                                          driverName: _assignedDriver!.name,
+                                          rideId: _activeRide?['ID'] is int
+                                              ? _activeRide!['ID']
+                                              : int.parse(
+                                                  _activeRide?['ID']
+                                                          ?.toString() ??
+                                                      '0',
+                                                ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -3994,7 +4399,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                         ? Icons.sos
                                         : hasArrived
                                         ? Icons.cancel
-                                        : Icons.edit,
+                                        : Icons.call,
                                     size: 16.sp,
                                     color: Colors.black,
                                   ),
@@ -4004,7 +4409,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                         ? 'SOS'
                                         : hasArrived
                                         ? 'Cancel'
-                                        : 'Modify Trip',
+                                        : 'Call Driver',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
@@ -4783,6 +5188,23 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
 
+    // Format the scheduled date and time
+    final scheduledDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    final formattedDate =
+        '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
+
+    // Get the price from the current estimate
+    final price = _currentEstimate != null && selectedVehicle != null
+        ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
+        : '₦12,000';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -4861,7 +5283,9 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          'Nsukka, Enugu',
+                          fromController.text.isNotEmpty
+                              ? fromController.text
+                              : 'Current location',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -4906,7 +5330,9 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          'Ikeja, Lagos',
+                          toController.text.isNotEmpty
+                              ? toController.text
+                              : 'Destination',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -4943,7 +5369,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'November 28, 2025 at 03:45 pm',
+                  formattedDate,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
@@ -5048,7 +5474,7 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                     ),
                     SizedBox(height: 5.h),
                     Text(
-                      '₦12,000',
+                      price,
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 18.sp,
@@ -5659,6 +6085,212 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     }
   }
 
+  void _showTripCompleteSheet(int rideId, String price) {
+    AppLogger.log(
+      '📊 Opening Trip Complete sheet for ride ID: $rideId',
+      tag: 'RIDE',
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Text(
+              'Trip Complete',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 30.h),
+
+            // Trip ID
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Trip ID',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '#$rideId',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 15.h),
+
+            // Fare
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Fare',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '₦$price',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 15.h),
+            Divider(color: Colors.grey.shade300),
+            SizedBox(height: 15.h),
+
+            // Total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  '₦$price',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 24.sp,
+                    fontWeight: FontWeight.w700,
+                    color: Color(ConstColors.mainColor),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 40.h),
+
+            // Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 50.h,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Color(ConstColors.mainColor)),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TipScreen(rideId: rideId),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Tip Driver',
+                        style: TextStyle(
+                          color: Color(ConstColors.mainColor),
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 15.w),
+                Expanded(
+                  child: Container(
+                    height: 50.h,
+                    decoration: BoxDecoration(
+                      color: Color(ConstColors.mainColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: TextButton(
+                      onPressed: () async {
+                        try {
+                          Navigator.pop(context); // Close trip sheet
+
+                          // We can check if dismiss is needed or just proceed to rate
+                          // Assuming dismiss marks it as 'Driver Reviewed' in backend logic or something
+                          // But typically user dismisses the completion sheet to see rating.
+
+                          // Call dismiss API
+                          await _rideService.dismissRide(rideId);
+
+                          if (mounted) {
+                            _showRatingSheet();
+                          }
+                        } catch (e) {
+                          AppLogger.error(
+                            'Failed to dismiss ride',
+                            error: e,
+                            tag: 'RIDE',
+                          );
+                          // Proceed to rating anyway as fallback
+                          if (mounted) {
+                            _showRatingSheet();
+                          }
+                        }
+                      },
+                      child: Text(
+                        'Dismiss',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20.h),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showRatingSheet() {
     int selectedRating = 0;
     final reviewController = TextEditingController();
@@ -5791,11 +6423,13 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                   '❌ No ride ID available!',
                                   tag: 'RATING',
                                 );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error: No ride ID found'),
-                                  ),
-                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: No ride ID found'),
+                                    ),
+                                  );
+                                }
                                 return;
                               }
 
@@ -5822,21 +6456,25 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
 
                                 if (result['success'] == true) {
                                   // Mark ride as rated
-                                  if (currentRideId != null) {
-                                    _dismissedRatingRides.add(currentRideId);
-                                  }
-                                  setState(() {
-                                    _activeRide = null;
-                                    _isDriverAssigned = false;
-                                    _isRideAccepted = false;
-                                    _isInCar = false;
-                                    _assignedDriver = null;
-                                    _mapMarkers = {};
-                                    _mapPolylines = {};
-                                  });
+                                  _dismissedRatingRides.add(currentRideId);
 
+                                  // Close the bottom sheet first
                                   if (mounted) {
                                     Navigator.pop(context);
+                                  }
+
+                                  // Then update the parent state
+                                  if (mounted) {
+                                    setState(() {
+                                      _activeRide = null;
+                                      _isDriverAssigned = false;
+                                      _isRideAccepted = false;
+                                      _isInCar = false;
+                                      _assignedDriver = null;
+                                      _mapMarkers = {};
+                                      _mapPolylines = {};
+                                    });
+
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -5847,6 +6485,9 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                   }
                                 } else {
                                   if (mounted) {
+                                    setRatingState(() {
+                                      isSubmitting = false;
+                                    });
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -5857,17 +6498,18 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
                                   }
                                 }
                               } catch (e) {
+                                AppLogger.log(
+                                  '❌ Error submitting rating: $e',
+                                  tag: 'RATING',
+                                );
                                 if (mounted) {
+                                  setRatingState(() {
+                                    isSubmitting = false;
+                                  });
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Error: $e')),
                                   );
                                 }
-                              }
-
-                              if (mounted) {
-                                setRatingState(() {
-                                  isSubmitting = false;
-                                });
                               }
                             }
                           : null,
@@ -5904,9 +6546,11 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
       reviewController.dispose();
       // Mark ride as dismissed if user closes without rating
       if (currentRideId != null && selectedRating == 0) {
-        setState(() {
-          _dismissedRatingRides.add(currentRideId);
-        });
+        if (mounted) {
+          setState(() {
+            _dismissedRatingRides.add(currentRideId);
+          });
+        }
       }
     });
   }
@@ -6192,7 +6836,6 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     );
   }
 
-
   Future<void> _estimateRide() async {
     AppLogger.log('🎯 Destination: ${toController.text}');
 
@@ -6211,83 +6854,100 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     setState(() {});
   }
 
-  // Future<RideResponse> _requestRide() async {
-  //   AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
+  Future<RideResponse> _requestRide({
+    bool isScheduled = false,
+    DateTime? scheduledDateTime,
+  }) async {
+    AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
 
-  //   if (_currentEstimate == null || selectedVehicle == null) {
-  //     AppLogger.log('❌ Missing estimate or vehicle selection');
-  //     throw Exception('No estimate or vehicle selected');
-  //   }
+    if (_currentEstimate == null || selectedVehicle == null) {
+      AppLogger.log('❌ Missing estimate or vehicle selection');
+      throw Exception('No estimate or vehicle selected');
+    }
 
-  //   final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
-  //   final vehicleType = selectedPriceData['vehicle_type'];
+    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
+    final vehicleType = selectedPriceData['vehicle_type'];
 
-  //   AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
-  //   AppLogger.log('💰 Selected Price Data: $selectedPriceData');
+    AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
+    AppLogger.log('💰 Selected Price Data: $selectedPriceData');
 
-  //   // Use actual selected coordinates for pickup and destination
-  //   final pickupLatLng = _pickupCoordinates ?? _currentLocation;
-  //   final destLatLng =
-  //       _destinationCoordinates ??
-  //       LatLng(
-  //         _currentLocation.latitude + 0.01,
-  //         _currentLocation.longitude + 0.01,
-  //       );
+    // Use actual selected coordinates for pickup and destination
+    final pickupLatLng = _pickupCoordinates ?? _currentLocation;
+    final destLatLng =
+        _destinationCoordinates ??
+        LatLng(
+          _currentLocation.latitude + 0.01,
+          _currentLocation.longitude + 0.01,
+        );
 
-  //   final pickupCoords =
-  //       "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
-  //   final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
+    final pickupCoords =
+        "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
+    final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
 
-  //   AppLogger.log(
-  //     '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
-  //   );
-  //   AppLogger.log(
-  //     '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
-  //   );
-  //   AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
+    AppLogger.log(
+      '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
+    );
+    AppLogger.log(
+      '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
+    );
+    AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
 
-  //   // Fix payment method conversion - "Pay in car" should become "in_car"
-  //   String convertedPaymentMethod;
-  //   if (selectedPaymentMethod == 'Pay in car') {
-  //     convertedPaymentMethod = 'in_car';
-  //   } else {
-  //     convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
-  //       ' ',
-  //       '_',
-  //     );
-  //   }
+    // Fix payment method conversion - "Pay in car" should become "in_car"
+    String convertedPaymentMethod;
+    if (selectedPaymentMethod == 'Pay in car') {
+      convertedPaymentMethod = 'in_car';
+    } else {
+      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
+        ' ',
+        '_',
+      );
+    }
 
-  //   AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
+    AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
 
-  //   final request = RideRequest(
-  //     pickup: pickupCoords,
-  //     dest: destCoords,
-  //     pickupAddress: fromController.text.isNotEmpty
-  //         ? fromController.text
-  //         : "Current location",
-  //     destAddress: toController.text.isNotEmpty
-  //         ? toController.text
-  //         : "Destination",
-  //     stopAddress: stopController.text.isNotEmpty
-  //         ? stopController.text
-  //         : "No stops",
-  //     serviceType: _currentEstimate!.serviceType,
-  //     vehicleType: vehicleType,
-  //     paymentMethod: convertedPaymentMethod,
-  //   );
+    // Log scheduled ride information
+    if (isScheduled && scheduledDateTime != null) {
+      AppLogger.log('📅 Scheduled Ride: true');
+      AppLogger.log('⏰ Scheduled At: ${scheduledDateTime.toIso8601String()}');
+    }
 
-  //   AppLogger.log('📋 Final Ride Request Object:');
-  //   AppLogger.log('  - Pickup: ${request.pickup}');
-  //   AppLogger.log('  - Destination: ${request.dest}');
-  //   AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
-  //   AppLogger.log('  - Destination Address: ${request.destAddress}');
-  //   AppLogger.log('  - Stop Address: ${request.stopAddress}');
-  //   AppLogger.log('  - Service Type: ${request.serviceType}');
-  //   AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
-  //   AppLogger.log('  - Payment Method: ${request.paymentMethod}');
+    final request = RideRequest(
+      pickup: pickupCoords,
+      dest: destCoords,
+      pickupAddress: fromController.text.isNotEmpty
+          ? fromController.text
+          : "Current location",
+      destAddress: toController.text.isNotEmpty
+          ? toController.text
+          : "Destination",
+      stopAddress: stopController.text.isNotEmpty
+          ? stopController.text
+          : "No stops",
+      serviceType: _currentEstimate!.serviceType,
+      vehicleType: vehicleType,
+      paymentMethod: convertedPaymentMethod,
+      scheduled: isScheduled ? true : null,
+      scheduledAt: isScheduled && scheduledDateTime != null
+          ? scheduledDateTime.toIso8601String()
+          : null,
+    );
 
-  //   return await _rideService.requestRide(request);
-  // }
+    AppLogger.log('📋 Final Ride Request Object:');
+    AppLogger.log('  - Pickup: ${request.pickup}');
+    AppLogger.log('  - Destination: ${request.dest}');
+    AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
+    AppLogger.log('  - Destination Address: ${request.destAddress}');
+    AppLogger.log('  - Stop Address: ${request.stopAddress}');
+    AppLogger.log('  - Service Type: ${request.serviceType}');
+    AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
+    AppLogger.log('  - Payment Method: ${request.paymentMethod}');
+    if (request.scheduled == true) {
+      AppLogger.log('  - Scheduled: ${request.scheduled}');
+      AppLogger.log('  - Scheduled At: ${request.scheduledAt}');
+    }
+
+    return await _rideService.requestRide(request);
+  }
 
   void _showActiveRideSheet() {
     if (_activeRide == null || _isActiveRideSheetVisible) return;
@@ -6602,11 +7262,3 @@ void _handleGlobalChatMessage(Map<String, dynamic> chatData) {
     return ByteData.view(buffer).getFloat64(0, Endian.big);
   }
 }
-
-
-
-
-
-
-
-

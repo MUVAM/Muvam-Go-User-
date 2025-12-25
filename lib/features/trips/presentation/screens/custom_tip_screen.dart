@@ -67,22 +67,32 @@ class _CustomTipScreenState extends State<CustomTipScreen> {
                 ),
               ),
               SizedBox(height: 40.h),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: customTipController.text.isNotEmpty
-                      ? Color(ConstColors.mainColor)
-                      : Color(ConstColors.fieldColor),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Center(
-                  child: Text(
-                    'Save tip',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: () {
+                  if (customTipController.text.isNotEmpty) {
+                    final amount = int.tryParse(customTipController.text);
+                    if (amount != null) {
+                      Navigator.pop(context, amount);
+                    }
+                  }
+                },
+                child: Container(
+                  width: 353.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: customTipController.text.isNotEmpty
+                        ? Color(ConstColors.mainColor)
+                        : Color(ConstColors.fieldColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Save tip',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

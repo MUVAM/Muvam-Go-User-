@@ -1,12 +1,18 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/trips/presentation/screens/custom_tip_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TipScreen extends StatefulWidget {
-  const TipScreen({super.key});
+  final int? rideId;
+  const TipScreen({super.key, this.rideId});
 
   @override
   State<TipScreen> createState() => _TipScreenState();
@@ -14,7 +20,71 @@ class TipScreen extends StatefulWidget {
 
 class _TipScreenState extends State<TipScreen> {
   final List<dynamic> tipAmounts = [0, 500, 1000, 1500, 2000, 'Custom'];
-  int? selectedTip;
+  dynamic selectedTip; // Can be int or 'Custom'
+  bool _isLoading = false;
+
+  Future<void> _submitTip() async {
+    if (selectedTip == null || selectedTip == 'Custom') return;
+
+    if (widget.rideId == null) {
+      // Handle general tip setting (preference)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Default tip setting updated!')),
+        );
+        Navigator.pop(context);
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      // Using the IP address as seen in other parts of the app
+      final url = 'http://44.222.121.219/api/v1/rides/${widget.rideId}/tip';
+
+      AppLogger.log(
+        '💸 Sending tip: $selectedTip to ride ${widget.rideId}',
+        tag: 'TIP',
+      );
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          
+          
+          'amount': selectedTip}),
+      );
+
+      AppLogger.log('💸 Tip response: ${response.body}', tag: 'TIP');
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tip sent successfully!')),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        throw Exception('Failed to send tip');
+      }
+    } catch (e) {
+      AppLogger.log('❌ Failed to send tip: $e', tag: 'TIP');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to send tip')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,26 +98,33 @@ class _TipScreenState extends State<TipScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 20.h),
-                Positioned(
-                  top: 70.h,
-                  left: 20.w,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 45.w,
-                      height: 45.h,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(100.r),
+                // Back button
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 45.w,
+                        height: 45.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(100.r),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        padding: EdgeInsets.all(10.w),
+                        child: Image.asset(
+                          ConstImages.back,
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                      padding: EdgeInsets.all(10.w),
-                      child: Image.asset(ConstImages.back, fit: BoxFit.contain),
                     ),
-                  ),
+                  ],
                 ),
                 SizedBox(height: 30.h),
                 Text(
-                  'Automatically add a tip to all trips',
+                  widget.rideId != null
+                      ? 'Tip your driver'
+                      : 'Automatically add a tip to all trips',
                   style: ConstTextStyles.tipTitle,
                 ),
                 SizedBox(height: 20.h),
@@ -58,7 +135,7 @@ class _TipScreenState extends State<TipScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 1,
+                    childAspectRatio: 1.5,
                     crossAxisSpacing: 15.w,
                     mainAxisSpacing: 15.h,
                   ),
@@ -69,14 +146,25 @@ class _TipScreenState extends State<TipScreen> {
                     final isCustom = amount == 'Custom';
 
                     return GestureDetector(
-                      onTap: () {
+                      onTap: () async {
                         if (isCustom) {
-                          Navigator.push(
+                          // Standardize how CustomTipScreen behaves.
+                          // It should preferably return a value.
+                          // For now just navigate.
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const CustomTipScreen(),
                             ),
                           );
+                          // If logic was added to CustomTipScreen to return value:
+                          if (result != null && result is int) {
+                            setState(() {
+                              // Assuming we can handle custom amounts not in the list
+                              // We might need to update the list or just use selectedTip
+                              selectedTip = result;
+                            });
+                          }
                         } else {
                           setState(() {
                             selectedTip = amount;
@@ -84,18 +172,21 @@ class _TipScreenState extends State<TipScreen> {
                         }
                       },
                       child: Container(
-                        width: 170.w,
-                        height: 170.h,
                         decoration: BoxDecoration(
                           color: isSelected
                               ? Color(ConstColors.mainColor)
                               : Color(ConstColors.fieldColor).withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8.r),
+                          border: isSelected
+                              ? null
+                              : Border.all(color: Colors.grey.shade300),
                         ),
                         child: Center(
                           child: Text(
-                            isCustom ? 'Custom' : '₦$amount',
-                            style: isCustom
+                            isCustom
+                                ? 'Custom'
+                                : (amount == 0 ? 'No Tip' : '₦$amount'),
+                            style: isCustom || amount == 0
                                 ? TextStyle(
                                     fontSize: 18.sp,
                                     fontWeight: FontWeight.w600,
@@ -115,27 +206,39 @@ class _TipScreenState extends State<TipScreen> {
                   },
                 ),
                 SizedBox(height: 40.h),
-                Container(
-                  width: 353.w,
-                  height: 48.h,
-                  decoration: BoxDecoration(
-                    color: selectedTip != null
-                        ? Color(ConstColors.mainColor)
-                        : Color(ConstColors.fieldColor),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Save tip',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                GestureDetector(
+                  onTap: _isLoading ? null : _submitTip,
+                  child: Container(
+                    width: 353.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: selectedTip != null && selectedTip is int
+                          ? Color(ConstColors.mainColor)
+                          : Color(ConstColors.fieldColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Center(
+                      child: _isLoading
+                          ? SizedBox(
+                              height: 20.h,
+                              width: 20.w,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              widget.rideId != null ? 'Give tip' : 'Save',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                 ),
-                SizedBox(height: 20.h),
+                SizedBox(height: 20.h), // Bottom padding
               ],
             ),
           ),

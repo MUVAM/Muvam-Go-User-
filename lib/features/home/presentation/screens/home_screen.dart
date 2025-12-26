@@ -41,6 +41,7 @@ import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'add_favourite_screen.dart';
@@ -2011,8 +2012,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                               height: 8.h,
                                               color: Colors.grey,
                                             ),
-                                            SizedBox(height: 4.h),
 
+                                            SizedBox(height: 4.h),
                                             Container(
                                               width: 14.w,
                                               height: 14.h,
@@ -2021,7 +2022,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 shape: BoxShape.circle,
                                               ),
                                             ),
-                                            SizedBox(height: 25.h),
+                                            SizedBox(height: 5.h),
                                             Container(
                                               width: 2.w,
                                               height: 8.h,
@@ -2033,7 +2034,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               height: 8.h,
                                               color: Colors.grey,
                                             ),
-                                            SizedBox(height: 25.h),
+                                            SizedBox(height: 4.h),
+
+                                            Container(
+                                              width: 2.w,
+                                              height: 8.h,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 5.h),
                                             Container(
                                               width: 14.w,
                                               height: 14.h,
@@ -3396,6 +3404,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                       '🔙 Returned from payment: $result',
                                       tag: 'BOOK_NOW',
                                     );
+
+                                    // Handle payment result
+                                    if (result == true) {
+                                      AppLogger.log(
+                                        '✅ Payment successful, proceeding to booking request',
+                                        tag: 'BOOK_NOW',
+                                      );
+
+                                      if (mounted) {
+                                        // Clear form fields
+                                        fromController.clear();
+                                        toController.clear();
+                                        setState(() {
+                                          _showDestinationField = false;
+                                        });
+
+                                        // Close booking details sheet
+                                        Navigator.pop(context);
+
+                                        // Show booking request sheet
+                                        _showBookingRequestSheet();
+                                      }
+                                    } else {
+                                      AppLogger.log(
+                                        '⚠️ Payment was not completed or failed',
+                                        tag: 'BOOK_NOW',
+                                      );
+                                    }
                                   }
                                 }
                               } catch (e) {
@@ -3404,6 +3440,82 @@ class _HomeScreenState extends State<HomeScreen> {
                                   error: e,
                                   tag: 'BOOK_NOW',
                                 );
+
+                                if (mounted) {
+                                  // Check if error is about active ride
+                                  final errorMessage = e.toString();
+                                  if (errorMessage.contains('active ride') ||
+                                      errorMessage.contains(
+                                        'complete it before',
+                                      )) {
+                                    // Show alert dialog for active ride error
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              15.r,
+                                            ),
+                                          ),
+                                          title: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.orange,
+                                                size: 28.sp,
+                                              ),
+                                              SizedBox(width: 10.w),
+                                              Text(
+                                                'Active Ride',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 18.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          content: Text(
+                                            'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 14.sp,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text(
+                                                'OK',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 16.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(
+                                                    ConstColors.mainColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  } else {
+                                    // Show generic error snackbar for other errors
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to book ride. Please try again.',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
                               }
 
                               if (mounted) {
@@ -3457,6 +3569,80 @@ class _HomeScreenState extends State<HomeScreen> {
                                   setBookingState(() {
                                     _isBookingRide = false;
                                   });
+
+                                  // Check if error is about active ride
+                                  final errorMessage = e.toString();
+                                  if (errorMessage.contains('active ride') ||
+                                      errorMessage.contains(
+                                        'complete it before',
+                                      )) {
+                                    // Show alert dialog for active ride error
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              15.r,
+                                            ),
+                                          ),
+                                          title: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.orange,
+                                                size: 28.sp,
+                                              ),
+                                              SizedBox(width: 10.w),
+                                              Text(
+                                                'Active Ride',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 18.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          content: Text(
+                                            'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 14.sp,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text(
+                                                'OK',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 16.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(
+                                                    ConstColors.mainColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  } else {
+                                    // Show generic error snackbar for other errors
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to book ride. Please try again.',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
                               }
                             }
@@ -4079,26 +4265,44 @@ class _HomeScreenState extends State<HomeScreen> {
             // Header with title and cancel button
             Row(
               children: [
-                Container(
-                  width: 60.w,
-                  height: 60.h,
-                  decoration: BoxDecoration(
-                    color: Color(ConstColors.mainColor),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      _driverArrivalTime,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                // Only show timer when driver is on the way (not arrived, not started)
+                if (!hasStarted && !hasArrived) ...[
+                  Stack(
+                    children: [
+                      Container(
+                        width: 60.w,
+                        height: 60.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _driverArrivalTime,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      // White line decoration at top right
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Image.asset(
+                          'assets/images/whiteline.png',
+                          width: 20.w,
+                          height: 20.h,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(width: 15.w),
+                  SizedBox(width: 15.w),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -4411,6 +4615,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ? 'Cancel'
                                         : 'Call Driver',
                                     style: TextStyle(
+                                      color: Colors.red,
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
                                       fontWeight: FontWeight.w400,
@@ -4427,26 +4632,85 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           Expanded(
                             child: GestureDetector(
-                              onTap: () {
-                                if (_assignedDriver != null) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ChatScreen(
-                                        rideId: _activeRide?['ID'] is int
-                                            ? _activeRide!['ID']
-                                            : int.parse(
-                                                _activeRide?['ID']
-                                                        ?.toString() ??
-                                                    '0',
-                                              ),
-                                        driverName:
-                                            _assignedDriver?.name ?? 'Driver',
-                                        driverImage:
-                                            _assignedDriver?.profilePicture,
+                              onTap: () async {
+                                if (hasStarted) {
+                                  // Share location functionality
+                                  try {
+                                    // Get current location
+                                    final position =
+                                        await Geolocator.getCurrentPosition(
+                                          desiredAccuracy:
+                                              LocationAccuracy.high,
+                                        );
+
+                                    // Create Google Maps link
+                                    final lat = position.latitude;
+                                    final lng = position.longitude;
+                                    final mapsUrl =
+                                        'https://www.google.com/maps?q=$lat,$lng';
+
+                                    // Get address if possible
+                                    String locationInfo = 'My current location';
+                                    try {
+                                      final placemarks =
+                                          await placemarkFromCoordinates(
+                                            lat,
+                                            lng,
+                                          );
+                                      if (placemarks.isNotEmpty) {
+                                        final placemark = placemarks.first;
+                                        locationInfo =
+                                            '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
+                                      }
+                                    } catch (e) {
+                                      AppLogger.log(
+                                        'Failed to get address: $e',
+                                        tag: 'SHARE',
+                                      );
+                                    }
+
+                                    // Share the location
+                                    await Share.share(
+                                      '📍 I\'m currently here:\n$locationInfo\n\n🗺️ View on map: $mapsUrl',
+                                      subject: 'My Location',
+                                    );
+                                  } catch (e) {
+                                    AppLogger.error(
+                                      'Share location error',
+                                      error: e,
+                                      tag: 'SHARE',
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to share location: $e',
+                                        ),
+                                        backgroundColor: Colors.red,
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  }
+                                } else {
+                                  // Chat functionality
+                                  if (_assignedDriver != null) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatScreen(
+                                          rideId: _activeRide?['ID'] is int
+                                              ? _activeRide!['ID']
+                                              : int.parse(
+                                                  _activeRide?['ID']
+                                                          ?.toString() ??
+                                                      '0',
+                                                ),
+                                          driverName:
+                                              _assignedDriver?.name ?? 'Driver',
+                                          driverImage:
+                                              _assignedDriver?.profilePicture,
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                               child: Row(
@@ -6911,18 +7175,36 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('⏰ Scheduled At: ${scheduledDateTime.toIso8601String()}');
     }
 
+    // Get destination address - use toController text or reverse geocode
+    String destAddress = toController.text;
+    if (destAddress.isEmpty && _destinationCoordinates != null) {
+      try {
+        final placemarks = await placemarkFromCoordinates(
+          _destinationCoordinates!.latitude,
+          _destinationCoordinates!.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final placemark = placemarks.first;
+          destAddress =
+              '${placemark.street}, ${placemark.locality}${placemark.administrativeArea != null ? ', ${placemark.administrativeArea}' : ''}';
+          AppLogger.log('📍 Reverse geocoded destination: $destAddress');
+        }
+      } catch (e) {
+        AppLogger.log('⚠️ Failed to reverse geocode destination: $e');
+        destAddress = "Destination"; // Fallback only if reverse geocoding fails
+      }
+    }
+    if (destAddress.isEmpty) {
+      destAddress = "Destination"; // Final fallback
+    }
+
     final request = RideRequest(
       pickup: pickupCoords,
       dest: destCoords,
       pickupAddress: fromController.text.isNotEmpty
           ? fromController.text
           : "Current location",
-      destAddress: toController.text.isNotEmpty
-          ? toController.text
-          : "Destination",
-      stopAddress: stopController.text.isNotEmpty
-          ? stopController.text
-          : "No stops",
+      destAddress: destAddress,
       serviceType: _currentEstimate!.serviceType,
       vehicleType: vehicleType,
       paymentMethod: convertedPaymentMethod,
@@ -6937,7 +7219,6 @@ class _HomeScreenState extends State<HomeScreen> {
     AppLogger.log('  - Destination: ${request.dest}');
     AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
     AppLogger.log('  - Destination Address: ${request.destAddress}');
-    AppLogger.log('  - Stop Address: ${request.stopAddress}');
     AppLogger.log('  - Service Type: ${request.serviceType}');
     AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
     AppLogger.log('  - Payment Method: ${request.paymentMethod}');

@@ -56,7 +56,6 @@ class RideRequest {
   final String pickupAddress;
   final String serviceType;
   final String vehicleType;
-  final String? stopAddress;
   final bool? scheduled;
   final String? scheduledAt;
 
@@ -68,7 +67,6 @@ class RideRequest {
     required this.pickupAddress,
     required this.serviceType,
     required this.vehicleType,
-    this.stopAddress,
     this.scheduled,
     this.scheduledAt,
   });
@@ -79,17 +77,16 @@ class RideRequest {
       "dest": dest,
       "pickup_address": pickupAddress,
       "dest_address": destAddress,
-      "stop_address": stopAddress ?? "No stops",
       "service_type": serviceType,
       "vehicle_type": vehicleType,
       "payment_method": _getPaymentMethodKey(paymentMethod),
     };
-    
+
     if (scheduled == true && scheduledAt != null) {
       json["scheduled"] = scheduled;
       json["scheduled_at"] = scheduledAt;
     }
-    
+
     return json;
   }
 

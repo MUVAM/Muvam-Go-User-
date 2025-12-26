@@ -317,6 +317,10 @@ class RideService {
 
     AppLogger.log('=== SOS REQUEST ===', tag: 'SOS');
     AppLogger.log('URL: $url', tag: 'SOS');
+    AppLogger.log(
+      'Token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}',
+      tag: 'SOS',
+    );
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'SOS');
 
     final response = await http.post(

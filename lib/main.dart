@@ -12,6 +12,7 @@ import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
+import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/shared/presentation/screens/splash_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -22,7 +23,6 @@ import 'package:provider/provider.dart';
 //   WidgetsFlutterBinding.ensureInitialized();
 //   await dotenv.load(fileName: ".env");
 //   await _setupGlobalWebSocketHandler();
-
 
 //   runApp(const MyApp());
 // }
@@ -38,49 +38,46 @@ import 'package:provider/provider.dart';
 //   // final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 //   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-
 //   // @override
 //   // void initState() {
 //   //   super.initState();
-    
+
 //   //   // Initialize global call service
 //   //   GlobalCallService.instance.initialize(navigatorKey);
-    
+
 //   //   // Setup WebSocket incoming call handler
 //   //   _setupGlobalCallHandler();
 //   // }
 //   @override
 //   void initState() {
 //     super.initState();
-    
+
 //     // Initialize global call service with navigator key
 //     GlobalCallService.instance.initialize(navigatorKey);
 //   }
 
-
-  
 //   void _setupGlobalCallHandler() {
 //     final webSocket = WebSocketService.instance;
-    
+
 //     // CRITICAL: Set up the call handler BEFORE connecting
 //     webSocket.onIncomingCall = (callData) {
 //       AppLogger.log('📞 Global incoming call handler triggered', tag: 'MAIN_APP');
 //       AppLogger.log('📞 Call data received: $callData', tag: 'MAIN_APP');
-      
+
 //       // Show incoming call overlay globally
 //       GlobalCallService.instance.showIncomingCall(
 //         callData: callData,
 //         onAccept: (sessionId) async {
 //           final callerName = callData['data']?['caller_name'] ?? 'Unknown';
 //           final rideId = callData['data']?['ride_id'] ?? 0;
-          
+
 //           AppLogger.log('✅ Call accepted - Session: $sessionId, Caller: $callerName', tag: 'MAIN_APP');
-          
+
 //           // Answer the call via API
 //           final callService = CallService();
 //           await callService.initialize();
 //           await callService.answerCall(sessionId);
-          
+
 //           // Navigate to call screen
 //           navigatorKey.currentState?.push(
 //             MaterialPageRoute(
@@ -93,7 +90,7 @@ import 'package:provider/provider.dart';
 //         },
 //         onReject: (sessionId) async {
 //           AppLogger.log('❌ Call rejected - Session: $sessionId', tag: 'MAIN_APP');
-          
+
 //           // Reject the call via API
 //           final callService = CallService();
 //           await callService.initialize();
@@ -101,7 +98,7 @@ import 'package:provider/provider.dart';
 //         },
 //       );
 //     };
-    
+
 //     AppLogger.log('✅ Global call handler setup complete', tag: 'MAIN_APP');
 //   }
 
@@ -110,8 +107,6 @@ import 'package:provider/provider.dart';
 //     GlobalCallService.instance.dispose();
 //     super.dispose();
 //   }
-
-
 
 //   @override
 //   Widget build(BuildContext context) {
@@ -139,7 +134,7 @@ import 'package:provider/provider.dart';
 //             home: const SplashScreen(),
 
 //             navigatorKey: MyApp.navigatorKey, // Use static key
-  
+
 //             // navigatorKey: navigatorKey, // IMPORTANT: Set the navigator key
 
 //           ),
@@ -149,26 +144,20 @@ import 'package:provider/provider.dart';
 //   }
 // }
 
-
-
-
-
-
-
-
 //FOR PASSENGER - Fixed main.dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  
+
   // CRITICAL: Set up WebSocket call handler BEFORE running app
   // await _setupGlobalWebSocketHandler();
-    // _setupGlobalWebSocketHandlerSync();
+  // _setupGlobalWebSocketHandlerSync();
   // GlobalCallService.instance.initialize(MyApp.navigatorKey);
   _setupGlobalWebSocketHandlerSync();
 
   runApp(const MyApp());
 }
+
 void _setupGlobalWebSocketHandlerSync() {
   // Get WebSocket instance WITHOUT connecting
   final webSocket = WebSocketService.instance;
@@ -330,12 +319,12 @@ void _setupGlobalWebSocketHandlerSync() {
   );
 }
 
-
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-  
+
   // Make navigator key static so it can be accessed from main()
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -345,7 +334,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize global call service with navigator key
     GlobalCallService.instance.initialize(MyApp.navigatorKey);
   }
@@ -374,6 +363,7 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider(create: (_) => WebSocketProvider()),
             ChangeNotifierProvider(create: (_) => UserProfileProvider()),
             ChangeNotifierProvider(create: (_) => ActivitiesTabsProvider()),
+            ChangeNotifierProvider(create: (_) => ReferralProvider()),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -387,4 +377,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-

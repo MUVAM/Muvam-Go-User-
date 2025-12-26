@@ -19,7 +19,7 @@ class PromoCodeScreen extends StatelessWidget {
               SizedBox(height: 20.h),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Image.asset(ConstImages.back, width: 24.w, height: 24.h),
+                child: Image.asset(ConstImages.back, width: 30.w, height: 30.h),
               ),
               SizedBox(height: 20.h),
               Text(

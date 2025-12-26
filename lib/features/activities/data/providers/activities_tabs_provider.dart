@@ -39,40 +39,47 @@ class ActivitiesTabsProvider extends ChangeNotifier {
     try {
       AppLogger.log('Fetching rides from API');
 
+      bool hasError = false;
+
+      // Fetch prebooked rides
       final prebookedResult = await _activitiesService.getPrebookedRides();
-      if (prebookedResult['success'] == true &&
-          prebookedResult['data'] != null) {
+      if (prebookedResult['success'] == true) {
         _prebookedRides = _parseRides(prebookedResult['data']);
         AppLogger.log('Prebooked rides: ${_prebookedRides.length}');
       } else {
         AppLogger.log('Prebooked rides failed: ${prebookedResult['message']}');
+        hasError = true;
         _prebookedRides = [];
       }
 
+      // Fetch active rides
       final activeResult = await _activitiesService.getActiveRides();
-      if (activeResult['success'] == true && activeResult['data'] != null) {
+      if (activeResult['success'] == true) {
         _activeRides = _parseRides(activeResult['data']);
         AppLogger.log('Active rides: ${_activeRides.length}');
       } else {
         AppLogger.log('Active rides failed: ${activeResult['message']}');
+        hasError = true;
         _activeRides = [];
       }
 
+      // Fetch history rides
       final historyResult = await _activitiesService.getHistoryRides();
-      if (historyResult['success'] == true && historyResult['data'] != null) {
+      if (historyResult['success'] == true) {
         _historyRides = _parseRides(historyResult['data']);
         AppLogger.log('History rides: ${_historyRides.length}');
       } else {
         AppLogger.log('History rides failed: ${historyResult['message']}');
+        hasError = true;
         _historyRides = [];
       }
 
-      if (_prebookedRides.isEmpty &&
-          _activeRides.isEmpty &&
-          _historyRides.isEmpty) {
-        _errorMessage = 'No rides available';
+      // Only set error if API calls failed, not if they're just empty
+      if (hasError) {
+        _errorMessage = 'Failed to load some rides';
       } else {
         _errorMessage = null;
+        AppLogger.log('All rides fetched successfully');
       }
     } catch (e) {
       _errorMessage = 'Error fetching rides: $e';
@@ -127,10 +134,14 @@ class ActivitiesTabsProvider extends ChangeNotifier {
         if (data.containsKey('rides') && data['rides'] is List) {
           ridesJson = data['rides'] as List<dynamic>;
           AppLogger.log('Parsed ${ridesJson.length} rides from map response');
+        } else {
+          AppLogger.log('Response is a map but has no rides array');
         }
       } else if (data is List) {
         ridesJson = data;
         AppLogger.log('Parsed ${ridesJson.length} rides from list response');
+      } else {
+        AppLogger.log('Unexpected data type: ${data.runtimeType}');
       }
 
       return ridesJson

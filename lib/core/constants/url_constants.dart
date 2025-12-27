@@ -27,4 +27,5 @@ class UrlConstants {
 
   // Payment
   static const String paymentInitialize = "/payment/initialize";
+  static const String paymentVerify = "/payment/verify";
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/globalCallService.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
-import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
+import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
@@ -15,8 +15,10 @@ import 'package:muvam/features/profile/data/providers/user_profile_provider.dart
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/shared/presentation/screens/splash_screen.dart';
+import 'package:muvam/shared/providers/connectivity_provider.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:muvam/shared/providers/websocket_provider.dart';
+import 'package:muvam/shared/widgets/connectivity_wrapper.dart';
 import 'package:provider/provider.dart';
 
 // Future<void> main() async {
@@ -364,13 +366,16 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider(create: (_) => UserProfileProvider()),
             ChangeNotifierProvider(create: (_) => ActivitiesTabsProvider()),
             ChangeNotifierProvider(create: (_) => ReferralProvider()),
+            ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
           ],
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Muvam',
-            theme: ThemeData(useMaterial3: true),
-            home: const SplashScreen(),
-            navigatorKey: MyApp.navigatorKey, // Use static key
+          child: ConnectivityWrapper(
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: 'Muvam',
+              theme: ThemeData(useMaterial3: true),
+              home: const SplashScreen(),
+              navigatorKey: MyApp.navigatorKey, // Use static key
+            ),
           ),
         );
       },

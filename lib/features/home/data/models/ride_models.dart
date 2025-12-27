@@ -58,6 +58,7 @@ class RideRequest {
   final String vehicleType;
   final bool? scheduled;
   final String? scheduledAt;
+  final String? stopAddress;
 
   RideRequest({
     required this.dest,
@@ -69,6 +70,7 @@ class RideRequest {
     required this.vehicleType,
     this.scheduled,
     this.scheduledAt,
+    this.stopAddress,
   });
 
   Map<String, dynamic> toJson() {
@@ -85,6 +87,10 @@ class RideRequest {
     if (scheduled == true && scheduledAt != null) {
       json["scheduled"] = scheduled;
       json["scheduled_at"] = scheduledAt;
+    }
+
+    if (stopAddress != null && stopAddress!.isNotEmpty) {
+      json["stop_address"] = stopAddress;
     }
 
     return json;

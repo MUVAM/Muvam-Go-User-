@@ -21,6 +21,7 @@ import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
@@ -44,7 +45,6 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'add_favourite_screen.dart';
 import 'add_home_screen.dart';
 // import 'chat_screen.dart';
 import 'map_selection_screen.dart';
@@ -146,9 +146,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _createCurrentLocationIcon();
     _createPickupIcon();
     _createDestinationIcon();
-    _loadProfile();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
+
       Provider.of<LocationProvider>(
         context,
         listen: false,
@@ -2598,14 +2599,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'Add home location',
                                   style: ConstTextStyles.locationItem,
                                 ),
-                                onTap: () {
-                                  Navigator.push(
+                                onTap: () async {
+                                  final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          const AddHomeScreen(),
+                                      builder: (context) => const AddHomeScreen(
+                                        locationType: 'home',
+                                      ),
                                     ),
                                   );
+                                  if (result == true) {
+                                    _loadFavouriteLocations();
+                                    CustomFlushbar.showSuccess(
+                                      context: context,
+                                      message:
+                                          'Home Location saved successfully!',
+                                    );
+                                  }
                                 },
                               ),
                               Divider(
@@ -2622,6 +2632,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'Add work location',
                                   style: ConstTextStyles.locationItem,
                                 ),
+                                onTap: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AddHomeScreen(
+                                        locationType: 'work',
+                                      ),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _loadFavouriteLocations();
+                                    CustomFlushbar.showSuccess(
+                                      context: context,
+                                      message:
+                                          'Work Location saved successfully!',
+                                    );
+                                  }
+                                },
                               ),
                               Divider(
                                 thickness: 1,
@@ -2641,12 +2669,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          AddFavouriteScreen(),
+                                      builder: (context) => const AddHomeScreen(
+                                        locationType: 'favourite',
+                                      ),
                                     ),
                                   );
                                   if (result == true) {
                                     _loadFavouriteLocations();
+                                    CustomFlushbar.showSuccess(
+                                      context: context,
+                                      message:
+                                          'Favourite Location saved successfully!',
+                                    );
                                   }
                                 },
                               ),
@@ -2675,16 +2709,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (context, locationProvider, child) {
                                   final allLocations = <Widget>[];
 
-                                  // Add favourite locations with star icon
+                                  // Add favourite locations with appropriate icons
                                   for (final fav in _favouriteLocations) {
                                     allLocations.add(
                                       Column(
                                         children: [
                                           ListTile(
-                                            leading: Image.asset(
-                                              ConstImages.locationPin,
-                                              width: 24.w,
-                                              height: 24.h,
+                                            leading: _getFavoriteLocationIcon(
+                                              fav.name,
                                             ),
                                             title: Text(
                                               fav.name,
@@ -2698,11 +2730,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 color: Colors.grey,
                                               ),
                                             ),
-                                            trailing: Icon(
-                                              Icons.star,
-                                              size: 20.sp,
-                                              color: Colors.amber,
-                                            ),
+                                            trailing:
+                                                _getFavoriteLocationTrailingIcon(
+                                                  fav.name,
+                                                ),
                                             onTap: () {
                                               toController.text =
                                                   fav.destAddress;
@@ -3888,28 +3919,34 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 60.h,
                       ),
                 SizedBox(width: 15.w),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ProfileScreen()),
-                    );
-                  },
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        profileProvider.userShortName,
-                        style: ConstTextStyles.drawerName,
-                      ),
-                      Text(
-                        'My Account',
-                        style: ConstTextStyles.drawerAccount.copyWith(
-                          color: Color(ConstColors.drawerAccountColor),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(),
                         ),
-                      ),
-                    ],
+                      );
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          profileProvider.userShortName,
+                          style: ConstTextStyles.drawerName,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        Text(
+                          'My Account',
+                          style: ConstTextStyles.drawerAccount.copyWith(
+                            color: Color(ConstColors.drawerAccountColor),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -3917,25 +3954,25 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SizedBox(height: 20.h),
           Divider(thickness: 1, color: Colors.grey.shade300),
-          _buildDrawerItem('Book a trip', ConstImages.car),
-          _buildDrawerItem('Activities', ConstImages.serviceEscort),
+          // _buildDrawerItem('Book a trip', ConstImages.car),
+          // _buildDrawerItem('Activities', ConstImages.serviceEscort),
           _buildDrawerItem(
             'Wallet',
             ConstImages.wallet,
             onTap: _navigateToWallet,
           ),
-          _buildDrawerItem('Drive with us', ConstImages.car),
-          _buildDrawerItem(
-            'Tip',
-            ConstImages.tip,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TipScreen()),
-              );
-            },
-          ),
+          // _buildDrawerItem('Drive with us', ConstImages.car),
+          // _buildDrawerItem(
+          //   'Tip',
+          //   ConstImages.tip,
+          //   onTap: () {
+          //     Navigator.pop(context);
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const TipScreen()),
+          //     );
+          //   },
+          // ),
           _buildDrawerItem(
             'Promo code',
             ConstImages.code,
@@ -4132,8 +4169,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: GestureDetector(
                         onTap: () async {
-                          Navigator.pop(context);
-
                           // Combine selected date and time into DateTime
                           final scheduledDateTime = DateTime(
                             selectedDate.year,
@@ -4155,13 +4190,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
 
                             if (_currentRideResponse != null) {
+                              // Store addresses before clearing
+                              final pickupAddress =
+                                  fromController.text.isNotEmpty
+                                  ? fromController.text
+                                  : 'Current location';
+                              final destAddress = toController.text.isNotEmpty
+                                  ? toController.text
+                                  : 'Destination';
+
                               fromController.clear();
                               toController.clear();
                               setState(() {
                                 _showDestinationField = false;
                                 _isBookingRide = false;
                               });
-                              _showTripScheduledSheet();
+                              // Close prebook sheet first
+                              Navigator.pop(context);
+                              // Then show trip scheduled sheet after frame completes
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  _showTripScheduledSheet(
+                                    pickupAddress: pickupAddress,
+                                    destAddress: destAddress,
+                                  );
+                                }
+                              });
+                            } else {
+                              // API returned null - show error
+                              setState(() {
+                                _isBookingRide = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Failed to schedule ride. Please try again.',
+                                  ),
+                                ),
+                              );
                             }
                           } catch (e) {
                             setState(() {
@@ -4176,7 +4242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                         child: Center(
                           child: Text(
-                            'Set pick date and time',
+                            'Set pickup date and time',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16.sp,
@@ -4291,7 +4357,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       // White line decoration at top right
                       Positioned(
                         top: 0,
-                        left: 0,
+                        left: 11.w,
                         child: Image.asset(
                           'assets/images/whiteline.png',
                           width: 20.w,
@@ -4615,7 +4681,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ? 'Cancel'
                                         : 'Call Driver',
                                     style: TextStyle(
-                                      color: Colors.red,
+                                      color: !hasArrived
+                                          ? Colors.black
+                                          : Colors.red,
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
                                       fontWeight: FontWeight.w400,
@@ -4986,7 +5054,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Text(
-              'Book Successful',
+              'Booking Successful',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 18.sp,
@@ -5156,7 +5224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          'Nsukka, Enugu',
+                          pickupAddr,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -5201,7 +5269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          'Ikeja, Lagos',
+                          destAddr,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -5238,7 +5306,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'November 28, 2025 at 03:45 pm',
+                  currentDate,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
@@ -5271,7 +5339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         SizedBox(height: 5.h),
                         Text(
-                          selectedPaymentMethod,
+                          paymentMethod,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -5447,7 +5515,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showTripScheduledSheet() {
+  void _showTripScheduledSheet({String? pickupAddress, String? destAddress}) {
     final selectedOption = selectedVehicle != null
         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
@@ -5547,9 +5615,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          fromController.text.isNotEmpty
-                              ? fromController.text
-                              : 'Current location',
+                          pickupAddress ?? 'Current location',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -5594,9 +5660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Padding(
                         padding: EdgeInsets.only(left: 16.w),
                         child: Text(
-                          toController.text.isNotEmpty
-                              ? toController.text
-                              : 'Destination',
+                          destAddress ?? 'Destination',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -7210,7 +7274,7 @@ class _HomeScreenState extends State<HomeScreen> {
       paymentMethod: convertedPaymentMethod,
       scheduled: isScheduled ? true : null,
       scheduledAt: isScheduled && scheduledDateTime != null
-          ? scheduledDateTime.toIso8601String()
+          ? scheduledDateTime.toUtc().toIso8601String()
           : null,
     );
 
@@ -7541,5 +7605,31 @@ class _HomeScreenState extends State<HomeScreen> {
     if (bytes.length != 8) return null;
     final buffer = Uint8List.fromList(bytes).buffer;
     return ByteData.view(buffer).getFloat64(0, Endian.big);
+  }
+
+  /// Get icon for favorite location based on type
+  Widget _getFavoriteLocationIcon(String name) {
+    final nameLower = name.toLowerCase();
+
+    if (nameLower.contains('home')) {
+      return Icon(Icons.home, size: 24.sp, color: Color(ConstColors.mainColor));
+    } else if (nameLower.contains('work')) {
+      return Icon(Icons.work, size: 24.sp, color: Color(ConstColors.mainColor));
+    } else {
+      return Icon(Icons.star, size: 24.sp, color: Colors.amber);
+    }
+  }
+
+  /// Get trailing icon for favorite location based on type
+  Widget _getFavoriteLocationTrailingIcon(String name) {
+    final nameLower = name.toLowerCase();
+
+    if (nameLower.contains('home')) {
+      return Icon(Icons.home_outlined, size: 20.sp, color: Colors.grey);
+    } else if (nameLower.contains('work')) {
+      return Icon(Icons.work_outline, size: 20.sp, color: Colors.grey);
+    } else {
+      return Icon(Icons.star, size: 20.sp, color: Colors.amber);
+    }
   }
 }

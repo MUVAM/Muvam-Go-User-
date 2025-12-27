@@ -105,4 +105,34 @@ class CustomFlushbar {
       duration: duration,
     );
   }
+
+  static void showConnected({
+    required BuildContext context,
+    Duration duration = const Duration(seconds: 2),
+  }) {
+    Flushbar(
+      message: "Internet is connected",
+      duration: duration,
+      flushbarPosition: FlushbarPosition.TOP,
+      backgroundColor: Colors.green,
+      icon: const Icon(Icons.wifi, color: Colors.white),
+      margin: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(8),
+    ).show(context);
+  }
+
+  static void showDisconnected({
+    required BuildContext context,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    Flushbar(
+      message: "No internet connection",
+      duration: duration,
+      flushbarPosition: FlushbarPosition.TOP,
+      backgroundColor: Colors.red,
+      icon: const Icon(Icons.wifi_off, color: Colors.white),
+      margin: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(8),
+    ).show(context);
+  }
 }

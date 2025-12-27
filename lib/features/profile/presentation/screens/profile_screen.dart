@@ -1,16 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
+import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import '../widgets/profile_field.dart';
+
 import '../widgets/logout_sheet.dart';
+import '../widgets/profile_field.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -295,8 +298,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           await profileProvider.clearProfile();
           await authProvider.logout();
 
+          // Close the logout sheet
           Navigator.pop(context);
-          // Navigate to login screen
+
+          // Navigate to onboarding screen and clear all previous routes
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+            (route) => false,
+          );
         },
         onGoBack: () => Navigator.pop(context),
       ),

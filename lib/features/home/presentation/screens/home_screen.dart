@@ -44,6 +44,7 @@ import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'add_home_screen.dart';
 // import 'chat_screen.dart';
@@ -1668,6 +1669,61 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _launchPhoneDialer() async {
+    const phoneNumber = '07032992768';
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+        AppLogger.log(
+          '📞 Launched phone dialer for: $phoneNumber',
+          tag: 'CONTACT',
+        );
+      } else {
+        AppLogger.error('Could not launch phone dialer', tag: 'CONTACT');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open phone dialer')),
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Error launching phone dialer', error: e, tag: 'CONTACT');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp() async {
+    const phoneNumber = '2347032992768'; // WhatsApp format with country code
+    final Uri whatsappUri = Uri.parse('https://wa.me/$phoneNumber');
+
+    try {
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+        AppLogger.log('💬 Launched WhatsApp for: $phoneNumber', tag: 'CONTACT');
+      } else {
+        AppLogger.error('Could not launch WhatsApp', tag: 'CONTACT');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open WhatsApp')),
+          );
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Error launching WhatsApp', error: e, tag: 'CONTACT');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   void _showContactBottomSheet() {
     Navigator.pop(context); // Close drawer
     showModalBottomSheet(
@@ -1696,6 +1752,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(height: 20.h),
             ListTile(
+              onTap: () async {
+                Navigator.pop(context); // Close the bottom sheet
+                await _launchPhoneDialer();
+              },
               leading: Image.asset(
                 ConstImages.phoneCall,
                 width: 22.w,
@@ -1710,6 +1770,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Divider(thickness: 1, color: Colors.grey.shade300),
             ListTile(
+              onTap: () async {
+                Navigator.pop(context); // Close the bottom sheet
+                await _launchWhatsApp();
+              },
               leading: Image.asset(
                 ConstImages.whatsapp,
                 width: 22.w,
@@ -5846,6 +5910,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showEditPrebookingSheet() {
+    // Format the scheduled date and time
+    final scheduledDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    final formattedDate =
+        '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -5890,11 +5966,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               SizedBox(height: 30.h),
-              _buildEditField('PICK UP', 'Nsukka, Enugu'),
+              _buildEditField(
+                'PICK UP',
+                fromController.text.isNotEmpty
+                    ? fromController.text
+                    : 'Current location',
+              ),
               SizedBox(height: 15.h),
-              _buildEditField('DESTINATION', 'Ikeja, Lagos'),
+              _buildEditField('DESTINATION', toController.text),
               SizedBox(height: 15.h),
-              _buildEditField('WHEN', 'November 28, 2025 at 03:45 pm'),
+              _buildEditField('WHEN', formattedDate),
               SizedBox(height: 15.h),
               _buildEditField('PAYMENT METHOD', selectedPaymentMethod),
               SizedBox(height: 15.h),
@@ -6786,31 +6867,38 @@ class _HomeScreenState extends State<HomeScreen> {
                                   // Mark ride as rated
                                   _dismissedRatingRides.add(currentRideId);
 
-                                  // Close the bottom sheet first
+                                  // Schedule the navigation and state update properly
+                                  // First, close the dialog
                                   if (mounted) {
                                     Navigator.pop(context);
                                   }
 
-                                  // Then update the parent state
-                                  if (mounted) {
-                                    setState(() {
-                                      _activeRide = null;
-                                      _isDriverAssigned = false;
-                                      _isRideAccepted = false;
-                                      _isInCar = false;
-                                      _assignedDriver = null;
-                                      _mapMarkers = {};
-                                      _mapPolylines = {};
-                                    });
+                                  // Then schedule the state update for the next frame
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (mounted) {
+                                      setState(() {
+                                        _activeRide = null;
+                                        _isDriverAssigned = false;
+                                        _isRideAccepted = false;
+                                        _isInCar = false;
+                                        _assignedDriver = null;
+                                        _mapMarkers = {};
+                                        _mapPolylines = {};
+                                      });
 
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Thank you for your rating!',
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Thank you for your rating!',
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  }
+                                      );
+                                    }
+                                  });
                                 } else {
                                   if (mounted) {
                                     setRatingState(() {
@@ -6871,14 +6959,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ).whenComplete(() {
-      reviewController.dispose();
+      // Schedule controller disposal after the current frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        reviewController.dispose();
+      });
+
       // Mark ride as dismissed if user closes without rating
       if (currentRideId != null && selectedRating == 0) {
-        if (mounted) {
-          setState(() {
-            _dismissedRatingRides.add(currentRideId);
-          });
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _dismissedRatingRides.add(currentRideId);
+            });
+          }
+        });
       }
     });
   }
@@ -7178,7 +7272,60 @@ class _HomeScreenState extends State<HomeScreen> {
 
     AppLogger.log('📋 Estimate Request Created: ${request.toJson()}');
     _currentEstimate = await _rideService.estimateRide(request);
+
+    // Detailed logging of estimate response
     AppLogger.log('✅ Estimate completed successfully');
+    AppLogger.log('📊 ESTIMATE RESPONSE DETAILS:', tag: 'ESTIMATE');
+    AppLogger.log(
+      '   Currency: ${_currentEstimate!.currency}',
+      tag: 'ESTIMATE',
+    );
+    AppLogger.log(
+      '   Distance: ${_currentEstimate!.distanceKm} km',
+      tag: 'ESTIMATE',
+    );
+    AppLogger.log(
+      '   Duration: ${_currentEstimate!.durationMin} minutes',
+      tag: 'ESTIMATE',
+    );
+    AppLogger.log(
+      '   Service Type: ${_currentEstimate!.serviceType}',
+      tag: 'ESTIMATE',
+    );
+    AppLogger.log(
+      '   Number of vehicle options: ${_currentEstimate!.priceList.length}',
+      tag: 'ESTIMATE',
+    );
+
+    for (int i = 0; i < _currentEstimate!.priceList.length; i++) {
+      final priceData = _currentEstimate!.priceList[i];
+      AppLogger.log('   Vehicle ${i + 1}:', tag: 'ESTIMATE');
+      AppLogger.log(
+        '      Type: ${priceData['vehicle_type']}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '      Base Fare: ${priceData['base_fare']}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '      Distance Fare: ${priceData['distance_fare']}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '      Time Fare: ${priceData['time_fare']}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '      Subtotal: ${priceData['subtotal']}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '      Total Fare: ${priceData['total_fare']}',
+        tag: 'ESTIMATE',
+      );
+    }
+
     setState(() {});
   }
 

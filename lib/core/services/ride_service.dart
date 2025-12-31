@@ -345,4 +345,39 @@ class RideService {
       };
     }
   }
+
+  Future<Map<String, dynamic>> cancelRide({
+    required int rideId,
+    required String reason,
+  }) async {
+    final token = await _getToken();
+    final url = '${UrlConstants.baseUrl}/rides/cancel/$rideId';
+    final requestBody = {'reason': reason};
+
+    AppLogger.log('=== CANCEL RIDE REQUEST ===', tag: 'CANCEL');
+    AppLogger.log('URL: $url', tag: 'CANCEL');
+    AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'CANCEL');
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    AppLogger.log('Response Status: ${response.statusCode}', tag: 'CANCEL');
+    AppLogger.log('Response Body: ${response.body}', tag: 'CANCEL');
+    AppLogger.log('=== END CANCEL RIDE ===', tag: 'CANCEL');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to cancel ride: ${response.body}',
+      };
+    }
+  }
 }

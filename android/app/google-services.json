@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "237613591604",
+    "project_id": "muvam-go",
+    "storage_bucket": "muvam-go.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237613591604:android:e5d9208253626894c06e61",
+        "android_client_info": {
+          "package_name": "com.example.muvam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7_9MRarCXWlk53zmR0abog6f-TrYeWqU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

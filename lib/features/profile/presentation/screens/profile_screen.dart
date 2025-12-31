@@ -9,6 +9,7 @@ import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
+import 'package:muvam/features/profile/presentation/screens/app_lock_settings_screen.dart';
 import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -33,7 +34,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    // Defer loading until after the first frame to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserProfile();
+    });
   }
 
   void _loadUserProfile() async {
@@ -213,6 +217,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           value: profileProvider.userCity.isNotEmpty
                               ? profileProvider.userCity
                               : 'Not set',
+                        ),
+                        SizedBox(height: 30.h),
+
+                        // Biometric Setup Button
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const AppLockSettingsScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 353.w,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 16.h,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.r),
+                              border: Border.all(
+                                color: Color(
+                                  ConstColors.mainColor,
+                                ).withOpacity(0.3),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40.w,
+                                  height: 40.h,
+                                  decoration: BoxDecoration(
+                                    color: Color(
+                                      ConstColors.mainColor,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.fingerprint,
+                                    color: Color(ConstColors.mainColor),
+                                    size: 24.sp,
+                                  ),
+                                ),
+                                SizedBox(width: 12.w),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Set up biometrics',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4.h),
+                                      Text(
+                                        'Secure your app with fingerprint or face unlock',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 12.sp,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16.sp,
+                                  color: Colors.grey[400],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         SizedBox(height: 40.h),
                         Container(

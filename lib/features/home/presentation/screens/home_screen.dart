@@ -97,6 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _pickupLocation = "Your current location";
   String _dropoffLocation = "Destination";
   LatLng? _driverLocation;
+  Timer? _driverLocationTimer;
+  BitmapDescriptor? _carIcon;
   final RideService _rideService = RideService();
   final PaymentService _paymentService = PaymentService();
   final DirectionsService _directionsService = DirectionsService();
@@ -123,27 +125,20 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasUserDismissedSheet = false;
   int? _lastCompletedRideId;
   final Set<int> _dismissedRatingRides = {};
+  Timer? _etaUpdateTimer;
+  bool _hasInitializedMapCamera = false;
+  final bool _userIsInteractingWithMap = false;
 
   @override
   void initState() {
     super.initState();
-
-    AppLogger.log(
-      '🏠 ═══════════════════════════════════════',
-      tag: 'HOME_INIT',
-    );
-    AppLogger.log('🏠 PASSENGER HomeScreen.initState()', tag: 'HOME_INIT');
-    AppLogger.log(
-      '🏠 ═══════════════════════════════════════',
-      tag: 'HOME_INIT',
-    );
-
     // Get WebSocket instance
     _webSocketService = WebSocketService.instance;
 
     _getCurrentLocation();
     _forceUpdateLocation();
     _createDriverIcon();
+    _createCarIcon();
     _createCurrentLocationIcon();
     _createPickupIcon();
     _createDestinationIcon();
@@ -327,6 +322,20 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
+  Future<void> _createCarIcon() async {
+    AppLogger.log('🚗 === CREATING CAR ICON ===', tag: 'CAR_ICON');
+    try {
+      _carIcon = await BitmapDescriptor.fromAssetImage(
+        ImageConfiguration(size: Size(150, 150)),
+        'assets/images/car.png',
+      );
+      AppLogger.log('✅ Car icon created successfully', tag: 'CAR_ICON');
+      setState(() {});
+    } catch (e) {
+      AppLogger.error('❌ Failed to create car icon', error: e, tag: 'CAR_ICON');
+    }
+  }
+
   Future<void> _createCurrentLocationIcon() async {
     _currentLocationIcon = await BitmapDescriptor.fromAssetImage(
       ImageConfiguration(size: Size(48, 48)),
@@ -450,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _estimatedTime,
+                          _driverArrivalTime,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
@@ -949,6 +958,32 @@ class _HomeScreenState extends State<HomeScreen> {
         // Add pickup and drop-off markers to map
         _addActiveRideMarkers(ride);
 
+        // Start tracking driver location if ride is accepted
+        AppLogger.log(
+          '🔍 Checking ride status for tracking: $status',
+          tag: 'RIDE_STATUS',
+        );
+
+        if (status == 'accepted') {
+          AppLogger.log(
+            '✅ Status is ACCEPTED - Starting driver location tracking',
+            tag: 'RIDE_STATUS',
+          );
+          _startDriverLocationTracking();
+        } else if (status == 'arrived' || status == 'started') {
+          AppLogger.log(
+            '🏁 Status is $status - Stopping driver location tracking',
+            tag: 'RIDE_STATUS',
+          );
+          // Stop tracking when driver arrives or trip starts
+          _stopDriverLocationTracking();
+        } else {
+          AppLogger.log(
+            '⚠️ Unexpected status: $status - No tracking action taken',
+            tag: 'RIDE_STATUS',
+          );
+        }
+
         // Show appropriate UI only if not already visible and user hasn't dismissed
         if (status == 'started') {
           // Show in-car UI
@@ -972,6 +1007,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       case 'cancelled':
         // Clear active ride state and map markers
+        _stopDriverLocationTracking();
         setState(() {
           _activeRide = null;
           _isDriverAssigned = false;
@@ -993,6 +1029,339 @@ class _HomeScreenState extends State<HomeScreen> {
       _isRideAccepted = false;
       _isInCar = true;
     });
+  }
+
+  /// Start tracking driver location and updating ETA
+  void _startDriverLocationTracking() {
+    AppLogger.log(
+      '🚗 ========== STARTING DRIVER LOCATION TRACKING ==========',
+      tag: 'DRIVER_TRACKING',
+    );
+
+    // Cancel any existing timer
+    _driverLocationTimer?.cancel();
+    _etaUpdateTimer?.cancel();
+
+    AppLogger.log(
+      '⏰ Setting up timer to update every 5 seconds',
+      tag: 'DRIVER_TRACKING',
+    );
+
+    // Update driver location every 5 seconds
+    _driverLocationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      AppLogger.log(
+        '⏰ Timer tick - updating driver location',
+        tag: 'DRIVER_TRACKING',
+      );
+      _updateDriverLocation();
+    });
+
+    // Initial update
+    AppLogger.log(
+      '🔄 Performing initial driver location update',
+      tag: 'DRIVER_TRACKING',
+    );
+    _updateDriverLocation();
+  }
+
+  /// Stop tracking driver location
+  void _stopDriverLocationTracking() {
+    AppLogger.log(
+      '🛑 ========== STOPPING DRIVER LOCATION TRACKING ==========',
+      tag: 'DRIVER_TRACKING',
+    );
+    _driverLocationTimer?.cancel();
+    _etaUpdateTimer?.cancel();
+    _driverLocationTimer = null;
+    _etaUpdateTimer = null;
+  }
+
+  /// Update driver location from active ride data
+  Future<void> _updateDriverLocation() async {
+    AppLogger.log(
+      '📍 === UPDATE DRIVER LOCATION CALLED ===',
+      tag: 'DRIVER_LOCATION',
+    );
+
+    if (_activeRide == null) {
+      AppLogger.log(
+        '⚠️ No active ride found, stopping tracking',
+        tag: 'DRIVER_LOCATION',
+      );
+      _stopDriverLocationTracking();
+      return;
+    }
+
+    AppLogger.log(
+      '✅ Active ride exists, fetching latest ride data...',
+      tag: 'DRIVER_LOCATION',
+    );
+
+    try {
+      // Fetch latest ride data to get updated driver location
+      final response = await _rideService.getActiveRides();
+
+      AppLogger.log(
+        '📥 Response received: ${response['success']}',
+        tag: 'DRIVER_LOCATION',
+      );
+
+      // Check if rides are in response['rides'] or response['data']['rides']
+      List? rides;
+      if (response['rides'] != null) {
+        rides = response['rides'] as List;
+      } else if (response['data'] != null &&
+          response['data']['rides'] != null) {
+        rides = response['data']['rides'] as List;
+      }
+
+      AppLogger.log(
+        '📊 Rides found: ${rides != null}, Number of rides: ${rides?.length ?? 0}',
+        tag: 'DRIVER_LOCATION',
+      );
+
+      if (response['success'] == true && rides != null) {
+        AppLogger.log(
+          '📊 Number of rides: ${rides.length}',
+          tag: 'DRIVER_LOCATION',
+        );
+
+        if (rides.isNotEmpty) {
+          final ride = rides[0];
+          final status = ride['Status']?.toString().toLowerCase() ?? '';
+
+          AppLogger.log('🎯 Ride status: $status', tag: 'DRIVER_LOCATION');
+
+          // Only track location when driver is on the way (accepted status)
+          if (status == 'accepted') {
+            AppLogger.log(
+              '✅ Status is accepted, checking for driver data...',
+              tag: 'DRIVER_LOCATION',
+            );
+
+            final driverData = ride['Driver'];
+            if (driverData != null && driverData['Location'] != null) {
+              final driverLocationStr = driverData['Location'].toString();
+
+              AppLogger.log(
+                '📍 Driver location (raw): $driverLocationStr',
+                tag: 'DRIVER_LOCATION',
+              );
+
+              // Parse driver location from WKB format
+              final driverCoords = _parsePostGISPoint(driverLocationStr);
+
+              if (driverCoords != null) {
+                AppLogger.log(
+                  '✅ Driver coords parsed: lat=${driverCoords.latitude}, lng=${driverCoords.longitude}',
+                  tag: 'DRIVER_LOCATION',
+                );
+
+                setState(() {
+                  _driverLocation = driverCoords;
+                });
+
+                AppLogger.log(
+                  '🗺️ Updating driver marker on map...',
+                  tag: 'DRIVER_LOCATION',
+                );
+
+                // Update driver marker on map
+                _updateDriverMarker(driverCoords);
+
+                AppLogger.log('⏱️ Calculating ETA...', tag: 'DRIVER_LOCATION');
+
+                // Calculate and update ETA
+                await _calculateAndUpdateETA(driverCoords);
+              } else {
+                AppLogger.log(
+                  '❌ Failed to parse driver coordinates',
+                  tag: 'DRIVER_LOCATION',
+                );
+              }
+            } else {
+              AppLogger.log(
+                '⚠️ Driver data or location is null. DriverData: ${driverData != null}, Location: ${driverData?['Location']}',
+                tag: 'DRIVER_LOCATION',
+              );
+            }
+          } else if (status == 'arrived' || status == 'started') {
+            AppLogger.log(
+              '🏁 Driver has arrived or trip started, stopping tracking',
+              tag: 'DRIVER_LOCATION',
+            );
+            // Stop tracking when driver arrives or trip starts
+            _stopDriverLocationTracking();
+          } else {
+            AppLogger.log(
+              '⚠️ Unexpected status: $status',
+              tag: 'DRIVER_LOCATION',
+            );
+          }
+        } else {
+          AppLogger.log('⚠️ Rides array is empty', tag: 'DRIVER_LOCATION');
+        }
+      } else {
+        AppLogger.log(
+          '❌ Response unsuccessful or no rides. Success: ${response['success']}, Rides: $rides',
+          tag: 'DRIVER_LOCATION',
+        );
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Error updating driver location',
+        error: e,
+        tag: 'DRIVER_LOCATION',
+      );
+    }
+  }
+
+  /// Update driver marker on the map
+  void _updateDriverMarker(LatLng driverLocation) {
+    AppLogger.log('🚗 === UPDATING DRIVER MARKER ===', tag: 'DRIVER_MARKER');
+
+    if (_carIcon == null) {
+      AppLogger.log(
+        '❌ Car icon is null! Cannot add driver marker.',
+        tag: 'DRIVER_MARKER',
+      );
+      return;
+    }
+
+    AppLogger.log(
+      '✅ Car icon loaded, refreshing map with driver at: ${driverLocation.latitude}, ${driverLocation.longitude}',
+      tag: 'DRIVER_MARKER',
+    );
+
+    // Refresh all markers and polylines to update the route
+    if (_activeRide != null) {
+      AppLogger.log(
+        '🔄 Refreshing all markers and polylines with updated driver location',
+        tag: 'DRIVER_MARKER',
+      );
+      _addActiveRideMarkers(_activeRide!);
+    }
+
+    // Also add the driver marker
+    setState(() {
+      // Remove old driver marker if exists
+      final removedCount = _mapMarkers
+          .where((marker) => marker.markerId.value == 'driver_location')
+          .length;
+      _mapMarkers.removeWhere(
+        (marker) => marker.markerId.value == 'driver_location',
+      );
+
+      AppLogger.log(
+        '🗑️ Removed $removedCount old driver marker(s)',
+        tag: 'DRIVER_MARKER',
+      );
+
+      // Add new driver marker
+      _mapMarkers.add(
+        Marker(
+          markerId: MarkerId('driver_location'),
+          position: driverLocation,
+          icon: _carIcon!,
+          anchor: Offset(0.5, 0.5),
+          rotation: 0, // You can calculate bearing if needed
+          infoWindow: InfoWindow(
+            title: 'Driver',
+            snippet: _assignedDriver?.name ?? 'Your driver',
+          ),
+        ),
+      );
+
+      AppLogger.log(
+        '✅ Driver marker added. Total markers: ${_mapMarkers.length}',
+        tag: 'DRIVER_MARKER',
+      );
+    });
+  }
+
+  /// Calculate ETA from driver location to pickup location
+  Future<void> _calculateAndUpdateETA(LatLng driverLocation) async {
+    AppLogger.log('⏱️ === CALCULATING ETA ===', tag: 'ETA');
+
+    if (_activeRide == null) {
+      AppLogger.log('⚠️ No active ride', tag: 'ETA');
+      return;
+    }
+
+    try {
+      // Get pickup location
+      final pickupLocationStr = _activeRide!['PickupLocation']?.toString();
+      if (pickupLocationStr == null) {
+        AppLogger.log('❌ Pickup location is null', tag: 'ETA');
+        return;
+      }
+
+      AppLogger.log('📍 Pickup location (raw): $pickupLocationStr', tag: 'ETA');
+
+      final pickupCoords = _parsePostGISPoint(pickupLocationStr);
+      if (pickupCoords == null) {
+        AppLogger.log('❌ Failed to parse pickup coordinates', tag: 'ETA');
+        return;
+      }
+
+      AppLogger.log(
+        '✅ Pickup coords: lat=${pickupCoords.latitude}, lng=${pickupCoords.longitude}',
+        tag: 'ETA',
+      );
+
+      AppLogger.log('🌐 Calling Google Directions API...', tag: 'ETA');
+
+      // Get route details from Google Directions API
+      final routeDetails = await _directionsService.getRouteDetails(
+        origin: driverLocation,
+        destination: pickupCoords,
+      );
+
+      if (routeDetails != null) {
+        final durationInSeconds = routeDetails['duration_value'] as int;
+        final durationInMinutes = (durationInSeconds / 60).ceil();
+
+        AppLogger.log(
+          '✅ API Response - Duration: ${routeDetails['duration']}, Value: $durationInSeconds seconds = $durationInMinutes minutes',
+          tag: 'ETA',
+        );
+
+        setState(() {
+          _driverArrivalTime = durationInMinutes.toString();
+        });
+
+        AppLogger.log(
+          '✅ ETA UPDATED TO: $durationInMinutes mins (displayed as: $_driverArrivalTime)',
+          tag: 'ETA',
+        );
+      } else {
+        AppLogger.log(
+          '⚠️ API returned null, using fallback calculation',
+          tag: 'ETA',
+        );
+
+        // Fallback: Calculate straight-line distance and estimate
+        final distanceKm = _calculateDistance(driverLocation, pickupCoords);
+        final estimatedMinutes = (distanceKm / 0.5)
+            .ceil(); // Assume 30 km/h average speed
+
+        AppLogger.log(
+          '📏 Distance: ${distanceKm.toStringAsFixed(2)} km, Estimated: $estimatedMinutes mins',
+          tag: 'ETA',
+        );
+
+        setState(() {
+          _driverArrivalTime = estimatedMinutes.toString();
+        });
+
+        AppLogger.log(
+          '✅ ETA ESTIMATED (fallback): $estimatedMinutes mins',
+          tag: 'ETA',
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error calculating ETA', error: e, tag: 'ETA');
+    }
   }
 
   Future<void> _searchLocations(String query) async {
@@ -1198,30 +1567,80 @@ class _HomeScreenState extends State<HomeScreen> {
   //   return await _rideService.requestRide(request);
   // }
 
-  // Future<void> _estimateRide() async {
-  //   if (_pickupCoordinates == null || _destinationCoordinates == null) {
-  //     return;
-  //   }
+  Future<void> _estimateRide() async {
+    AppLogger.log('🚗 === ESTIMATING RIDE ===', tag: 'ESTIMATE');
 
-  //   final request = RideEstimateRequest(
-  //     pickup: '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}',
-  //     dest: '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}',
-  //     destAddress: toController.text,
-  //     serviceType: 'taxi',
-  //     vehicleType: 'regular', // Default for estimation
-  //   );
+    if (_pickupCoordinates == null || _destinationCoordinates == null) {
+      AppLogger.log('❌ Missing coordinates', tag: 'ESTIMATE');
+      AppLogger.log('Pickup: $_pickupCoordinates', tag: 'ESTIMATE');
+      AppLogger.log('Destination: $_destinationCoordinates', tag: 'ESTIMATE');
+      return;
+    }
 
-  //   try {
-  //     _currentEstimate = await _rideService.estimateRide(request);
-  //     setState(() {});
-  //   } catch (e) {
-  //     print('Error estimating ride: $e');
-  //     throw e;
-  //   }
-  // }
+    final request = RideEstimateRequest(
+      pickup:
+          'POINT(${_pickupCoordinates!.longitude} ${_pickupCoordinates!.latitude})',
+      dest:
+          'POINT(${_destinationCoordinates!.longitude} ${_destinationCoordinates!.latitude})',
+      destAddress: toController.text,
+      serviceType: 'taxi',
+      vehicleType: 'regular', // Default for estimation
+    );
+
+    AppLogger.log('📤 Estimate Request:', tag: 'ESTIMATE');
+    AppLogger.log('  Pickup: ${request.pickup}', tag: 'ESTIMATE');
+    AppLogger.log('  Dest: ${request.dest}', tag: 'ESTIMATE');
+    AppLogger.log('  Service Type: ${request.serviceType}', tag: 'ESTIMATE');
+
+    try {
+      _currentEstimate = await _rideService.estimateRide(request);
+
+      AppLogger.log('✅ === ESTIMATE RESPONSE RECEIVED ===', tag: 'ESTIMATE');
+      AppLogger.log('Currency: ${_currentEstimate!.currency}', tag: 'ESTIMATE');
+      AppLogger.log(
+        'Distance KM: ${_currentEstimate!.distanceKm}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        '⏱️ DURATION MIN: ${_currentEstimate!.durationMin}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        'Service Type: ${_currentEstimate!.serviceType}',
+        tag: 'ESTIMATE',
+      );
+      AppLogger.log(
+        'Price List Length: ${_currentEstimate!.priceList.length}',
+        tag: 'ESTIMATE',
+      );
+
+      for (int i = 0; i < _currentEstimate!.priceList.length; i++) {
+        final price = _currentEstimate!.priceList[i];
+        AppLogger.log(
+          '  Vehicle $i: ${price['vehicle_type']}',
+          tag: 'ESTIMATE',
+        );
+        AppLogger.log(
+          '    Total Fare: ${price['total_fare']}',
+          tag: 'ESTIMATE',
+        );
+      }
+
+      AppLogger.log('=== END ESTIMATE RESPONSE ===', tag: 'ESTIMATE');
+
+      setState(() {});
+    } catch (e) {
+      AppLogger.error('Error estimating ride', error: e, tag: 'ESTIMATE');
+      rethrow;
+    }
+  }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
     AppLogger.log('📍 === ADDING ACTIVE RIDE MARKERS ===', tag: 'MARKERS');
+
+    // Get ride status to determine what to display
+    final status = ride['Status']?.toString().toLowerCase() ?? '';
+    AppLogger.log('🎯 Ride status for markers: $status', tag: 'MARKERS');
 
     // Parse PostGIS POINT format: "POINT(longitude latitude)"
     final pickupLocation = ride['PickupLocation']?.toString();
@@ -1305,6 +1724,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Create markers
     final markers = <Marker>{};
 
+    // Always add pickup marker
     if (pickupCoords != null) {
       AppLogger.log('🎨 Creating pickup marker widget...', tag: 'MARKERS');
       try {
@@ -1342,8 +1762,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    if (destCoords != null) {
-      AppLogger.log('🎨 Creating dropoff marker widget...', tag: 'MARKERS');
+    // Only add dropoff marker when ride has started
+    if (status == 'started' && destCoords != null) {
+      AppLogger.log(
+        '🎨 Creating dropoff marker widget (ride started)...',
+        tag: 'MARKERS',
+      );
       try {
         final dropoffIcon = await _createBitmapDescriptorFromWidget(
           _buildDropoffMarkerWidget(),
@@ -1381,9 +1805,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
+    } else if (status == 'accepted') {
+      AppLogger.log(
+        '⏭️ Skipping dropoff marker (ride not started yet)',
+        tag: 'MARKERS',
+      );
     }
 
-    if (stopCoords != null) {
+    // Only add stop marker when ride has started
+    if (status == 'started' && stopCoords != null) {
       AppLogger.log('🎨 Creating stop marker widget...', tag: 'MARKERS');
       try {
         final stopIcon = await _createBitmapDescriptorFromWidget(
@@ -1426,20 +1856,138 @@ class _HomeScreenState extends State<HomeScreen> {
       tag: 'MARKERS',
     );
 
+    // Draw polyline based on ride status
+    final polylines = <Polyline>{};
+
+    if (status == 'accepted') {
+      // When accepted: Draw polyline from pickup to driver location
+      if (pickupCoords != null && _driverLocation != null) {
+        AppLogger.log(
+          '🛣️ Drawing route from PICKUP to DRIVER (accepted status)...',
+          tag: 'MARKERS',
+        );
+
+        try {
+          final routePoints = await _directionsService.getRoutePolyline(
+            origin: pickupCoords,
+            destination: _driverLocation!,
+          );
+
+          AppLogger.log(
+            '✅ Got ${routePoints.length} route points (pickup to driver)',
+            tag: 'MARKERS',
+          );
+
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('driver_to_pickup_route'),
+              points: routePoints,
+              color: Color(ConstColors.mainColor),
+              width: 5,
+              geodesic: true,
+            ),
+          );
+
+          AppLogger.log(
+            '✅ Polyline created (pickup to driver)',
+            tag: 'MARKERS',
+          );
+        } catch (e) {
+          AppLogger.log('⚠️ Failed to get route polyline: $e', tag: 'MARKERS');
+          // Fallback: draw straight line
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('driver_to_pickup_route'),
+              points: [pickupCoords, _driverLocation!],
+              color: Color(ConstColors.mainColor),
+              width: 5,
+              geodesic: true,
+            ),
+          );
+        }
+      } else {
+        AppLogger.log(
+          '⚠️ Cannot draw pickup-to-driver route: pickupCoords=${pickupCoords != null}, driverLocation=${_driverLocation != null}',
+          tag: 'MARKERS',
+        );
+      }
+    } else if (status == 'started') {
+      // When started: Draw polyline from pickup to destination
+      if (pickupCoords != null && destCoords != null) {
+        AppLogger.log(
+          '🛣️ Drawing route from PICKUP to DESTINATION (started status)...',
+          tag: 'MARKERS',
+        );
+
+        try {
+          final routePoints = await _directionsService.getRoutePolyline(
+            origin: pickupCoords,
+            destination: destCoords,
+            waypoints: stopCoords != null ? [stopCoords] : null,
+          );
+
+          AppLogger.log(
+            '✅ Got ${routePoints.length} route points (pickup to destination)',
+            tag: 'MARKERS',
+          );
+
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('active_route'),
+              points: routePoints,
+              color: Color(ConstColors.mainColor),
+              width: 5,
+              geodesic: true,
+            ),
+          );
+
+          // AppLogger.log(
+          //   '✅ Polyline created (pickup to destination)',
+          //   tag: 'MARKERS',
+          // );
+        } catch (e) {
+          AppLogger.log('⚠️ Failed to get route polyline: $e', tag: 'MARKERS');
+          // Fallback: draw straight line
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('active_route'),
+              points: [pickupCoords, destCoords],
+              color: Color(ConstColors.mainColor),
+              width: 5,
+              geodesic: true,
+            ),
+          );
+        }
+      }
+    }
+
     setState(() {
       _mapMarkers = markers;
+      _mapPolylines = polylines;
     });
 
-    AppLogger.log('✅ Markers set in state', tag: 'MARKERS');
+    AppLogger.log('✅ Markers and polylines set in state', tag: 'MARKERS');
 
-    // Fit camera to show all markers
-    if (markers.isNotEmpty && _mapController != null) {
+    // Only fit camera to show all markers on the FIRST load
+    // After that, let the user control the map zoom/pan
+    if (!_hasInitializedMapCamera &&
+        markers.isNotEmpty &&
+        _mapController != null) {
       final positions = markers.map((m) => m.position).toList();
       final bounds = _calculateBounds(positions);
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(bounds, 100.0),
       );
-      AppLogger.log('📷 Camera adjusted to fit markers', tag: 'MARKERS');
+      _hasInitializedMapCamera = true;
+      AppLogger.log(
+        '📷 Camera adjusted to fit markers (first time only)',
+        tag: 'MARKERS',
+      );
+    } else if (_hasInitializedMapCamera) {
+      AppLogger.log(
+        '⏭️ Skipping camera adjustment - user can control map freely',
+        tag: 'MARKERS',
+      );
     } else {
       AppLogger.log(
         '⚠️ Cannot adjust camera: markers=${markers.length}, controller=${_mapController != null}',
@@ -1618,15 +2166,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _webSocketService.disconnect();
-    _activeRideCheckTimer?.cancel();
+  // @override
+  // void dispose() {
+  //   _webSocketService.disconnect();
+  //   _activeRideCheckTimer?.cancel();
 
-    _callService.dispose(); // Add this line
+  //   _callService.dispose(); // Add this line
 
-    super.dispose();
-  }
+  //   super.dispose();
+  // }
 
   void _navigateToWallet() async {
     Navigator.pop(context);
@@ -3875,85 +4423,90 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setNoteState) => Container(
-          height: 300.h,
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        builder: (context, setNoteState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
-              ),
-              Text(
-                'Add note',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Container(
-                width: 350.w,
-                height: 111.h,
-                padding: EdgeInsets.all(10.w),
-                decoration: BoxDecoration(
-                  color: Color(0xFFB1B1B1).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: TextField(
-                  controller: noteController,
-                  maxLines: null,
-                  expands: true,
-                  onChanged: (value) {
-                    setNoteState(() {});
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Type your note here...',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 69.w,
+                  height: 5.h,
+                  margin: EdgeInsets.only(bottom: 20.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2.5.r),
                   ),
                 ),
-              ),
-              Spacer(),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: noteController.text.isNotEmpty
-                      ? Color(ConstColors.mainColor)
-                      : Color(ConstColors.fieldColor),
-                  borderRadius: BorderRadius.circular(8.r),
+                Text(
+                  'Add note',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
                 ),
-                child: GestureDetector(
-                  onTap: noteController.text.isNotEmpty
-                      ? () {
-                          Navigator.pop(context);
-                        }
-                      : null,
-                  child: Center(
-                    child: Text(
-                      'Submit',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+                SizedBox(height: 20.h),
+                Container(
+                  width: 350.w,
+                  height: 111.h,
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFB1B1B1).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: TextField(
+                    controller: noteController,
+                    maxLines: null,
+                    expands: true,
+                    onChanged: (value) {
+                      setNoteState(() {});
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Type your note here...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                Container(
+                  width: 353.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: noteController.text.isNotEmpty
+                        ? Color(ConstColors.mainColor)
+                        : Color(ConstColors.fieldColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: GestureDetector(
+                    onTap: noteController.text.isNotEmpty
+                        ? () {
+                            Navigator.pop(context);
+                          }
+                        : null,
+                    child: Center(
+                      child: Text(
+                        'Submit',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -4702,12 +5255,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   }
                                 } else if (hasArrived) {
-                                  // Cancel functionality
-                                } else {
-                                  // Call Driver functionality
-                                  if (_assignedDriver != null &&
-                                      _activeRide != null) {
-                                    Navigator.push(
+                                  // Cancel functionality - show dialog
+                                   Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => CallScreen(
@@ -4722,6 +5271,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                     );
+                                } else {
+                                  // Call Driver functionality
+                                  if (_assignedDriver != null &&
+                                      _activeRide != null) {
+                                   
+                                  _showCancelRideDialog();
+
+
+
                                   }
                                 }
                               },
@@ -4732,8 +5290,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     hasStarted
                                         ? Icons.sos
                                         : hasArrived
-                                        ? Icons.cancel
-                                        : Icons.call,
+                                        ? Icons.call
+                                        : Icons.cancel,
                                     size: 16.sp,
                                     color: Colors.black,
                                   ),
@@ -4742,8 +5300,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     hasStarted
                                         ? 'SOS'
                                         : hasArrived
-                                        ? 'Cancel'
-                                        : 'Call Driver',
+                                        ? 'Call Driver'
+                                        : 'Cancel',
                                     style: TextStyle(
                                       color: !hasArrived
                                           ? Colors.black
@@ -4907,6 +5465,217 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCancelRideDialog() {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          title: Text(
+            'Cancel Ride',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '⚠️ Please note that charges may apply if you cancel the ride now.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.red[700],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Text(
+                'Please tell us why you want to cancel:',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              TextField(
+                controller: reasonController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Enter your reason here...',
+                  hintStyle: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    color: Colors.grey[400],
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: Color(ConstColors.mainColor),
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: Color(ConstColors.mainColor),
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                reasonController.dispose();
+              },
+              child: Text(
+                'Back',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Please provide a reason for cancellation'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Close dialog
+                Navigator.of(context).pop();
+                // Show loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => Center(
+                    child: CircularProgressIndicator(
+                      color: Color(ConstColors.mainColor),
+                    ),
+                  ),
+                );
+
+                try {
+                  // Get ride ID
+                  final rideId = _activeRide?['ID'] is int
+                      ? _activeRide!['ID']
+                      : int.parse(_activeRide?['ID']?.toString() ?? '0');
+
+                  // Call cancel API
+                  final result = await _rideService.cancelRide(
+                    rideId: rideId,
+                    reason: reason,
+                  );
+
+                  // Close loading
+                  Navigator.of(context).pop();
+
+                  if (result['success'] == true) {
+                    // Close the active ride sheet
+                    Navigator.of(context).pop();
+
+                    // Clear active ride state
+                    setState(() {
+                      _activeRide = null;
+                      _isDriverAssigned = false;
+                      _isRideAccepted = false;
+                      _isInCar = false;
+                      _assignedDriver = null;
+                      _mapMarkers = {};
+                      _mapPolylines = {};
+                    });
+
+                    // Stop tracking
+                    _stopDriverLocationTracking();
+
+                    // Show success message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ride cancelled successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    // Show error
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          result['message'] ?? 'Failed to cancel ride',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // Close loading
+                  Navigator.of(context).pop();
+
+                  AppLogger.error('Cancel ride error', error: e, tag: 'CANCEL');
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error cancelling ride: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+
+                reasonController.dispose();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(ConstColors.mainColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+              ),
+              child: Text(
+                'Submit',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -7258,77 +8027,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _estimateRide() async {
-    AppLogger.log('🎯 Destination: ${toController.text}');
-
-    final request = RideEstimateRequest(
-      pickup:
-          "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
-      dest: "POINT(${_currentLocation.longitude} ${_currentLocation.latitude})",
-      destAddress: toController.text,
-      serviceType: "taxi",
-      vehicleType: "regular", // Default for estimate
-    );
-
-    AppLogger.log('📋 Estimate Request Created: ${request.toJson()}');
-    _currentEstimate = await _rideService.estimateRide(request);
-
-    // Detailed logging of estimate response
-    AppLogger.log('✅ Estimate completed successfully');
-    AppLogger.log('📊 ESTIMATE RESPONSE DETAILS:', tag: 'ESTIMATE');
-    AppLogger.log(
-      '   Currency: ${_currentEstimate!.currency}',
-      tag: 'ESTIMATE',
-    );
-    AppLogger.log(
-      '   Distance: ${_currentEstimate!.distanceKm} km',
-      tag: 'ESTIMATE',
-    );
-    AppLogger.log(
-      '   Duration: ${_currentEstimate!.durationMin} minutes',
-      tag: 'ESTIMATE',
-    );
-    AppLogger.log(
-      '   Service Type: ${_currentEstimate!.serviceType}',
-      tag: 'ESTIMATE',
-    );
-    AppLogger.log(
-      '   Number of vehicle options: ${_currentEstimate!.priceList.length}',
-      tag: 'ESTIMATE',
-    );
-
-    for (int i = 0; i < _currentEstimate!.priceList.length; i++) {
-      final priceData = _currentEstimate!.priceList[i];
-      AppLogger.log('   Vehicle ${i + 1}:', tag: 'ESTIMATE');
-      AppLogger.log(
-        '      Type: ${priceData['vehicle_type']}',
-        tag: 'ESTIMATE',
-      );
-      AppLogger.log(
-        '      Base Fare: ${priceData['base_fare']}',
-        tag: 'ESTIMATE',
-      );
-      AppLogger.log(
-        '      Distance Fare: ${priceData['distance_fare']}',
-        tag: 'ESTIMATE',
-      );
-      AppLogger.log(
-        '      Time Fare: ${priceData['time_fare']}',
-        tag: 'ESTIMATE',
-      );
-      AppLogger.log(
-        '      Subtotal: ${priceData['subtotal']}',
-        tag: 'ESTIMATE',
-      );
-      AppLogger.log(
-        '      Total Fare: ${priceData['total_fare']}',
-        tag: 'ESTIMATE',
-      );
-    }
-
-    setState(() {});
-  }
-
   Future<RideResponse> _requestRide({
     bool isScheduled = false,
     DateTime? scheduledDateTime,
@@ -7778,5 +8476,25 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       return Icon(Icons.star, size: 20.sp, color: Colors.amber);
     }
+  }
+
+  @override
+  void dispose() {
+    // Stop all timers
+    _driverLocationTimer?.cancel();
+    _etaUpdateTimer?.cancel();
+    _activeRideCheckTimer?.cancel();
+    _webSocketService.disconnect();
+    _activeRideCheckTimer?.cancel();
+
+    _callService.dispose(); // Add this line
+
+    // Dispose controllers
+    fromController.dispose();
+    toController.dispose();
+    stopController.dispose();
+    noteController.dispose();
+
+    super.dispose();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/services/biometric_service.dart';
 import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/globalCallService.dart';
 import 'package:muvam/core/services/websocket_service.dart';
@@ -12,6 +13,7 @@ import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
+import 'package:muvam/features/profile/presentation/screens/biometric_lock_screen.dart';
 import 'package:muvam/features/promo/data/providers/promo_code_provider.dart';
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
@@ -333,19 +335,76 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  bool _isLocked = false;
+
   @override
   void initState() {
     super.initState();
 
     // Initialize global call service with navigator key
     GlobalCallService.instance.initialize(MyApp.navigatorKey);
+
+    // Add lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     GlobalCallService.instance.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    AppLogger.log('App lifecycle state changed: $state', tag: 'LIFECYCLE');
+
+    final biometricService = BiometricAuthService();
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // App is going to background
+      biometricService.recordBackgroundTime();
+      AppLogger.log('App going to background, time recorded', tag: 'LIFECYCLE');
+    } else if (state == AppLifecycleState.resumed) {
+      // App is coming back to foreground
+      AppLogger.log('App resumed from background', tag: 'LIFECYCLE');
+
+      // Check if we should lock the app
+      biometricService.shouldLockApp().then((shouldLock) {
+        AppLogger.log('Should lock app: $shouldLock', tag: 'LIFECYCLE');
+
+        if (shouldLock && !_isLocked) {
+          _isLocked = true;
+          _showBiometricLockScreen();
+        }
+      });
+    }
+  }
+
+  void _showBiometricLockScreen() {
+    AppLogger.log('Showing biometric lock screen', tag: 'LIFECYCLE');
+
+    // Use the navigator key to show the lock screen
+    MyApp.navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (context) => BiometricLockScreen(
+          onAuthenticated: () {
+            _isLocked = false;
+            Navigator.of(context).pop();
+            AppLogger.log(
+              'Biometric authentication successful',
+              tag: 'LIFECYCLE',
+            );
+          },
+          isLoginScreen: false,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
   }
 
   @override

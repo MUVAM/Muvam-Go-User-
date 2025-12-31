@@ -46,3 +46,11 @@ app.*.map.json
 
 # API Keys and sensitive configuration
 /lib/config/
+.env
+
+# Firebase sensitive files
+firebase-service-account.json
+**/firebase-service-account.json
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+ios/firebase_app_id_file.json

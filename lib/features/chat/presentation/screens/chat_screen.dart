@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/services/firebase_config_service.dart';
+import 'package:muvam/core/services/unifiedNotificationService.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
@@ -12,6 +14,8 @@ import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:googleapis_auth/auth_io.dart' as auth;
+import 'package:http/http.dart' as http;
 
 import '../widgets/chat_bubble.dart';
 import 'call_screen.dart';
@@ -22,12 +26,14 @@ class ChatScreen extends StatefulWidget {
   final int rideId;
   final String driverName;
   final String? driverImage;
+  final String driverId;
 
   const ChatScreen({
     super.key,
     required this.rideId,
     required this.driverName,
     this.driverImage,
+   required this.driverId,
   });
 
   @override
@@ -188,7 +194,29 @@ class _ChatScreenState extends State<ChatScreen> {
       print('❌ Error handling message: $e');
     }
   }
-
+Future<String> getAccessToken() async {
+    final serviceAccountJson =
+        await FirebaseConfigService.getServiceAccountConfig();
+    List<String> scopes = [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/firebase.database",
+      "https://www.googleapis.com/auth/firebase.messaging",
+    ];
+    http.Client client = await auth.clientViaServiceAccount(
+      auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
+      scopes,
+    );
+    // get access token using this client
+    auth.AccessCredentials credentials = await auth
+        .obtainAccessCredentialsViaServiceAccount(
+          auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
+          scopes,
+          client,
+        );
+    // close the client
+    client.close();
+    return credentials.accessToken.data;
+  }
   void _sendMessage() async {
     print('');
     print('🚀 ═══════════════════════════════════════');
@@ -240,8 +268,33 @@ class _ChatScreenState extends State<ChatScreen> {
       });
 
       print('   ✅ Passed to WebSocket service');
-      print('   🔄 Clearing input field');
 
+      // Send FCM notification to driver
+      if (widget.driverId != null && widget.driverId!.isNotEmpty) {
+        print('   📤 Sending FCM notification to driver: ${widget.driverId}');
+        try {
+          // await NotificationHelper().sendNewMessageNotification(
+          //   userId: widget.driverId!,
+          //   senderName: userName,
+          //   message: text,
+          //   chatId: widget.rideId.toString(),
+          // );
+          await UnifiedNotificationService.sendChatNotification(
+            receiverId: widget.driverId!,
+            senderName: userName,
+            messageText: text,
+            chatRoomId: widget.rideId.toString(),
+          );
+
+          print('   ✅ FCM notification sent successfully');
+        } catch (e) {
+          print('   ❌ FCM notification failed: $e');
+        }
+      } else {
+        print('   ⚠️ No driver ID, skipping FCM notification');
+      }
+
+      print('   🔄 Clearing input field');
       _messageController.clear();
 
       print('   ⏳ Waiting for server response...');

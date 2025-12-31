@@ -1,8 +1,12 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/services/biometric_service.dart';
 import 'package:muvam/core/services/call_service.dart';
+import 'package:muvam/core/services/fcmTokenService.dart';
+import 'package:muvam/core/services/fcm_notification_service.dart';
 import 'package:muvam/core/services/globalCallService.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -154,10 +158,18 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  AppLogger.log('Firebase initialized', tag: 'MAIN');
+
+  // Set up FCM background message handler
+  // FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  AppLogger.log('FCM background handler registered', tag: 'MAIN');
+  await FCMTokenService.initializeFCM();
+
+  // Initialize enhanced notifications with vibration for all features
+  EnhancedNotificationService.initEnhancedNotifications();
   // CRITICAL: Set up WebSocket call handler BEFORE running app
-  // await _setupGlobalWebSocketHandler();
-  // _setupGlobalWebSocketHandlerSync();
-  // GlobalCallService.instance.initialize(MyApp.navigatorKey);
   _setupGlobalWebSocketHandlerSync();
 
   runApp(const MyApp());
@@ -345,9 +357,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Initialize global call service with navigator key
     GlobalCallService.instance.initialize(MyApp.navigatorKey);
 
+    // Initialize FCM notifications
+    // _initializeFCM();
+
     // Add lifecycle observer
     WidgetsBinding.instance.addObserver(this);
   }
+
+  // Future<void> _initializeFCM() async {
+  //   try {
+  //      EnhancedNotificationService.initEnhancedNotifications();
+  //     AppLogger.log('FCM service initialized in MyApp', tag: 'MAIN');
+  //   } catch (e) {
+  //     AppLogger.error('Error initializing FCM in MyApp', error: e, tag: 'MAIN');
+  //   }
+  // }
 
   @override
   void dispose() {

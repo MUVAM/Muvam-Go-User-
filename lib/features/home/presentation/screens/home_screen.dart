@@ -828,6 +828,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // final passenger = _activeRide!['Passenger'] ?? {};
                 final passengerName = _assignedDriver!.name;
                 final passengerImage = _assignedDriver!.profilePicture;
+                final passengerId = _assignedDriver!.id;
 
                 Navigator.push(
                   context,
@@ -836,6 +837,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       rideId: rideId,
                       driverName: passengerName,
                       driverImage: passengerImage,
+                      driverId:passengerId
                     ),
                   ),
                 );
@@ -846,6 +848,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => ChatScreen(
                       rideId: rideId,
+                      driverId: senderId,
                       driverName: senderName,
                       driverImage: senderImage,
                     ),
@@ -5393,6 +5396,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           ?.toString() ??
                                                       '0',
                                                 ),
+                                                                      driverId:_assignedDriver?.id??'0',
+
                                           driverName:
                                               _assignedDriver?.name ?? 'Driver',
                                           driverImage:
@@ -6297,6 +6302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ChatScreen(
+                                  driverId: _assignedDriver?.id ?? '0',
                                   rideId: _activeRide?['ID'] is int
                                       ? _activeRide!['ID']
                                       : int.parse(
@@ -8300,6 +8306,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
+
+
+                             driverId:   _assignedDriver?.id??'0',
                                 rideId: _activeRide?['ID'] is int
                                     ? _activeRide!['ID']
                                     : int.parse(

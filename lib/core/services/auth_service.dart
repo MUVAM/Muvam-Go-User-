@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/services/fcm_notification_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/data/models/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../constants/url_constants.dart';
 
 class AuthService {
@@ -189,6 +192,19 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove('token_timestamp');
+
+    // // Delete FCM token on logout
+    // try {
+    //   final fcmService = FCMNotificationService();
+    //   await fcmService.deleteToken();
+    //   AppLogger.log('FCM token deleted on logout', tag: 'AUTH');
+    // } catch (e) {
+    //   AppLogger.error(
+    //     'Error deleting FCM token on logout',
+    //     error: e,
+    //     tag: 'AUTH',
+    //   );
+    // }
   }
 
   Future<bool> isTokenValid() async {

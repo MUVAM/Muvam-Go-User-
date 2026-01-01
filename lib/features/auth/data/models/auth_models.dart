@@ -57,10 +57,28 @@ class ApiResponse {
       ApiResponse(message: json['message']);
 }
 
+class TokenData {
+  final String accessToken;
+  final String refreshToken;
+  final int expiresIn;
+
+  TokenData({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.expiresIn,
+  });
+
+  factory TokenData.fromJson(Map<String, dynamic> json) => TokenData(
+    accessToken: json['access_token'],
+    refreshToken: json['refresh_token'],
+    expiresIn: json['expires_in'],
+  );
+}
+
 class VerifyOtpResponse {
   final bool isNew;
   final String message;
-  final String? token;
+  final TokenData? token;
   final Map<String, dynamic>? user;
 
   VerifyOtpResponse({
@@ -74,7 +92,7 @@ class VerifyOtpResponse {
       VerifyOtpResponse(
         isNew: json['isNew'],
         message: json['message'],
-        token: json['token'],
+        token: json['token'] != null ? TokenData.fromJson(json['token']) : null,
         user: json['user'],
       );
 }

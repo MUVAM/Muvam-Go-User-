@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:muvam/core/services/fcm_notification_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/data/models/auth_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +10,8 @@ import '../constants/url_constants.dart';
 
 class AuthService {
   static const String _tokenKey = 'auth_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _tokenExpiryKey = 'token_expiry';
 
   Future<ApiResponse> sendOtp(String phone) async {
     final response = await http.post(
@@ -58,10 +59,10 @@ class AuthService {
       final result = VerifyOtpResponse.fromJson(responseData);
 
       if (result.token != null) {
-        await _saveToken(result.token!);
+        await _saveTokenData(result.token!);
       }
 
-      // Store user ID and name
+      // Store user ID, name, and email
       if (responseData['user'] != null) {
         final user = responseData['user'];
         final prefs = await SharedPreferences.getInstance();
@@ -72,9 +73,11 @@ class AuthService {
         final lastName = user['last_name'] ?? '';
         final fullName = '$firstName $lastName'.trim();
         await prefs.setString('user_name', fullName);
+        await prefs.setString('user_email', user['Email'] ?? '');
 
         AppLogger.log('Stored user_id: ${user['ID']}');
         AppLogger.log('Stored user_name: $fullName');
+        AppLogger.log('Stored user_email: ${user['Email']}');
       }
 
       return result;
@@ -157,6 +160,23 @@ class AuthService {
     }
   }
 
+  // Save TokenData object with access token, refresh token, and expiry
+  Future<void> _saveTokenData(TokenData tokenData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, tokenData.accessToken);
+    await prefs.setString(_refreshTokenKey, tokenData.refreshToken);
+
+    // Calculate expiry time based on expires_in (in seconds)
+    final expiryTime =
+        DateTime.now().millisecondsSinceEpoch + (tokenData.expiresIn * 1000);
+    await prefs.setInt(_tokenExpiryKey, expiryTime);
+
+    AppLogger.log('Saved access_token: ${tokenData.accessToken}');
+    AppLogger.log('Saved refresh_token: ${tokenData.refreshToken}');
+    AppLogger.log('Token expires in: ${tokenData.expiresIn} seconds');
+  }
+
+  // Legacy method for backward compatibility (for registerUser)
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
@@ -169,28 +189,50 @@ class AuthService {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
-    final timestamp = prefs.getInt('token_timestamp');
+    final expiryTime = prefs.getInt(_tokenExpiryKey);
+    final timestamp = prefs.getInt('token_timestamp'); // For legacy tokens
 
     AppLogger.log('Stored token: $token');
-    AppLogger.log('Token timestamp: $timestamp');
+    AppLogger.log('Token expiry time: $expiryTime');
 
-    if (token != null && timestamp != null) {
-      final tokenAge = DateTime.now().millisecondsSinceEpoch - timestamp;
-      AppLogger.log('Token age: ${tokenAge / 1000} seconds');
-      if (tokenAge > 7200000) {
-        // 2 hours in milliseconds
-        AppLogger.log('Token expired, clearing...');
-        await clearToken();
-        return null;
+    if (token != null) {
+      // Check new token format with expiry time
+      if (expiryTime != null) {
+        final currentTime = DateTime.now().millisecondsSinceEpoch;
+        if (currentTime >= expiryTime) {
+          AppLogger.log('Token expired, clearing...');
+          await clearToken();
+          return null;
+        }
+        final remainingTime = (expiryTime - currentTime) / 1000;
+        AppLogger.log('Token valid for: $remainingTime seconds');
+      }
+      // Check legacy token format with timestamp
+      else if (timestamp != null) {
+        final tokenAge = DateTime.now().millisecondsSinceEpoch - timestamp;
+        AppLogger.log('Token age: ${tokenAge / 1000} seconds');
+        if (tokenAge > 7200000) {
+          // 2 hours in milliseconds
+          AppLogger.log('Token expired, clearing...');
+          await clearToken();
+          return null;
+        }
       }
     }
 
     return token;
   }
 
+  Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_refreshTokenKey);
+  }
+
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_tokenExpiryKey);
     await prefs.remove('token_timestamp');
 
     // // Delete FCM token on logout

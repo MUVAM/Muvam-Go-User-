@@ -82,7 +82,7 @@ class EnhancedNotificationService {
       print('✅ FCM DEBUG: Access token obtained successfully');
 
       String endpointFirebasecloudMessaging =
-          'https://fcm.googleapis.com/v1/projects/nriigbo-a9e30/messages:send';
+          'https://fcm.googleapis.com/v1/projects/muvam-go/messages:send';
       print('🎯 FCM DEBUG: FCM endpoint: $endpointFirebasecloudMessaging');
 
       final Map<String, dynamic> message = {

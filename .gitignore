@@ -51,6 +51,8 @@ app.*.map.json
 # Firebase sensitive files
 firebase-service-account.json
 **/firebase-service-account.json
+lib/core/config/firebase_service_account.json
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 ios/firebase_app_id_file.json
+

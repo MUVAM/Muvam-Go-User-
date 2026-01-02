@@ -15,20 +15,24 @@ class PromoCodeScreen extends StatefulWidget {
 
 class _PromoCodeScreenState extends State<PromoCodeScreen> {
   final TextEditingController _promoController = TextEditingController();
-  final FocusNode _promoFocusNode = FocusNode();
 
   @override
   void dispose() {
     _promoController.dispose();
-    _promoFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _validatePromo(PromoCodeProvider provider) async {
+  Future<void> _applyPromo() async {
+    final provider = context.read<PromoCodeProvider>();
     final code = _promoController.text.trim();
-    if (code.isEmpty) return;
 
-    _promoFocusNode.unfocus();
+    if (code.isEmpty) {
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Please enter a promo code',
+      );
+      return;
+    }
 
     final success = await provider.validatePromoCode(code);
 
@@ -36,12 +40,14 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       if (success) {
         CustomFlushbar.showInfo(
           context: context,
-          message: "Promo code applied successfully!'",
+          message:
+              provider.promoValidation?.message ??
+              'Promo code applied successfully!',
         );
       } else {
         CustomFlushbar.showError(
           context: context,
-          message: '${provider.errorMessage}',
+          message: provider.errorMessage ?? 'Invalid promo code',
         );
       }
     }
@@ -55,11 +61,10 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
         child: Consumer<PromoCodeProvider>(
           builder: (context, promoProvider, child) {
             return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 20.h),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
@@ -80,77 +85,38 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                   ),
                   SizedBox(height: 30.h),
                   Container(
-                    width: 353.w,
+                    width: double.infinity,
                     height: 48.h,
                     decoration: BoxDecoration(
                       color: Color(0xFFF7F9F8),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 10.w),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _promoController,
-                            focusNode: _promoFocusNode,
-                            textCapitalization: TextCapitalization.characters,
-                            onSubmitted: (_) => _validatePromo(promoProvider),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              prefixIcon: Icon(
-                                Icons.local_offer_outlined,
-                                color: Color(0xFFB1B1B1),
-                                size: 20.sp,
-                              ),
-                              hintText: 'Enter promo code',
-                              hintStyle: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xFFB1B1B1),
-                              ),
-                            ),
-                          ),
+                    child: TextField(
+                      controller: _promoController,
+                      textCapitalization: TextCapitalization.characters,
+                      enabled: !promoProvider.isValidating,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        prefixIcon: Icon(
+                          Icons.local_offer_outlined,
+                          color: Color(0xFFB1B1B1),
+                          size: 20.sp,
                         ),
-                        if (promoProvider.isValidating)
-                          SizedBox(
-                            width: 20.w,
-                            height: 20.h,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(ConstColors.mainColor),
-                            ),
-                          )
-                        else if (_promoController.text.isNotEmpty)
-                          GestureDetector(
-                            onTap: () => _validatePromo(promoProvider),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12.w,
-                                vertical: 6.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Color(ConstColors.mainColor),
-                                borderRadius: BorderRadius.circular(6.r),
-                              ),
-                              child: Text(
-                                'Apply',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                        hintText: 'Enter promo code',
+                        hintStyle: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFFB1B1B1),
+                        ),
+                      ),
                     ),
                   ),
-                  SizedBox(height: 15.h),
-                  if (promoProvider.promoValidation != null) ...[
+                  SizedBox(height: 20.h),
+                  if (promoProvider.hasAppliedPromo) ...[
                     Container(
-                      width: 353.w,
+                      width: double.infinity,
                       padding: EdgeInsets.all(15.w),
                       decoration: BoxDecoration(
                         color: Color(0xFFF0FDF4),
@@ -160,126 +126,44 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                           width: 1,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: Color(ConstColors.mainColor),
-                                    size: 20.sp,
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  Text(
-                                    'Promo Applied',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(ConstColors.mainColor),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  promoProvider.clearPromoCode();
-                                  _promoController.clear();
-                                },
-                                child: Icon(
-                                  Icons.close,
-                                  size: 20.sp,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
+                          Icon(
+                            Icons.check_circle,
+                            color: Color(ConstColors.mainColor),
+                            size: 20.sp,
                           ),
-                          SizedBox(height: 15.h),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Code:',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey,
-                                ),
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: Text(
+                              promoProvider.promoValidation?.message ??
+                                  'Promo Applied',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Color(ConstColors.mainColor),
                               ),
-                              Text(
-                                promoProvider.appliedPromoCode ?? '',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                          SizedBox(height: 8.h),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Discount:',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              Text(
-                                '- ${promoProvider.formatPrice(promoProvider.promoValidation!.discountAmount)}',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(ConstColors.mainColor),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 8.h),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Final Amount:',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              Text(
-                                promoProvider.formatPrice(
-                                  promoProvider.promoValidation!.finalAmount,
-                                ),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(ConstColors.mainColor),
-                                ),
-                              ),
-                            ],
+                          GestureDetector(
+                            onTap: () {
+                              promoProvider.clearPromoCode();
+                              _promoController.clear();
+                            },
+                            child: Icon(
+                              Icons.close,
+                              size: 20.sp,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 15.h),
+                    SizedBox(height: 20.h),
                   ],
                   Container(
-                    width: 353.w,
-                    height: 144.h,
+                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: Color(ConstColors.mainColor),
                       borderRadius: BorderRadius.circular(5.r),
@@ -296,19 +180,16 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                             height: 1.0,
-                            letterSpacing: -0.41,
                           ),
                         ),
                         SizedBox(height: 8.h),
                         Text(
-                          'maximum promo ₦500',
+                          'Maximum promo ₦500',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w400,
                             color: Colors.white,
-                            height: 1.0,
-                            letterSpacing: -0.41,
                           ),
                         ),
                         SizedBox(height: 15.h),
@@ -321,21 +202,15 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            GestureDetector(
-                              onTap: () {
-                                _promoController.text = 'PROMO40';
-                              },
-                              child: Text(
-                                'Tap to use',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  decoration: TextDecoration.underline,
-                                ),
+                            Text(
+                              'Apply',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
                               ),
                             ),
                             Text(
@@ -343,10 +218,8 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                                 color: Colors.white,
-                                height: 1.0,
-                                letterSpacing: -0.41,
                               ),
                             ),
                           ],
@@ -354,6 +227,39 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                       ],
                     ),
                   ),
+                  Spacer(),
+                  GestureDetector(
+                    onTap: promoProvider.isValidating ? null : _applyPromo,
+                    child: Container(
+                      width: double.infinity,
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Center(
+                        child: promoProvider.isValidating
+                            ? SizedBox(
+                                width: 20.w,
+                                height: 20.h,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Apply',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
                 ],
               ),
             );

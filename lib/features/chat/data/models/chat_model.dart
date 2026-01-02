@@ -25,6 +25,7 @@ class ChatMessageModel {
       'message': message,
       'timestamp': timestamp,
       if (rideId != null) 'ride_id': rideId,
+      if (userId != null) 'user_id': userId,
     };
   }
 }

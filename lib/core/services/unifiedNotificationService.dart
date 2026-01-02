@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:muvam/core/services/fcmTokenService.dart';
 import 'package:muvam/core/services/fcm_notification_service.dart';
 
-
 class UnifiedNotificationService {
   /// Send chat message notification with vibration and enhanced features
   static Future<void> sendChatNotification({
@@ -65,6 +64,59 @@ class UnifiedNotificationService {
       // Don't store chat messages in notification collection
       // Chat messages are handled separately in chatRooms collection
     } catch (e) {}
+  }
+
+  static Future<void> sendCallNotification({
+    required String receiverId,
+    required String callerName,
+    required int rideId,
+    required int sessionId,
+    String? callerImage,
+  }) async {
+    try {
+      // Get receiver's FCM tokens
+      final tokens = await FCMTokenService.getTokensForUser(receiverId);
+      if (tokens.isEmpty) {
+        print('⚠️ CALL_NOTIF: No FCM tokens found for user $receiverId');
+        return;
+      }
+
+      print('📞 CALL_NOTIF: Sending call notification to $receiverId');
+      print(
+        '📞 CALL_NOTIF: Caller: $callerName, Ride: $rideId, Session: $sessionId',
+      );
+
+      // Send notification to all user's devices
+      for (String token in tokens) {
+        try {
+          await EnhancedNotificationService.sendNotificationWithVibration(
+            deviceToken: token,
+            title: "Incoming Call",
+            body: '$callerName is calling you',
+            type: 'incoming_call',
+            additionalData: {
+              'caller_name': callerName,
+              'caller_image': callerImage ?? '',
+              'ride_id': rideId.toString(),
+              'session_id': sessionId.toString(),
+              'call_type': 'voice',
+              'priority': 'high',
+              // No custom sound - will use notification channel's default ringtone
+            },
+          );
+          print(
+            '✅ CALL_NOTIF: Notification sent to token: ${token.substring(0, 20)}...',
+          );
+        } catch (e) {
+          print('❌ CALL_NOTIF: Failed to send to token: $e');
+          if (e is InvalidTokenException) {
+            await FCMTokenService.removeInvalidToken(receiverId, token);
+          }
+        }
+      }
+    } catch (e) {
+      print('💥 CALL_NOTIF: Error sending call notification: $e');
+    }
   }
 
   /// Send order notification with vibration and enhanced features

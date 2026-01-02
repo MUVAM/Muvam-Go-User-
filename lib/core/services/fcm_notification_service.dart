@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
@@ -85,6 +87,15 @@ class EnhancedNotificationService {
           'https://fcm.googleapis.com/v1/projects/muvam-go/messages:send';
       print('🎯 FCM DEBUG: FCM endpoint: $endpointFirebasecloudMessaging');
 
+      // Determine if this is a call notification
+      final isCallNotification =
+          type == 'incoming_call' || additionalData?['call_type'] == 'incoming';
+
+      // Use appropriate channel and sound based on notification type
+      final channelId = isCallNotification ? 'call_channel' : 'FoodHub';
+      final sound = 'default'; // Always use default phone ringtone
+      final priority = 'high'; // FCM v1 API only supports 'high' or 'normal'
+
       final Map<String, dynamic> message = {
         'message': {
           'token': deviceToken,
@@ -96,17 +107,30 @@ class EnhancedNotificationService {
             ...?additionalData,
           },
           'android': {
-            'priority': "high",
+            'priority': priority,
             'notification': {
-              'sound': "default",
-              'click_action': "FLUTTER_NOTIFICATION_CLICK",
-              'channel_id': "FoodHub",
-              'vibrate_timings': ["0s", "0.5s", "0.2s", "0.5s"],
+              'sound': sound,
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              'channel_id': channelId,
+              // Note: vibrate_timings, notification_priority, visibility, category, sticky
+              // are not supported in FCM v1 API. Use notification channel settings instead.
+              if (isCallNotification) ...{
+                'tag': 'incoming_call', // Only 'tag' is supported
+              },
             },
           },
           'apns': {
             'payload': {
-              'aps': {'contentAvailable': true, 'badge': 1, 'sound': "default"},
+              'aps': {
+                'contentAvailable': true,
+                'badge': 1,
+                'sound': 'default', // Use default phone ringtone
+                if (isCallNotification) ...{
+                  'category': 'INCOMING_CALL',
+                  'interruption-level':
+                      'critical', // iOS 15+ for critical alerts
+                },
+              },
             },
           },
         },
@@ -204,7 +228,7 @@ class EnhancedNotificationService {
           .get();
 
       if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>?;
+        final userData = userDoc.data();
         userName = userData?['name'] as String? ?? 'User';
         print('👤 ENHANCED_NOTIF DEBUG: Found vendor name: $userName');
       } else {
@@ -218,7 +242,7 @@ class EnhancedNotificationService {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           userName =
               userData?['username'] as String? ??
               userData?['name'] as String? ??
@@ -333,7 +357,7 @@ class EnhancedNotificationService {
           .get();
 
       if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>?;
+        final userData = userDoc.data();
         userName = userData?['name'] as String? ?? 'User';
       } else {
         userDoc = await FirebaseFirestore.instance
@@ -342,7 +366,7 @@ class EnhancedNotificationService {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           userName =
               userData?['username'] as String? ??
               userData?['name'] as String? ??
@@ -431,7 +455,7 @@ class EnhancedNotificationService {
           .get();
 
       if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>?;
+        final userData = userDoc.data();
         userName = userData?['name'] as String? ?? 'User';
       } else {
         // Try customers collection
@@ -441,7 +465,7 @@ class EnhancedNotificationService {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           userName =
               userData?['username'] as String? ??
               userData?['name'] as String? ??
@@ -499,7 +523,7 @@ class EnhancedNotificationService {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           parentAuthorName = userData?['name'] as String? ?? 'User';
         } else {
           // Try customers collection
@@ -509,7 +533,7 @@ class EnhancedNotificationService {
               .get();
 
           if (userDoc.exists) {
-            final userData = userDoc.data() as Map<String, dynamic>?;
+            final userData = userDoc.data();
             parentAuthorName =
                 userData?['username'] as String? ??
                 userData?['name'] as String? ??
@@ -589,7 +613,7 @@ class EnhancedNotificationService {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           userName = userData?['name'] as String? ?? 'User';
         } else {
           // Try customers collection
@@ -599,7 +623,7 @@ class EnhancedNotificationService {
               .get();
 
           if (userDoc.exists) {
-            final userData = userDoc.data() as Map<String, dynamic>?;
+            final userData = userDoc.data();
             userName =
                 userData?['username'] as String? ??
                 userData?['name'] as String? ??
@@ -720,11 +744,39 @@ class EnhancedNotificationService {
       playSound: true,
     );
 
+    // Create CALL notification channel with ringtone
+    AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+      'call_channel',
+      'Incoming Calls',
+      description: 'Notifications for incoming calls',
+      importance: Importance.max, // Maximum importance for calls
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([
+        0,
+        1000,
+        500,
+        1000,
+        500,
+        1000,
+      ]), // Longer vibration
+      playSound: true,
+      // No custom sound specified - will use default phone ringtone
+      enableLights: true,
+      ledColor: Color.fromARGB(255, 255, 0, 0),
+    );
+
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(channel);
+
+    // Create the call channel
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(callChannel);
 
     var androidInitialize = const AndroidInitializationSettings(
       '@drawable/ic_notification',
@@ -850,11 +902,9 @@ class EnhancedNotificationService {
       // Check if this user is currently authenticated
       // final currentUser = FirebaseAuth.instance.currentUser;
 
-       final prefs = await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
       final currentUser = prefs.getString('user_id');
-      print(
-        '👤 TOKEN_REFRESH DEBUG: Current authenticated user: ${currentUser}',
-      );
+      print('👤 TOKEN_REFRESH DEBUG: Current authenticated user: $currentUser');
 
       if (currentUser != null && currentUser == userId) {
         print(

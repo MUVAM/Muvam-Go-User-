@@ -837,7 +837,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       rideId: rideId,
                       driverName: passengerName,
                       driverImage: passengerImage,
-                      driverId:passengerId
+                      driverId: passengerId,
                     ),
                   ),
                 );
@@ -5259,30 +5259,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
                                 } else if (hasArrived) {
                                   // Cancel functionality - show dialog
-                                   Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => CallScreen(
-                                          driverName: _assignedDriver!.name,
-                                          rideId: _activeRide?['ID'] is int
-                                              ? _activeRide!['ID']
-                                              : int.parse(
-                                                  _activeRide?['ID']
-                                                          ?.toString() ??
-                                                      '0',
-                                                ),
-                                        ),
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CallScreen(
+                                        driverName: _assignedDriver!.name,
+                                        rideId: _activeRide?['ID'] is int
+                                            ? _activeRide!['ID']
+                                            : int.parse(
+                                                _activeRide?['ID']
+                                                        ?.toString() ??
+                                                    '0',
+                                              ),
                                       ),
-                                    );
+                                    ),
+                                  );
                                 } else {
                                   // Call Driver functionality
                                   if (_assignedDriver != null &&
                                       _activeRide != null) {
-                                   
-                                  _showCancelRideDialog();
-
-
-
+                                    _showCancelRideDialog();
                                   }
                                 }
                               },
@@ -5396,7 +5392,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           ?.toString() ??
                                                       '0',
                                                 ),
-                                                                      driverId:_assignedDriver?.id??'0',
+                                          driverId: _assignedDriver?.id ?? '0',
 
                                           driverName:
                                               _assignedDriver?.name ?? 'Driver',
@@ -8127,6 +8123,8 @@ class _HomeScreenState extends State<HomeScreen> {
       scheduledAt: isScheduled && scheduledDateTime != null
           ? scheduledDateTime.toUtc().toIso8601String()
           : null,
+      stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
+      note: noteController.text.isNotEmpty ? noteController.text : null,
     );
 
     AppLogger.log('📋 Final Ride Request Object:');
@@ -8306,9 +8304,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
-
-
-                             driverId:   _assignedDriver?.id??'0',
+                                driverId: _assignedDriver?.id ?? '0',
                                 rideId: _activeRide?['ID'] is int
                                     ? _activeRide!['ID']
                                     : int.parse(

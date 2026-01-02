@@ -634,16 +634,6 @@
 //   }
 // }
 
-
-
-
-
-
-
-
-
-
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -673,12 +663,14 @@ class ChatScreen extends StatefulWidget {
   final String driverName;
   final String? driverImage;
   final String driverId;
+  final String? driverPhone; // Add phone number parameter
   const ChatScreen({
     super.key,
     required this.rideId,
     required this.driverName,
     this.driverImage,
     required this.driverId,
+    this.driverPhone, // Add to constructor
   });
 
   @override
@@ -691,6 +683,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool isConnected = false;
   String? currentUserId;
   bool _userIdLoaded = false;
+  bool _isSendingMessage = false; // Flag to prevent duplicate sends
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
 
@@ -698,6 +691,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     print('🎬 ChatScreen initState - Ride ID: ${widget.rideId}');
+    print('PHONE NUMBER ${widget.driverPhone}');
+
     _initializeScreen();
   }
 
@@ -953,6 +948,13 @@ class _ChatScreenState extends State<ChatScreen> {
     print('   SEND MESSAGE INITIATED');
     print('   ═══════════════════════════════════════');
 
+    // Prevent duplicate sends
+    if (_isSendingMessage) {
+      print('   ⚠️ Already sending a message, ignoring duplicate tap');
+      print('');
+      return;
+    }
+
     if (!_userIdLoaded) {
       print('   ❌ User ID not loaded');
       print('');
@@ -969,12 +971,21 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    // Get the text BEFORE clearing to avoid empty message
     final text = _messageController.text.trim();
     if (text.isEmpty) {
       print('   ❌ Empty message');
       print('');
       return;
     }
+
+    // Clear the text field IMMEDIATELY to prevent duplicate sends
+    _messageController.clear();
+
+    // Set flag to prevent duplicate sends
+    setState(() {
+      _isSendingMessage = true;
+    });
 
     try {
       print('   📝 Message: "$text"');
@@ -1016,7 +1027,7 @@ class _ChatScreenState extends State<ChatScreen> {
         //   rideId: widget.rideId.toString(),
         // );
         await UnifiedNotificationService.sendChatNotification(
-          receiverId: widget.driverId!,
+          receiverId: widget.driverId,
           senderName: userName,
           messageText: text,
           chatRoomId: widget.rideId.toString(),
@@ -1026,10 +1037,6 @@ class _ChatScreenState extends State<ChatScreen> {
       } catch (e) {
         print('   ❌ FCM notification error: $e');
       }
-
-      print('   🔄 Clearing input field');
-
-      _messageController.clear();
 
       print('   ⏳ Waiting for server response...');
       print('   ═══════════════════════════════════════');
@@ -1043,6 +1050,13 @@ class _ChatScreenState extends State<ChatScreen> {
         context: context,
         message: 'Failed to send message',
       );
+    } finally {
+      // Reset the flag after sending (or if error occurred)
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
     }
   }
 
@@ -1150,8 +1164,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _makeCall() async {
-    const phoneNumber = '+1234567890';
-    final uri = Uri.parse('tel:$phoneNumber');
+    // const phoneNumber = '+1234567890';
+    final uri = Uri.parse('tel:${widget.driverPhone}');
 
     try {
       if (await canLaunchUrl(uri)) {
@@ -1376,5 +1390,3 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-
-

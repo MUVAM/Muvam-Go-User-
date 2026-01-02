@@ -212,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
         phoneNumber: driverData['phone_number']?.toString() ?? '',
         rating: (driverData['rating'] ?? 4.5).toDouble(),
         vehicleModel: driverData['vehicle_model']?.toString() ?? 'Vehicle',
-        plateNumber: driverData['plate_number']?.toString() ?? 'ABC-123',
+        plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
       );
 
       setState(() {
@@ -683,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
         phoneNumber: driverData['phone_number']?.toString() ?? '',
         rating: (driverData['rating'] ?? 4.5).toDouble(),
         vehicleModel: driverData['vehicle_model']?.toString() ?? 'Vehicle',
-        plateNumber: driverData['plate_number']?.toString() ?? 'ABC-123',
+        plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
       );
 
       setState(() {
@@ -838,6 +838,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       driverName: passengerName,
                       driverImage: passengerImage,
                       driverId: passengerId,
+                      driverPhone: _assignedDriver?.phoneNumber,
                     ),
                   ),
                 );
@@ -851,6 +852,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       driverId: senderId,
                       driverName: senderName,
                       driverImage: senderImage,
+                      driverPhone: _assignedDriver?.phoneNumber,
                     ),
                   ),
                 );
@@ -938,7 +940,7 @@ class _HomeScreenState extends State<HomeScreen> {
             phoneNumber: driverData['phone']?.toString() ?? '',
             rating: (driverData['average_rating'] ?? 4.5).toDouble(),
             vehicleModel: 'Vehicle',
-            plateNumber: 'ABC-123',
+            plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
           );
         }
 
@@ -5398,6 +5400,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                               _assignedDriver?.name ?? 'Driver',
                                           driverImage:
                                               _assignedDriver?.profilePicture,
+                                          driverPhone:
+                                              _assignedDriver?.phoneNumber,
                                         ),
                                       ),
                                     );
@@ -6306,6 +6310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                   driverName: _assignedDriver?.name ?? 'Driver',
                                   driverImage: _assignedDriver?.profilePicture,
+                                  driverPhone: _assignedDriver?.phoneNumber,
                                   // rideId:
                                   //     .toString() ??_currentRideResponse?.id
                                   //     '12345',
@@ -8312,6 +8317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                 driverName: _assignedDriver?.name ?? 'Driver',
                                 driverImage: _assignedDriver?.profilePicture,
+                                driverPhone: _assignedDriver?.phoneNumber,
                               ),
                             ),
                           );

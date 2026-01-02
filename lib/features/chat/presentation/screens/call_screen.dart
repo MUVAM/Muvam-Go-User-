@@ -81,19 +81,20 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       AppLogger.log(
-        '⚠️⚠️⚠️ APP GOING TO BACKGROUND/CLOSING ⚠️⚠️⚠️',
+        '⚠️ APP GOING TO BACKGROUND - Call will continue',
         tag: 'CALL_SCREEN',
       );
-      // We might not want to end call on background for Agora (audio continues).
-      // But keeping logic consistent with previous behavior:
+      // DON'T end the call when app goes to background
+      // Audio calls should continue running in the background
+      // The wakelock and Agora engine will keep the call active
 
+      // Previously this was ending the call, which caused the issue:
       // _endCallProperly();
-      // User might want to keep call alive in background?
-      // Usually audio calls should persist.
-      // Previous logic ended it. I will keep it commented out or respect previous logic if critical.
-      // Previous logic: _endCallProperly();
-      // I will leave it as is if it was ending call.
-      _endCallProperly();
+    } else if (state == AppLifecycleState.resumed) {
+      AppLogger.log(
+        '✅ APP RESUMED - Call should still be active',
+        tag: 'CALL_SCREEN',
+      );
     }
   }
 
@@ -295,7 +296,8 @@ class _CallScreenState extends State<CallScreen> with WidgetsBindingObserver {
     } catch (e) {
       AppLogger.error('❌ Failed to initialize call', error: e, tag: 'CALL');
       setState(() {
-        _callStatus = 'Call failed';
+        _callStatus =
+            'Call Failed: There is an active call already for this ride';
       });
     }
   }

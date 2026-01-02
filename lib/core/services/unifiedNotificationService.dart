@@ -10,60 +10,35 @@ class UnifiedNotificationService {
     required String messageText,
     required String chatRoomId,
   }) async {
-    try {
-      // Get receiver's name for greeting
-      String receiverName = 'User';
-      // Check vendors collection first
-      var userDoc = await FirebaseFirestore.instance
-          .collection('vendors')
-          .doc(receiverId)
-          .get();
-      if (userDoc.exists) {
-        final userData = userDoc.data();
-        receiverName = userData?['name'] as String? ?? 'User';
-      } else {
-        // Check customers collection
-        userDoc = await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(receiverId)
-            .get();
-        if (userDoc.exists) {
-          final userData = userDoc.data();
-          receiverName =
-              userData?['username'] as String? ??
-              userData?['name'] as String? ??
-              'User';
+    // final greeting = _getGreeting(receiverName);
+    // Get receiver's FCM tokens
+    final tokens = await FCMTokenService.getTokensForUser(receiverId);
+    if (tokens.isEmpty) {
+      return;
+    }
+    // Send notification to all user's devices
+    for (String token in tokens) {
+      try {
+        await EnhancedNotificationService.sendNotificationWithVibration(
+          deviceToken: token,
+          title: "New Message",
+          body: messageText,
+          type: 'chat_message',
+          additionalData: {
+            'chatRoomId': chatRoomId,
+            'senderId': senderName,
+            'messageText': messageText,
+          },
+        );
+      } catch (e) {
+        if (e is InvalidTokenException) {
+          await FCMTokenService.removeInvalidToken(receiverId, token);
         }
       }
-      final greeting = _getGreeting(receiverName);
-      // Get receiver's FCM tokens
-      final tokens = await FCMTokenService.getTokensForUser(receiverId);
-      if (tokens.isEmpty) {
-        return;
-      }
-      // Send notification to all user's devices
-      for (String token in tokens) {
-        try {
-          await EnhancedNotificationService.sendNotificationWithVibration(
-            deviceToken: token,
-            title: greeting,
-            body: '$senderName: $messageText',
-            type: 'chat_message',
-            additionalData: {
-              'chatRoomId': chatRoomId,
-              'senderId': senderName,
-              'messageText': messageText,
-            },
-          );
-        } catch (e) {
-          if (e is InvalidTokenException) {
-            await FCMTokenService.removeInvalidToken(receiverId, token);
-          }
-        }
-      }
+
       // Don't store chat messages in notification collection
       // Chat messages are handled separately in chatRooms collection
-    } catch (e) {}
+    }
   }
 
   static Future<void> sendCallNotification({
@@ -92,7 +67,7 @@ class UnifiedNotificationService {
           await EnhancedNotificationService.sendNotificationWithVibration(
             deviceToken: token,
             title: "Incoming Call",
-            body: '$callerName is calling you',
+            body: 'Passenger is calling you',
             type: 'incoming_call',
             additionalData: {
               'caller_name': callerName,

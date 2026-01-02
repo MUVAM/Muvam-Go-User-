@@ -31,9 +31,6 @@ class PromoCodeProvider extends ChangeNotifier {
         _promoValidation = PromoCodeValidation.fromJson(result['data']);
         _appliedPromoCode = code.toUpperCase();
         _errorMessage = null;
-        AppLogger.log(
-          'Promo validated - Discount: ${_promoValidation?.discountAmount}',
-        );
         return true;
       } else {
         _errorMessage = result['message'] ?? 'Invalid promo code';

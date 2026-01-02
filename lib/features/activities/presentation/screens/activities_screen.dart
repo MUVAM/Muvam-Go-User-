@@ -55,7 +55,7 @@ class ActivitiesScreenState extends State<ActivitiesScreen> {
           //   ),
           // ),
           Positioned(
-            top: 90.h,
+            top: 70.h,
             left: 20.w,
             child: Container(
               width: 353.w,
@@ -85,7 +85,7 @@ class ActivitiesScreenState extends State<ActivitiesScreen> {
             ),
           ),
           Positioned(
-            top: 150.h,
+            top: 140.h,
             left: 20.w,
             right: 20.w,
             bottom: 20.h,

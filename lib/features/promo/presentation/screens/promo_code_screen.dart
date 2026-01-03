@@ -114,54 +114,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                     ),
                   ),
                   SizedBox(height: 20.h),
-                  if (promoProvider.hasAppliedPromo) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(15.w),
-                      decoration: BoxDecoration(
-                        color: Color(0xFFF0FDF4),
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(
-                          color: Color(ConstColors.mainColor),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: Color(ConstColors.mainColor),
-                            size: 20.sp,
-                          ),
-                          SizedBox(width: 8.w),
-                          Expanded(
-                            child: Text(
-                              promoProvider.promoValidation?.message ??
-                                  'Promo Applied',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Color(ConstColors.mainColor),
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              promoProvider.clearPromoCode();
-                              _promoController.clear();
-                            },
-                            child: Icon(
-                              Icons.close,
-                              size: 20.sp,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                  ],
+
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -248,7 +201,9 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                                 ),
                               )
                             : Text(
-                                'Apply',
+                                promoProvider.hasAppliedPromo
+                                    ? 'Applied'
+                                    : 'Apply',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 16.sp,

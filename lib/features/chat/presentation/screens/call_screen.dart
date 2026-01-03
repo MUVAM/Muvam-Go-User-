@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/services/call_service.dart';
-import 'package:muvam/core/services/globalCallService.dart';
+import 'package:muvam/core/services/global_call_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 // import 'package:muvam/features/services/globalincomingcall.dart';
 import 'package:permission_handler/permission_handler.dart';

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
-import 'package:muvam/core/services/fcmTokenService.dart';
+import 'package:muvam/core/services/fcm_token_service.dart';
 import 'package:muvam/core/services/firebase_config_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';

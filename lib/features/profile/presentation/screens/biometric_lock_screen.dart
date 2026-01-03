@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/core/services/biometric_service.dart';
+import 'package:muvam/core/services/biometric_auth_service.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 
 class BiometricLockScreen extends StatefulWidget {

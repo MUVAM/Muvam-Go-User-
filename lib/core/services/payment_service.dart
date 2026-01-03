@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -32,7 +31,6 @@ class PaymentService {
     }
   }
 
-  /// Generate a unique reference ID for payment
   String generateReference() {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = Random().nextInt(999999).toString().padLeft(6, '0');
@@ -49,7 +47,7 @@ class PaymentService {
     final paymentReference = reference ?? generateReference();
 
     AppLogger.log(
-      '💰 Initializing payment for ride $rideId, amount: ₦$amount, reference: $paymentReference',
+      'Initializing payment for ride $rideId, amount: ₦$amount, reference: $paymentReference',
       tag: 'PAYMENT',
     );
 
@@ -73,7 +71,6 @@ class PaymentService {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = jsonDecode(response.body);
-      // Ensure reference is included in response
       if (!responseData.containsKey('reference')) {
         responseData['reference'] = paymentReference;
       }
@@ -85,7 +82,7 @@ class PaymentService {
 
   Future<Map<String, dynamic>> verifyPayment(String reference) async {
     AppLogger.log(
-      '🔍 Verifying payment with reference: $reference',
+      'Verifying payment with reference: $reference',
       tag: 'PAYMENT',
     );
 
@@ -113,7 +110,7 @@ class PaymentService {
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
       AppLogger.log(
-        '✅ Payment verification result: ${responseData['status'] ?? 'unknown'}',
+        'Payment verification result: ${responseData['status'] ?? 'unknown'}',
         tag: 'PAYMENT',
       );
       return responseData;

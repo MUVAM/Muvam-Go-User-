@@ -176,7 +176,7 @@ onTap: !_isBookingRide
 ### 1. No Logs Appearing
 - Check if logger package is properly imported
 - Verify console output is visible in your IDE
-- Try adding a simple `print('TEST LOG')` to confirm logging works
+- Try adding a simple `AppLogger.log('TEST LOG')` to confirm logging works
 
 ### 2. Button Not Responding
 - Check if `_isBookingRide` is stuck as `true`

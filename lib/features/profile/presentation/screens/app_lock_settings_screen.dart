@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/profile/presentation/widgets/app_lock_radio_option.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppLockSettingsScreen extends StatefulWidget {
@@ -17,7 +19,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
   final LocalAuthentication auth = LocalAuthentication();
   late SharedPreferences _prefs;
   bool _isBiometricEnabled = false;
-  String _lockTiming = 'immediately'; // 'immediately', '1_minute', '30_minutes'
+  String _lockTiming = 'immediately';
   bool _isLoading = true;
   bool _canCheckBiometrics = false;
   List<BiometricType> _availableBiometrics = [];
@@ -37,11 +39,11 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
     try {
       _canCheckBiometrics = await auth.canCheckBiometrics;
       _availableBiometrics = await auth.getAvailableBiometrics();
-      print(
+      AppLogger.log(
         'Biometric support check: canCheck=$_canCheckBiometrics, available=$_availableBiometrics',
       );
     } on PlatformException catch (e) {
-      print('Error checking biometric support: $e');
+      AppLogger.log('Error checking biometric support: $e');
     }
   }
 
@@ -52,7 +54,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
       _lockTiming = _prefs.getString('lock_timing') ?? 'immediately';
       _isLoading = false;
     });
-    print(
+    AppLogger.log(
       'Loaded settings: biometric=$_isBiometricEnabled, timing=$_lockTiming',
     );
   }
@@ -60,14 +62,14 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
   Future<void> _saveSettings() async {
     await _prefs.setBool('biometric_enabled', _isBiometricEnabled);
     await _prefs.setString('lock_timing', _lockTiming);
-    print(
+    AppLogger.log(
       'Settings saved: biometric=$_isBiometricEnabled, timing=$_lockTiming',
     );
 
     // Verify the save
     final savedBiometric = _prefs.getBool('biometric_enabled');
     final savedTiming = _prefs.getString('lock_timing');
-    print(
+    AppLogger.log(
       'Verified saved settings: biometric=$savedBiometric, timing=$savedTiming',
     );
   }
@@ -78,12 +80,12 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
         localizedReason: 'Authenticate to enable app lock',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false, // Allow PIN/Pattern as fallback
+          biometricOnly: false,
         ),
       );
       return authenticated;
     } on PlatformException catch (e) {
-      print('Authentication error: $e');
+      AppLogger.log('Authentication error: $e');
       return false;
     }
   }
@@ -186,7 +188,6 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
       body: ListView(
         padding: EdgeInsets.all(20.w),
         children: [
-          // Biometric Unlock Card
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
@@ -197,7 +198,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 10,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -238,17 +239,14 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
                     Switch(
                       value: _isBiometricEnabled,
                       onChanged: _toggleBiometric,
-                      activeThumbColor: Color(ConstColors.mainColor),
+                      activeThumbColor: const Color(ConstColors.mainColor),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
           SizedBox(height: 20.h),
-
-          // Lock Timing Options (only show if biometric is enabled)
           if (_isBiometricEnabled) ...[
             Container(
               padding: EdgeInsets.all(16.w),
@@ -260,7 +258,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -277,22 +275,31 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  _buildRadioOption(
-                    'Immediately when leaving the app',
-                    'immediately',
+                  AppLockRadioOption(
+                    title: 'Immediately when leaving the app',
+                    value: 'immediately',
+                    selectedValue: _lockTiming,
+                    onSelected: _setLockTiming,
                   ),
                   Divider(color: Colors.grey.shade200, height: 1),
-                  _buildRadioOption('After 1 minute', '1_minute'),
+                  AppLockRadioOption(
+                    title: 'After 1 minute',
+                    value: '1_minute',
+                    selectedValue: _lockTiming,
+                    onSelected: _setLockTiming,
+                  ),
                   Divider(color: Colors.grey.shade200, height: 1),
-                  _buildRadioOption('After 30 minutes', '30_minutes'),
+                  AppLockRadioOption(
+                    title: 'After 30 minutes',
+                    value: '30_minutes',
+                    selectedValue: _lockTiming,
+                    onSelected: _setLockTiming,
+                  ),
                 ],
               ),
             ),
           ],
-
           SizedBox(height: 20.h),
-
-          // Info card
           if (!_canCheckBiometrics || _availableBiometrics.isEmpty)
             Container(
               padding: EdgeInsets.all(16.w),
@@ -324,58 +331,6 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRadioOption(String title, String value) {
-    final isSelected = _lockTiming == value;
-    return GestureDetector(
-      onTap: () => _setLockTiming(value),
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 12.h),
-        color: Colors.transparent,
-        child: Row(
-          children: [
-            Container(
-              width: 20.w,
-              height: 20.h,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? Color(ConstColors.mainColor)
-                      : Colors.grey.shade400,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10.w,
-                        height: 10.h,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(ConstColors.mainColor),
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

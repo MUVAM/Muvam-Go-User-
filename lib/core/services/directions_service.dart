@@ -1,13 +1,14 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/utils/app_logger.dart';
 
 class DirectionsService {
-  static const String _apiKey = 'AIzaSyD-nRzdn3Slmj5FgoHSPIq5B4sMZieWofs';
+  static final String _apiKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
 
   /// Get route polyline points between two locations
   Future<List<LatLng>> getRoutePolyline({
@@ -16,7 +17,6 @@ class DirectionsService {
     List<LatLng>? waypoints,
   }) async {
     try {
-      // Build the URL
       String url =
           'https://maps.googleapis.com/maps/api/directions/json?'
           'origin=${origin.latitude},${origin.longitude}'
@@ -31,7 +31,7 @@ class DirectionsService {
         url += '&waypoints=$waypointsStr';
       }
 
-      print('🗺️ Fetching directions from Google Maps API...');
+      AppLogger.log('Fetching directions from Google Maps API...');
 
       final response = await http.get(Uri.parse(url));
 
@@ -44,27 +44,26 @@ class DirectionsService {
             final route = routes[0];
             final polylinePoints = route['overview_polyline']['points'];
 
-            print('✅ Route fetched successfully');
+            AppLogger.log('Route fetched successfully');
 
-            // Decode the polyline
             return _decodePolyline(polylinePoints);
           }
         } else {
-          print('❌ Directions API error: ${data['status']}');
-          print(
+          AppLogger.log('Directions API error: ${data['status']}');
+          AppLogger.log(
             'Error message: ${data['error_message'] ?? 'No error message'}',
           );
         }
       } else {
-        print('❌ HTTP error: ${response.statusCode}');
+        AppLogger.log('HTTP error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error getting route: $e');
+      AppLogger.log('Error getting route: $e');
     }
 
     // Return straight line as fallback (API key needed for real routes)
-    print(
-      '⚠️ Using straight line - need valid Google Maps API key for real routes',
+    AppLogger.log(
+      'Using straight line - need valid Google Maps API key for real routes',
     );
     return [origin, destination];
   }
@@ -145,7 +144,7 @@ class DirectionsService {
         }
       }
     } catch (e) {
-      print('Error getting route details: $e');
+      AppLogger.log('Error getting route details: $e');
     }
 
     return null;

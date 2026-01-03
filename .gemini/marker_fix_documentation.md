@@ -64,7 +64,7 @@ LatLng? _parsePostGISPoint(String pointString) {
       return LatLng(latitude, longitude);
     }
   } catch (e) {
-    print('Error parsing PostGIS point: $e');
+    AppLogger.log('Error parsing PostGIS point: $e');
   }
   return null;
 }

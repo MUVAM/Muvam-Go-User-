@@ -7,36 +7,38 @@ void main() {
   final pickupWKB = "0101000020E61000008E356D10F7E21B40C13F000407371640";
   final destWKB = "0101000020E61000008E356D10F7E21B40C13F000407371640";
 
-  print('Testing WKB parsing...');
-  print('Pickup WKB: $pickupWKB');
-  print('Dest WKB: $destWKB');
+  AppLogger.log('Testing WKB parsing...');
+  AppLogger.log('Pickup WKB: $pickupWKB');
+  AppLogger.log('Dest WKB: $destWKB');
 
   final pickupCoords = parsePostGISLocation(pickupWKB);
   final destCoords = parsePostGISLocation(destWKB);
 
   if (pickupCoords != null) {
-    print(
+    AppLogger.log(
       '✅ Pickup parsed: lat=${pickupCoords['lat']}, lng=${pickupCoords['lng']}',
     );
     final pickupLatLng = LatLng(pickupCoords['lat']!, pickupCoords['lng']!);
-    print('   LatLng: $pickupLatLng');
+    AppLogger.log('   LatLng: $pickupLatLng');
   } else {
-    print('❌ Failed to parse pickup');
+    AppLogger.log('❌ Failed to parse pickup');
   }
 
   if (destCoords != null) {
-    print('✅ Dest parsed: lat=${destCoords['lat']}, lng=${destCoords['lng']}');
+    AppLogger.log(
+      '✅ Dest parsed: lat=${destCoords['lat']}, lng=${destCoords['lng']}',
+    );
     final destLatLng = LatLng(destCoords['lat']!, destCoords['lng']!);
-    print('   LatLng: $destLatLng');
+    AppLogger.log('   LatLng: $destLatLng');
 
     // Calculate midpoint for stop marker
     if (pickupCoords != null) {
       final stopLat = (pickupCoords['lat']! + destCoords['lat']!) / 2;
       final stopLng = (pickupCoords['lng']! + destCoords['lng']!) / 2;
-      print('✅ Stop midpoint: lat=$stopLat, lng=$stopLng');
+      AppLogger.log('✅ Stop midpoint: lat=$stopLat, lng=$stopLng');
     }
   } else {
-    print('❌ Failed to parse destination');
+    AppLogger.log('❌ Failed to parse destination');
   }
 }
 
@@ -58,7 +60,7 @@ Map<String, double>? parsePostGISLocation(String location) {
       }
     }
   } catch (e) {
-    print('Error parsing PostGIS location: $e');
+    AppLogger.log('Error parsing PostGIS location: $e');
   }
   return null;
 }

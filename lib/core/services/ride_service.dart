@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -57,9 +56,9 @@ class RideService {
     AppLogger.log(
       'Request Headers: {"Content-Type": "application/json", "Authorization": "Bearer ${token?.substring(0, 20)}..."}',
     );
-    AppLogger.log('🚗 PAYMENT METHOD IN REQUEST: ${request.paymentMethod}');
-    AppLogger.log('📋 FULL REQUEST BODY: ${jsonEncode(requestBody)}');
-    AppLogger.log('🔍 REQUEST BODY BREAKDOWN:');
+    AppLogger.log('PAYMENT METHOD IN REQUEST: ${request.paymentMethod}');
+    AppLogger.log('FULL REQUEST BODY: ${jsonEncode(requestBody)}');
+    AppLogger.log('REQUEST BODY BREAKDOWN:');
     requestBody.forEach((key, value) {
       AppLogger.log('  $key: $value');
     });
@@ -76,19 +75,19 @@ class RideService {
     AppLogger.log('=== RIDE REQUEST RESPONSE ===');
     AppLogger.log('Response Status: ${response.statusCode}');
     AppLogger.log('Response Headers: ${response.headers}');
-    AppLogger.log('📥 FULL RESPONSE BODY: ${response.body}');
+    AppLogger.log('FULL RESPONSE BODY: ${response.body}');
 
     if (response.body.isNotEmpty) {
       try {
         final responseJson = jsonDecode(response.body);
-        AppLogger.log('🔍 RESPONSE BODY BREAKDOWN:');
+        AppLogger.log('RESPONSE BODY BREAKDOWN:');
         if (responseJson is Map<String, dynamic>) {
           responseJson.forEach((key, value) {
             AppLogger.log('  $key: $value');
           });
         }
       } catch (e) {
-        AppLogger.log('❌ Failed to parse response JSON: $e');
+        AppLogger.log('Failed to parse response JSON: $e');
       }
     }
     AppLogger.log('=== END RIDE REQUEST ===');
@@ -279,7 +278,6 @@ class RideService {
 
   Future<void> dismissRide(int rideId) async {
     final token = await _getToken();
-    // User specified endpoint: rides/dismiss/{ride_id}
     final url = '${UrlConstants.baseUrl}/rides/dismiss/$rideId';
 
     AppLogger.log('=== DISMISS RIDE REQUEST ===', tag: 'DISMISS');

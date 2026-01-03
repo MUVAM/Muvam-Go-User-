@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/data/models/auth_models.dart';
@@ -89,7 +88,7 @@ class AuthService {
 
   Future<RegisterUserResponse> registerUser(RegisterUserRequest request) async {
     final requestBody = request.toJson();
-    requestBody['service_type'] = 'taxi'; // Force add service_type
+    requestBody['service_type'] = 'taxi';
     AppLogger.log('Registration request: $requestBody');
 
     final response = await http.post(
@@ -130,7 +129,6 @@ class AuthService {
       final responseData = jsonDecode(response.body);
       final result = RegisterUserResponse.fromJson(responseData);
 
-      // Save token
       await _saveToken(result.token);
 
       // Store user data

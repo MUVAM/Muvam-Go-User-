@@ -1,7 +1,7 @@
 class FavoriteLocation {
   final int? id;
-  final String name; // 'home', 'work', or 'favourite'
-  final String destLocation; // POINT format
+  final String name;
+  final String destLocation;
   final String destAddress;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -70,18 +70,15 @@ class FavoriteLocationsListResponse {
   final bool success;
   final List<FavoriteLocation> data;
 
-  FavoriteLocationsListResponse({
-    required this.success,
-    required this.data,
-  });
+  FavoriteLocationsListResponse({required this.success, required this.data});
 
   factory FavoriteLocationsListResponse.fromJson(Map<String, dynamic> json) {
     return FavoriteLocationsListResponse(
       success: json['success'] ?? false,
       data: json['data'] != null
           ? (json['data'] as List)
-              .map((item) => FavoriteLocation.fromJson(item))
-              .toList()
+                .map((item) => FavoriteLocation.fromJson(item))
+                .toList()
           : [],
     );
   }

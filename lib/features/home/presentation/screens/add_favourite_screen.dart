@@ -123,7 +123,7 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
         name: _nameController.text.trim(),
       );
 
-      AppLogger.log('🔄 Saving favourite location:');
+      AppLogger.log('Saving favourite location:');
       AppLogger.log('Name: ${request.name}');
       AppLogger.log('Address: ${request.destAddress}');
       AppLogger.log('Location: ${request.destLocation}');
@@ -131,14 +131,14 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
 
       await _favouriteService.addFavouriteLocation(request);
 
-      AppLogger.log('✅ Favourite location saved successfully');
+      AppLogger.log('Favourite location saved successfully');
       CustomFlushbar.showSuccess(
         context: context,
         message: 'Favourite location added successfully',
       );
       Navigator.pop(context, true);
     } catch (e) {
-      AppLogger.log('❌ Error saving favourite location: $e');
+      AppLogger.log('Error saving favourite location: $e');
       CustomFlushbar.showError(
         context: context,
         message: 'Failed to add favourite location: ${e.toString()}',

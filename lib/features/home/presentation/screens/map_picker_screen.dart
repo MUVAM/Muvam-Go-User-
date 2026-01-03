@@ -125,7 +125,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             myLocationButtonEnabled: true,
             zoomControlsEnabled: false,
           ),
-
           if (_isLoadingLocation)
             Container(
               color: Colors.white.withOpacity(0.8),
@@ -135,8 +134,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 ),
               ),
             ),
-
-          // Top bar
           Positioned(
             top: 0,
             left: 0,
@@ -166,8 +163,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               ),
             ),
           ),
-
-          // Bottom sheet with address
           Positioned(
             bottom: 0,
             left: 0,

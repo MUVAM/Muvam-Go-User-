@@ -1,523 +1,9 @@
-// import 'dart:convert';
-// import 'dart:io';
-// import 'dart:async';
-// import 'package:muvam/core/constants/url_constants.dart';
-// import 'package:muvam/core/utils/app_logger.dart';
-// import 'package:muvam/features/home/data/models/ride_models.dart';
-// import 'package:web_socket_channel/web_socket_channel.dart';
-// import 'package:web_socket_channel/io.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-// // import '../constants/url_constants.dart';
-// // //FOR PASSENGER
-// // FIXED WebSocket Service - Synchronous setup
-// import 'dart:convert';
-// import 'dart:io';
-// import 'package:shared_preferences/shared_preferences.dart';
-
-// class WebSocketService {
-//   static WebSocketService? _instance;
-//   WebSocket? _socket;
-//   final String? token;
-//   bool _isConnected = false;
-//   bool _isConnecting = false;
-//   int _reconnectAttempts = 0;
-//   static const int _maxReconnectAttempts = 5;
-
-//   // Callbacks for different message types
-//   Function(dynamic)? onMessageReceived;
-//   Function(Map<String, dynamic>)? onRideAccepted;
-//   Function(Map<String, dynamic>)? onRideUpdate;
-//   Function(Map<String, dynamic>)? onChatMessage;
-//   Function(Map<String, dynamic>)? onDriverLocation;
-//   Function(Map<String, dynamic>)? onIncomingCall;
-//   Function(Map<String, dynamic>)? onRideCompleted;
-//   Function(Map<String, dynamic>)? onRideRequest;
-
-//   bool get isConnected => _isConnected;
-
-//   // Singleton pattern
-//   static WebSocketService get instance {
-//     _instance ??= WebSocketService._internal();
-//     return _instance!;
-//   }
-
-//   WebSocketService._internal() : token = null;
-
-//   Future<void> connect() async {
-//     print('🚀 NATIVE WEBSOCKET CONNECT');
-
-//     if (_isConnected) {
-//       print('⚠️ Already connected');
-//       return;
-//     }
-
-//     if (_isConnecting) {
-//       print('⚠️ Connection in progress');
-//       return;
-//     }
-
-//     _isConnecting = true;
-
-//     try {
-//       // Get token from storage
-//       final authToken = await _getToken();
-//       if (authToken == null) {
-//         print('❌ No auth token found');
-//         _isConnecting = false;
-//         return;
-//       }
-
-//       print('═══════════════════════════════════════');
-//       print('NATIVE WEBSOCKET CONNECTION');
-//       print('═══════════════════════════════════════');
-//       print('URL: ${UrlConstants.wsUrl}');
-//       print('Token: ${authToken.substring(0, 20)}...');
-//       print('Time: ${DateTime.now()}');
-//       print('═══════════════════════════════════════');
-
-//       // Parse URL
-//       final uri = Uri.parse(UrlConstants.wsUrl);
-
-//       // Headers - Try lowercase 'authorization' to match Postman exactly
-//       final headers = {'authorization': 'Bearer $authToken'};
-
-//       print('📋 Headers:');
-//       headers.forEach((key, value) {
-//         print(
-//           ' headerss  $key: ${value.length > 50 ? "${value.substring(0, 50)}..." : value}',
-//         );
-//       });
-
-//       // Connect using native WebSocket
-//       print('🌐 Connecting...');
-//       _socket = await WebSocket.connect(
-//         uri.toString(), 
-//         headers: headers,
-//       );
-
-//       print('✅ WebSocket connected!');
-//       print('   ReadyState: ${_socket!.readyState}');
-//       print('');
-      
-//       // CRITICAL: Setup listeners IMMEDIATELY and SYNCHRONOUSLY
-//       print('🎧 Setting up listeners NOW...');
-//       _setupListenersSync();
-//       print('✅ Listeners attached');
-//       print('');
-      
-//       // Small delay to let the connection stabilize
-//       print('⏳ Stabilizing connection...');
-//       await Future.delayed(Duration(milliseconds: 200));
-//       print('✅ Connection stabilized');
-//       print('');
-      
-//       // NOW it's safe to mark as connected
-//       _reconnectAttempts = 0;
-//       _isConnecting = false;
-//       _isConnected = true;
-
-//       print('✅ Native WebSocket FULLY ready');
-//       print('═══════════════════════════════════════');
-//       print('');
-//     } catch (e, stack) {
-//       print('❌ Connection error: $e');
-//       print('Stack: $stack');
-//       _isConnected = false;
-//       _isConnecting = false;
-//       _socket = null;
-//       _reconnectAttempts++;
-
-//       if (_reconnectAttempts <= _maxReconnectAttempts) {
-//         _reconnect();
-//       }
-//     }
-//   }
-
-//   // CRITICAL: Synchronous listener setup - no async gaps
-//   void _setupListenersSync() {
-//     if (_socket == null) {
-//       print('❌ Cannot setup listeners - socket is null');
-//       return;
-//     }
-
-//     print('   Attaching onData handler...');
-//     print('   Attaching onDone handler...');
-//     print('   Attaching onError handler...');
-    
-//     _socket!.listen(
-//       (event) {
-//         print('');
-//         print('═══════════════════════════════════════');
-//         print('📥 MESSAGE RECEIVED');
-//         print('═══════════════════════════════════════');
-//         print('Time: ${DateTime.now()}');
-//         print('Event type: ${event.runtimeType}');
-//         print('Raw event: $event');
-
-//         try {
-//           // Handle both String and List<int> responses
-//           String messageStr;
-//           if (event is String) {
-//             messageStr = event;
-//           } else if (event is List<int>) {
-//             messageStr = utf8.decode(event);
-//           } else {
-//             messageStr = event.toString();
-//           }
-          
-//           print('Decoded message: $messageStr');
-          
-//           final data = jsonDecode(messageStr);
-//           print('Parsed JSON: $data');
-//           print('Message type: ${data['type']}');
-//           print('═══════════════════════════════════════');
-//           print('');
-
-//           // Call general message callback
-//           if (onMessageReceived != null) {
-//             onMessageReceived!(data);
-//           }
-
-//           // Route to specific handlers
-//           _handleMessage(data);
-//         } catch (e, stack) {
-//           print('❌ Message parse error: $e');
-//           print('Stack: $stack');
-//           print('═══════════════════════════════════════');
-//           print('');
-//         }
-//       },
-//       onDone: () {
-//         print('');
-//         print('═══════════════════════════════════════');
-//         print('⚠️ WebSocket connection CLOSED');
-//         print('═══════════════════════════════════════');
-//         print('Time: ${DateTime.now()}');
-//         print('Close code: ${_socket?.closeCode}');
-//         print('Close reason: ${_socket?.closeReason}');
-//         print('Was Connected: $_isConnected');
-//         print('Is Connecting: $_isConnecting');
-//         print('═══════════════════════════════════════');
-//         print('');
-
-//         bool wasConnected = _isConnected;
-//         _isConnected = false;
-//         _isConnecting = false;
-
-//         // Only reconnect if we were actually connected (not during initial setup)
-//         if (wasConnected) {
-//           _reconnectAttempts++;
-//           if (_reconnectAttempts <= _maxReconnectAttempts) {
-//             _reconnect();
-//           }
-//         }
-//       },
-//       onError: (error) {
-//         print('');
-//         print('═══════════════════════════════════════');
-//         print('❌ WebSocket ERROR');
-//         print('═══════════════════════════════════════');
-//         print('Time: ${DateTime.now()}');
-//         print('Error: $error');
-//         print('Error type: ${error.runtimeType}');
-//         print('═══════════════════════════════════════');
-//         print('');
-
-//         _isConnected = false;
-//         _isConnecting = false;
-//       },
-//       cancelOnError: false,
-//     );
-    
-//     print('   ✅ All handlers attached successfully');
-//   }
-// Function(Map<String, dynamic>)? onChatNotification;
-
-// void _handleMessage(Map<String, dynamic> data) {
-//   final type = data['type'];
-//   print('🔀 Routing message type: $type');
-//   print('📊 Message data: $data');
-
-//   switch (type) {
-//     case 'ride_accepted':
-//       print('   → ride_accepted handler');
-//       if (onRideAccepted != null) onRideAccepted!(data);
-//       break;
-      
-//     case 'ride_update':
-//       print('   → ride_update handler');
-//       if (onRideUpdate != null) onRideUpdate!(data);
-//       break;
-      
-//     case 'chat':
-//     case 'chat_message':
-//       print('   → chat handler');
-//       if (onChatMessage != null) {
-//         onChatMessage!(data);
-//       }
-//       if (onChatNotification != null) {
-//         onChatNotification!(data);
-//       } else {
-//         print('   ⚠️ No chat handler registered!');
-//       }
-//       break;
-      
-//     case 'driver_location':
-//       print('   → driver_location handler');
-//       if (onDriverLocation != null) onDriverLocation!(data);
-//       break;
-      
-//     // CRITICAL: All call-related messages go to onIncomingCall
-//     case 'call_initiate':
-//     case 'call_answer':
-//     case 'call_reject':
-//     case 'call_end':
-//     case 'call_offer':
-//     case 'call_answer_sdp':
-//     case 'call_ice_candidate':
-//       print('   → 📞 CALL MESSAGE DETECTED: $type');
-//       print('   → Checking if onIncomingCall handler exists: ${onIncomingCall != null}');
-      
-//       if (onIncomingCall != null) {
-//         print('   → 📢 Calling onIncomingCall handler now...');
-//         print('   → 📊 Call data being passed: $data');
-//         onIncomingCall!(data);
-//         print('   → ✅ onIncomingCall handler called successfully');
-//       } else {
-//         print('   → ❌❌❌ NO CALL HANDLER REGISTERED! ❌❌❌');
-//         print('   → This is why incoming calls are not showing!');
-//         print('   → Make sure to set _webSocketService.onIncomingCall before connecting');
-//         print('   → Current handlers status:');
-//         print('   →   - onIncomingCall: ${onIncomingCall != null}');
-//         print('   →   - onRideAccepted: ${onRideAccepted != null}');
-//         print('   →   - onChatMessage: ${onChatMessage != null}');
-//       }
-//       break;
-      
-//     case 'ride_completed':
-//       print('   → ride_completed handler');
-//       if (onRideCompleted != null) onRideCompleted!(data);
-//       break;
-      
-//     case 'ride_request':
-//     case 'new_ride':
-//       print('   → ride_request handler');
-//       if (onRideRequest != null) onRideRequest!(data);
-//       break;
-      
-//     default:
-//       print('   ⚠️ Unknown message type: $type');
-//       print('   ⚠️ Full message: $data');
-//   }
-// }
-
-
-//   void _reconnect() async {
-//     final delay = _getReconnectDelay();
-//     print('⏰ Reconnecting in ${delay}s... (attempt ${_reconnectAttempts}/${_maxReconnectAttempts})');
-//     await Future.delayed(Duration(seconds: delay));
-
-//     if (!_isConnected && !_isConnecting) {
-//       connect();
-//     }
-//   }
-
-//   int _getReconnectDelay() {
-//     switch (_reconnectAttempts) {
-//       case 1:
-//         return 2;
-//       case 2:
-//         return 4;
-//       case 3:
-//         return 8;
-//       default:
-//         return 15;
-//     }
-//   }
-
-//   // Send JSON with extensive logging
-//   void _sendJson(Map<String, dynamic> message) {
-//     print('');
-//     print('═══════════════════════════════════════');
-//     print('📤 ATTEMPTING TO SEND MESSAGE');
-//     print('═══════════════════════════════════════');
-//     print('Time: ${DateTime.now()}');
-    
-//     // Pre-flight checks
-//     print('PRE-FLIGHT CHECKS:');
-//     print('   _isConnected: $_isConnected');
-//     print('   _isConnecting: $_isConnecting');
-//     print('   _socket != null: ${_socket != null}');
-    
-//     if (_socket != null) {
-//       print('   _socket.readyState: ${_socket!.readyState}');
-//       print('   WebSocket.open: ${WebSocket.open}');
-//       print('   States match: ${_socket!.readyState == WebSocket.open}');
-//       print('   _socket.closeCode: ${_socket!.closeCode}');
-//       print('   _socket.closeReason: ${_socket!.closeReason}');
-//     }
-    
-//     print('');
-//     print('MESSAGE PAYLOAD:');
-//     print('   $message');
-//     print('');
-
-//     // Check 1: Socket exists
-//     if (_socket == null) {
-//       print('❌ SEND BLOCKED: Socket is null');
-//       print('═══════════════════════════════════════');
-//       print('');
-//       return;
-//     }
-
-//     // Check 2: Marked as connected
-//     if (!_isConnected) {
-//       print('❌ SEND BLOCKED: Not marked as connected');
-//       print('   Hint: Connection may still be initializing');
-//       print('═══════════════════════════════════════');
-//       print('');
-//       return;
-//     }
-
-//     // Check 3: Socket is open
-//     if (_socket!.readyState != WebSocket.open) {
-//       print('❌ SEND BLOCKED: Socket not in OPEN state');
-//       print('   Current state: ${_socket!.readyState}');
-//       print('   Expected state: ${WebSocket.open}');
-//       print('═══════════════════════════════════════');
-//       print('');
-      
-//       // Try to reconnect if socket is closed
-//       _isConnected = false;
-//       _reconnect();
-//       return;
-//     }
-
-//     // All checks passed, send the message
-//     try {
-//       final jsonMessage = jsonEncode(message);
-//       print('SENDING:');
-//       print('   JSON string: $jsonMessage');
-//       print('   Length: ${jsonMessage.length} bytes');
-//       print('');
-      
-//       _socket!.add(jsonMessage);
-      
-//       print('✅ MESSAGE SENT SUCCESSFULLY');
-//       print('   Message added to socket send buffer');
-//       print('   Socket state after send: ${_socket!.readyState}');
-//       print('   Waiting for server response...');
-//       print('═══════════════════════════════════════');
-//       print('');
-//     } catch (e, stackTrace) {
-//       print('❌ SEND EXCEPTION: $e');
-//       print('Stack trace:');
-//       print('$stackTrace');
-//       print('═══════════════════════════════════════');
-//       print('');
-      
-//       // Mark as disconnected and try to reconnect
-//       _isConnected = false;
-//       _reconnect();
-//     }
-//   }
-
-//   // Public send methods
-//   void sendMessage(Map<String, dynamic> message) {
-//     // Add timestamp if not present
-//     // if (!message.containsKey('timestamp')) {
-//     //   message['timestamp'] = DateTime.now().toIso8601String();
-//     // }
-//     _sendJson(message);
-//   }
-// Future<void> sendChatMessage(int rideId, String message) async {
-//   print('💬 sendChatMessage called');
-//   print('   Ride: $rideId');
-//   print('   Message: "$message"');
-  
-//   // Get user info from SharedPreferences
-//   final prefs = await SharedPreferences.getInstance();
-//   final userId = prefs.getString('user_id');
-//   final userName = prefs.getString('user_name') ?? 
-//                    prefs.getString('name') ?? 
-//                    'Unknown User';
-  
-//   print('   User ID: $userId');
-//   print('   User Name: $userName');
-  
-//   // Create timestamp with timezone offset (mimicking Postman format)
-//   final now = DateTime.now();
-//   final offset = now.timeZoneOffset;
-//   final offsetHours = offset.inHours;
-//   final offsetMinutes = offset.inMinutes.remainder(60);
-//   final offsetString = '${offsetHours >= 0 ? '+' : ''}${offsetHours.toString().padLeft(2, '0')}:${offsetMinutes.abs().toString().padLeft(2, '0')}';
-//   final timestamp = '${now.toIso8601String()}$offsetString';
-  
-//   final payload = {
-//     "type": "chat",
-//     "data": {
-//       "ride_id": rideId,  // ← Now uses actual ride ID
-//       "message": message,  // ← Now uses actual message
-//     },
-//     "timestamp": timestamp,  // ← Proper timezone format
-//   };
-  
-//   print('   Full payload: $payload');
-//   print('   Timestamp format: $timestamp');
-//   _sendJson(payload);
-// }
-
-//   void sendRideRequest(Map<String, dynamic> rideData) {
-//     _sendJson({
-//       'type': 'ride_request',
-//       'data': rideData,
-//       'timestamp': DateTime.now().toIso8601String(),
-//     });
-//   }
-
-//   // Listeners
-//   void listenToMessages(Function(dynamic) callback) {
-//     onMessageReceived = callback;
-//   }
-
-//   void disconnect() {
-//     print('🔌 Disconnecting WebSocket');
-//     _socket?.close();
-//     _socket = null;
-//     _isConnected = false;
-//     _isConnecting = false;
-//     _reconnectAttempts = 0;
-//     print('✅ WebSocket disconnected');
-//   }
-
-//   void resetConnection() {
-//     print('🔄 Resetting connection');
-//     disconnect();
-//     _reconnectAttempts = 0;
-//     connect();
-//   }
-
-//   Future<String?> _getToken() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     return prefs.getString('auth_token');
-//   }
-
-//   void dispose() {
-//     disconnect();
-//   }
-// }
-
-
-
-
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../constants/url_constants.dart';
 
-//FOR DRIVER
 class WebSocketService {
   static WebSocketService? _instance;
   WebSocket? _socket;
@@ -551,16 +37,16 @@ class WebSocketService {
   void addIncomingCallListener(Function(Map<String, dynamic>) listener) {
     if (!_incomingCallListeners.contains(listener)) {
       _incomingCallListeners.add(listener);
-      print(
-        '✅ Added incoming call listener. Total listeners: ${_incomingCallListeners.length}',
+      AppLogger.log(
+        'Added incoming call listener. Total listeners: ${_incomingCallListeners.length}',
       );
     }
   }
 
   void removeIncomingCallListener(Function(Map<String, dynamic>) listener) {
     _incomingCallListeners.remove(listener);
-    print(
-      '✅ Removed incoming call listener. Remaining listeners: ${_incomingCallListeners.length}',
+    AppLogger.log(
+      'Removed incoming call listener. Remaining listeners: ${_incomingCallListeners.length}',
     );
   }
 
@@ -580,15 +66,15 @@ class WebSocketService {
   Function(Map<String, dynamic>)? onChatNotification;
 
   Future<void> connect() async {
-    print('🚀 NATIVE WEBSOCKET CONNECT');
+    AppLogger.log('NATIVE WEBSOCKET CONNECT');
 
     if (_isConnected) {
-      print('⚠️ Already connected');
+      AppLogger.log('Already connected');
       return;
     }
 
     if (_isConnecting) {
-      print('⚠️ Connection in progress');
+      AppLogger.log('Connection in progress');
       return;
     }
 
@@ -598,18 +84,15 @@ class WebSocketService {
       // Get token from storage
       final authToken = await _getToken();
       if (authToken == null) {
-        print('❌ No auth token found');
+        AppLogger.log('No auth token found');
         _isConnecting = false;
         return;
       }
 
-      print('═══════════════════════════════════════');
-      print('NATIVE WEBSOCKET CONNECTION');
-      print('═══════════════════════════════════════');
-      print('URL: ${UrlConstants.wsUrl}');
-      print('Token: ${authToken.substring(0, 20)}...');
-      print('Time: ${DateTime.now()}');
-      print('═══════════════════════════════════════');
+      AppLogger.log('NATIVE WEBSOCKET CONNECTION');
+      AppLogger.log('URL: ${UrlConstants.wsUrl}');
+      AppLogger.log('Token: ${authToken.substring(0, 20)}...');
+      AppLogger.log('Time: ${DateTime.now()}');
 
       // Parse URL
       final uri = Uri.parse(UrlConstants.wsUrl);
@@ -617,44 +100,39 @@ class WebSocketService {
       // Headers - Try lowercase 'authorization' to match Postman exactly
       final headers = {'authorization': 'Bearer $authToken'};
 
-      print('📋 Headers:');
+      AppLogger.log('Headers:');
       headers.forEach((key, value) {
-        print(
+        AppLogger.log(
           ' headerss  $key: ${value.length > 50 ? "${value.substring(0, 50)}..." : value}',
         );
       });
 
       // Connect using native WebSocket
-      print('🌐 Connecting...');
+      AppLogger.log('Connecting...');
       _socket = await WebSocket.connect(uri.toString(), headers: headers);
 
-      print('✅ WebSocket connected!');
-      print('   ReadyState: ${_socket!.readyState}');
-      print('');
+      AppLogger.log('WebSocket connected!');
+      AppLogger.log('ReadyState: ${_socket!.readyState}');
 
       // CRITICAL: Setup listeners IMMEDIATELY and SYNCHRONOUSLY
-      print('🎧 Setting up listeners NOW...');
+      AppLogger.log('Setting up listeners NOW...');
       _setupListenersSync();
-      print('✅ Listeners attached');
-      print('');
+      AppLogger.log('Listeners attached');
 
       // Small delay to let the connection stabilize
-      print('⏳ Stabilizing connection...');
+      AppLogger.log('Stabilizing connection...');
       await Future.delayed(Duration(milliseconds: 200));
-      print('✅ Connection stabilized');
-      print('');
+      AppLogger.log('Connection stabilized');
 
       // NOW it's safe to mark as connected
       _reconnectAttempts = 0;
       _isConnecting = false;
       _isConnected = true;
 
-      print('✅ Native WebSocket FULLY ready');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('Native WebSocket FULLY ready');
     } catch (e, stack) {
-      print('❌ Connection error: $e');
-      print('Stack: $stack');
+      AppLogger.log('Connection error: $e');
+      AppLogger.log('Stack: $stack');
       _isConnected = false;
       _isConnecting = false;
       _socket = null;
@@ -669,23 +147,21 @@ class WebSocketService {
   // CRITICAL: Synchronous listener setup - no async gaps
   void _setupListenersSync() {
     if (_socket == null) {
-      print('❌ Cannot setup listeners - socket is null');
+      AppLogger.log('Cannot setup listeners - socket is null');
       return;
     }
 
-    print('   Attaching onData handler...');
-    print('   Attaching onDone handler...');
-    print('   Attaching onError handler...');
+    AppLogger.log('   Attaching onData handler...');
+    AppLogger.log('   Attaching onDone handler...');
+    AppLogger.log('   Attaching onError handler...');
 
     _socket!.listen(
       (event) {
-        print('');
-        print('═══════════════════════════════════════');
-        print('📥 MESSAGE RECEIVED');
-        print('═══════════════════════════════════════');
-        print('Time: ${DateTime.now()}');
-        print('Event type: ${event.runtimeType}');
-        print('Raw event: $event');
+        AppLogger.log('');
+        AppLogger.log('MESSAGE RECEIVED');
+        AppLogger.log('Time: ${DateTime.now()}');
+        AppLogger.log('Event type: ${event.runtimeType}');
+        AppLogger.log('Raw event: $event');
 
         try {
           // Handle both String and List<int> responses
@@ -698,13 +174,11 @@ class WebSocketService {
             messageStr = event.toString();
           }
 
-          print('Decoded message: $messageStr');
+          AppLogger.log('Decoded message: $messageStr');
 
           final data = jsonDecode(messageStr);
-          print('Parsed JSON: $data');
-          print('Message type: ${data['type']}');
-          print('═══════════════════════════════════════');
-          print('');
+          AppLogger.log('Parsed JSON: $data');
+          AppLogger.log('Message type: ${data['type']}');
 
           // Call general message callback
           if (onMessageReceived != null) {
@@ -714,24 +188,18 @@ class WebSocketService {
           // Route to specific handlers
           _handleMessage(data);
         } catch (e, stack) {
-          print('❌ Message parse error: $e');
-          print('Stack: $stack');
-          print('═══════════════════════════════════════');
-          print('');
+          AppLogger.log('Message parse error: $e');
+          AppLogger.log('Stack: $stack');
         }
       },
       onDone: () {
-        print('');
-        print('═══════════════════════════════════════');
-        print('⚠️ WebSocket connection CLOSED');
-        print('═══════════════════════════════════════');
-        print('Time: ${DateTime.now()}');
-        print('Close code: ${_socket?.closeCode}');
-        print('Close reason: ${_socket?.closeReason}');
-        print('Was Connected: $_isConnected');
-        print('Is Connecting: $_isConnecting');
-        print('═══════════════════════════════════════');
-        print('');
+        AppLogger.log('');
+        AppLogger.log('WebSocket connection CLOSED');
+        AppLogger.log('Time: ${DateTime.now()}');
+        AppLogger.log('Close code: ${_socket?.closeCode}');
+        AppLogger.log('Close reason: ${_socket?.closeReason}');
+        AppLogger.log('Was Connected: $_isConnected');
+        AppLogger.log('Is Connecting: $_isConnecting');
 
         bool wasConnected = _isConnected;
         _isConnected = false;
@@ -746,15 +214,11 @@ class WebSocketService {
         }
       },
       onError: (error) {
-        print('');
-        print('═══════════════════════════════════════');
-        print('❌ WebSocket ERROR');
-        print('═══════════════════════════════════════');
-        print('Time: ${DateTime.now()}');
-        print('Error: $error');
-        print('Error type: ${error.runtimeType}');
-        print('═══════════════════════════════════════');
-        print('');
+        AppLogger.log('');
+        AppLogger.log('WebSocket ERROR');
+        AppLogger.log('Time: ${DateTime.now()}');
+        AppLogger.log('Error: $error');
+        AppLogger.log('Error type: ${error.runtimeType}');
 
         _isConnected = false;
         _isConnecting = false;
@@ -762,33 +226,33 @@ class WebSocketService {
       cancelOnError: false,
     );
 
-    print('   ✅ All handlers attached successfully');
+    AppLogger.log('   All handlers attached successfully');
   }
 
   void _handleMessage(Map<String, dynamic> data) async {
     final type = data['type'];
-    print('🔀 Routing message type: $type');
+    AppLogger.log('Routing message type: $type');
 
     switch (type) {
       case 'ride_accepted':
-        print('   → ride_accepted handler');
+        AppLogger.log('ride_accepted handler');
         if (onRideAccepted != null) onRideAccepted!(data);
         break;
       case 'ride_update':
-        print('   → ride_update handler');
+        AppLogger.log('ride_update handler');
         if (onRideUpdate != null) onRideUpdate!(data);
         break;
       case 'chat':
       case 'chat_message':
-        print('   → chat handler');
+        AppLogger.log('chat handler');
         if (onChatMessage != null) {
           onChatMessage!(data);
         } else {
-          print('   ⚠️ No chat handler registered!');
+          AppLogger.log('No chat handler registered!');
         }
         break;
       case 'driver_location':
-        print('   → driver_location handler');
+        AppLogger.log('driver_location handler');
         if (onDriverLocation != null) onDriverLocation!(data);
         break;
       case 'call_initiate':
@@ -798,25 +262,25 @@ class WebSocketService {
       case 'call_offer':
       case 'call_answer_sdp':
       case 'call_ice_candidate':
-        print('   → call handler');
+        AppLogger.log('call handler');
         // CRITICAL FIX: Filter call messages based on recipient
         await _handleCallMessage(data, type);
         break;
       case 'ride_completed':
-        print('🎉 Ride completed message received: $data');
+        AppLogger.log('Ride completed message received: $data');
         if (onRideCompleted != null) {
           onRideCompleted!(data);
         } else {
-          print('⚠️ No ride completed handler registered!');
+          AppLogger.log('No ride completed handler registered!');
         }
         break;
       case 'ride_request':
       case 'new_ride':
-        print('   → ride_request handler');
+        AppLogger.log('ride_request handler');
         if (onRideRequest != null) onRideRequest!(data);
         break;
       default:
-        print('   ⚠️ Unknown message type: $type');
+        AppLogger.log('Unknown message type: $type');
     }
   }
 
@@ -829,51 +293,49 @@ class WebSocketService {
       final prefs = await SharedPreferences.getInstance();
       final currentUserId = prefs.getString('user_id');
 
-      print('═══════════════════════════════════════');
-      print('🔍 CALL MESSAGE FILTERING');
-      print('═══════════════════════════════════════');
-      print('Message type: $type');
-      print('Current user ID: $currentUserId');
+      AppLogger.log('CALL MESSAGE FILTERING');
+      AppLogger.log('Message type: $type');
+      AppLogger.log('Current user ID: $currentUserId');
 
       final messageData = data['data'];
       if (messageData != null) {
         final callerId = messageData['caller_id']?.toString();
         final recipientId = messageData['recipient_id']?.toString();
 
-        print('Caller ID: $callerId');
-        print('Recipient ID: $recipientId');
+        AppLogger.log('Caller ID: $callerId');
+        AppLogger.log('Recipient ID: $recipientId');
 
         // For call_initiate: only show to recipient (not the caller)
         if (type == 'call_initiate') {
           if (recipientId != null && recipientId == currentUserId) {
-            print('✅ This user IS the recipient - showing incoming call');
-            print(
-              '🔍 onIncomingCall listeners count: ${_incomingCallListeners.length}',
+            AppLogger.log('This user IS the recipient - showing incoming call');
+            AppLogger.log(
+              'onIncomingCall listeners count: ${_incomingCallListeners.length}',
             );
             if (_incomingCallListeners.isNotEmpty) {
-              print(
-                '📞 Notify all ${_incomingCallListeners.length} incoming call listeners...',
+              AppLogger.log(
+                'Notify all ${_incomingCallListeners.length} incoming call listeners...',
               );
               try {
                 for (var listener in List.from(_incomingCallListeners)) {
                   try {
                     listener(data);
                   } catch (e) {
-                    print('❌ Error in listener: $e');
+                    AppLogger.log('Error in listener: $e');
                   }
                 }
-                print('✅ All listeners notified successfully');
+                AppLogger.log('All listeners notified successfully');
               } catch (e, stack) {
-                print('❌ Error calling listeners: $e');
-                print('Stack: $stack');
+                AppLogger.log('Error calling listeners: $e');
+                AppLogger.log('Stack: $stack');
               }
             } else {
-              print('❌ No incoming call listeners registered!');
+              AppLogger.log('No incoming call listeners registered!');
             }
           } else if (callerId == currentUserId) {
-            print('⚠️ This user is the CALLER - ignoring call_initiate');
+            AppLogger.log('This user is the CALLER - ignoring call_initiate');
           } else {
-            print('⚠️ This call is for someone else - ignoring');
+            AppLogger.log('This call is for someone else - ignoring');
           }
         }
         // For other call messages: route to the appropriate party
@@ -883,16 +345,16 @@ class WebSocketService {
               type == 'call_reject' ||
               type == 'call_end') {
             if (callerId == currentUserId) {
-              print('✅ Routing $type to caller');
+              AppLogger.log('Routing $type to caller');
               for (var listener in List.from(_incomingCallListeners)) {
                 try {
                   listener(data);
                 } catch (e) {
-                  print('❌ Error in listener: $e');
+                  AppLogger.log('Error in listener: $e');
                 }
               }
             } else {
-              print('⚠️ This message is not for this user');
+              AppLogger.log('This message is not for this user');
             }
           }
           // WebRTC signaling messages (offer, answer, ICE) should go to both parties
@@ -900,38 +362,32 @@ class WebSocketService {
               type == 'call_answer_sdp' ||
               type == 'call_ice_candidate') {
             if (recipientId == currentUserId) {
-              print('✅ Routing WebRTC message to recipient');
+              AppLogger.log('Routing WebRTC message to recipient');
               for (var listener in List.from(_incomingCallListeners)) {
                 try {
                   listener(data);
                 } catch (e) {
-                  print('❌ Error in listener: $e');
+                  AppLogger.log('Error in listener: $e');
                 }
               }
             } else {
-              print('⚠️ WebRTC message not for this user');
+              AppLogger.log('WebRTC message not for this user');
             }
           }
         }
       } else {
-        print('⚠️ No data field in call message');
-        // Fallback: route to handler anyway
-        print('⚠️ No data field in call message');
+        AppLogger.log('No data field in call message');
         // Fallback: route to listeners anyway
         for (var listener in List.from(_incomingCallListeners)) {
           try {
             listener(data);
           } catch (e) {
-            print('❌ Error in listener: $e');
+            AppLogger.log('Error in listener: $e');
           }
         }
       }
-
-      print('═══════════════════════════════════════');
     } catch (e) {
-      print('❌ Error filtering call message: $e');
-      // Fallback: route to handler anyway
-      print('❌ Error filtering call message: $e');
+      AppLogger.log('Error filtering call message: $e');
       // Fallback: route to listeners anyway
       for (var listener in List.from(_incomingCallListeners)) {
         listener(data);
@@ -941,8 +397,8 @@ class WebSocketService {
 
   void _reconnect() async {
     final delay = _getReconnectDelay();
-    print(
-      '⏰ Reconnecting in ${delay}s... (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
+    AppLogger.log(
+      'Reconnecting in ${delay}s... (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
     );
     await Future.delayed(Duration(seconds: delay));
 
@@ -966,55 +422,48 @@ class WebSocketService {
 
   // Send JSON with extensive logging
   void _sendJson(Map<String, dynamic> message) {
-    print('');
-    print('═══════════════════════════════════════');
-    print('📤 ATTEMPTING TO SEND MESSAGE');
-    print('═══════════════════════════════════════');
-    print('Time: ${DateTime.now()}');
+    AppLogger.log('');
+    AppLogger.log('ATTEMPTING TO SEND MESSAGE');
+    AppLogger.log('Time: ${DateTime.now()}');
 
     // Pre-flight checks
-    print('PRE-FLIGHT CHECKS:');
-    print('   _isConnected: $_isConnected');
-    print('   _isConnecting: $_isConnecting');
-    print('   _socket != null: ${_socket != null}');
+    AppLogger.log('PRE-FLIGHT CHECKS:');
+    AppLogger.log('   _isConnected: $_isConnected');
+    AppLogger.log('   _isConnecting: $_isConnecting');
+    AppLogger.log('   _socket != null: ${_socket != null}');
 
     if (_socket != null) {
-      print('   _socket.readyState: ${_socket!.readyState}');
-      print('   WebSocket.open: ${WebSocket.open}');
-      print('   States match: ${_socket!.readyState == WebSocket.open}');
-      print('   _socket.closeCode: ${_socket!.closeCode}');
-      print('   _socket.closeReason: ${_socket!.closeReason}');
+      AppLogger.log('   _socket.readyState: ${_socket!.readyState}');
+      AppLogger.log('   WebSocket.open: ${WebSocket.open}');
+      AppLogger.log(
+        '   States match: ${_socket!.readyState == WebSocket.open}',
+      );
+      AppLogger.log('   _socket.closeCode: ${_socket!.closeCode}');
+      AppLogger.log('   _socket.closeReason: ${_socket!.closeReason}');
     }
 
-    print('');
-    print('MESSAGE PAYLOAD:');
-    print('   $message');
-    print('');
+    AppLogger.log('');
+    AppLogger.log('MESSAGE PAYLOAD:');
+    AppLogger.log('   $message');
 
     // Check 1: Socket exists
     if (_socket == null) {
-      print('❌ SEND BLOCKED: Socket is null');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('SEND BLOCKED: Socket is null');
       return;
     }
 
     // Check 2: Marked as connected
     if (!_isConnected) {
-      print('❌ SEND BLOCKED: Not marked as connected');
-      print('   Hint: Connection may still be initializing');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('SEND BLOCKED: Not marked as connected');
+      AppLogger.log('   Hint: Connection may still be initializing');
       return;
     }
 
     // Check 3: Socket is open
     if (_socket!.readyState != WebSocket.open) {
-      print('❌ SEND BLOCKED: Socket not in OPEN state');
-      print('   Current state: ${_socket!.readyState}');
-      print('   Expected state: ${WebSocket.open}');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('SEND BLOCKED: Socket not in OPEN state');
+      AppLogger.log('   Current state: ${_socket!.readyState}');
+      AppLogger.log('   Expected state: ${WebSocket.open}');
 
       // Try to reconnect if socket is closed
       _isConnected = false;
@@ -1025,25 +474,20 @@ class WebSocketService {
     // All checks passed, send the message
     try {
       final jsonMessage = jsonEncode(message);
-      print('SENDING:');
-      print('   JSON string: $jsonMessage');
-      print('   Length: ${jsonMessage.length} bytes');
-      print('');
+      AppLogger.log('SENDING:');
+      AppLogger.log('   JSON string: $jsonMessage');
+      AppLogger.log('   Length: ${jsonMessage.length} bytes');
 
       _socket!.add(jsonMessage);
 
-      print('✅ MESSAGE SENT SUCCESSFULLY');
-      print('   Message added to socket send buffer');
-      print('   Socket state after send: ${_socket!.readyState}');
-      print('   Waiting for server response...');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('MESSAGE SENT SUCCESSFULLY');
+      AppLogger.log('   Message added to socket send buffer');
+      AppLogger.log('   Socket state after send: ${_socket!.readyState}');
+      AppLogger.log('   Waiting for server response...');
     } catch (e, stackTrace) {
-      print('❌ SEND EXCEPTION: $e');
-      print('Stack trace:');
-      print('$stackTrace');
-      print('═══════════════════════════════════════');
-      print('');
+      AppLogger.log('SEND EXCEPTION: $e');
+      AppLogger.log('Stack trace:');
+      AppLogger.log('$stackTrace');
 
       // Mark as disconnected and try to reconnect
       _isConnected = false;
@@ -1061,9 +505,9 @@ class WebSocketService {
   }
 
   Future<void> sendChatMessage(int rideId, String message) async {
-    print('💬 sendChatMessage called');
-    print('   Ride: $rideId');
-    print('   Message: "$message"');
+    AppLogger.log('sendChatMessage called');
+    AppLogger.log('   Ride: $rideId');
+    AppLogger.log('   Message: "$message"');
 
     // Get user info from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
@@ -1073,8 +517,8 @@ class WebSocketService {
         prefs.getString('name') ??
         'Unknown User';
 
-    print('   User ID: $userId');
-    print('   User Name: $userName');
+    AppLogger.log('   User ID: $userId');
+    AppLogger.log('   User Name: $userName');
 
     // Create timestamp with timezone offset (mimicking Postman format)
     final now = DateTime.now();
@@ -1094,8 +538,8 @@ class WebSocketService {
       "timestamp": timestamp, // ← Proper timezone format
     };
 
-    print('   Full payload: $payload');
-    print('   Timestamp format: $timestamp');
+    AppLogger.log('   Full payload: $payload');
+    AppLogger.log('   Timestamp format: $timestamp');
     _sendJson(payload);
   }
 
@@ -1113,17 +557,17 @@ class WebSocketService {
   }
 
   void disconnect() {
-    print('🔌 Disconnecting WebSocket');
+    AppLogger.log('Disconnecting WebSocket');
     _socket?.close();
     _socket = null;
     _isConnected = false;
     _isConnecting = false;
     _reconnectAttempts = 0;
-    print('✅ WebSocket disconnected');
+    AppLogger.log('WebSocket disconnected');
   }
 
   void resetConnection() {
-    print('🔄 Resetting connection');
+    AppLogger.log('Resetting connection');
     disconnect();
     _reconnectAttempts = 0;
     connect();
@@ -1138,4 +582,3 @@ class WebSocketService {
     disconnect();
   }
 }
-

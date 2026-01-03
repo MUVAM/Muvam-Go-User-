@@ -4,7 +4,6 @@ import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/shared/providers/connectivity_provider.dart';
 import 'package:provider/provider.dart';
 
-/// Wrapper widget that monitors connectivity and shows notifications
 class ConnectivityWrapper extends StatefulWidget {
   final Widget child;
 
@@ -32,7 +31,7 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
       _previousConnectionStatus = connectivityProvider.isConnected;
 
       AppLogger.log(
-        '🔌 ConnectivityWrapper initialized. Initial status: ${connectivityProvider.isConnected}',
+        'ConnectivityWrapper initialized. Initial status: ${connectivityProvider.isConnected}',
         tag: 'CONNECTIVITY_WRAPPER',
       );
     }
@@ -48,22 +47,23 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
         if (_previousConnectionStatus != null &&
             _previousConnectionStatus != currentStatus) {
           AppLogger.log(
-            '🔔 Status CHANGED! Previous: $_previousConnectionStatus, Current: $currentStatus',
+            'Status CHANGED! Previous: $_previousConnectionStatus, Current: $currentStatus',
             tag: 'CONNECTIVITY_WRAPPER',
           );
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               AppLogger.log(
-                '📢 Showing notification for: ${currentStatus ? "Connected" : "Disconnected"}',
+                'Showing notification for: ${currentStatus ? "Connected" : "Disconnected"}',
                 tag: 'CONNECTIVITY_WRAPPER',
               );
               _showConnectivityNotification(currentStatus);
               _previousConnectionStatus = currentStatus;
             }
           });
-        } else
+        } else {
           _previousConnectionStatus ??= currentStatus;
+        }
 
         return widget.child;
       },
@@ -73,20 +73,17 @@ class _ConnectivityWrapperState extends State<ConnectivityWrapper> {
   void _showConnectivityNotification(bool isConnected) {
     try {
       AppLogger.log(
-        '🎯 Attempting to show flushbar. Connected: $isConnected, Context valid: ${context != null}',
+        'Attempting to show flushbar. Connected: $isConnected, Context valid: $context',
         tag: 'CONNECTIVITY_WRAPPER',
       );
 
       if (isConnected) {
         CustomFlushbar.showConnected(context: context);
-        AppLogger.log(
-          '✅ Connected flushbar called',
-          tag: 'CONNECTIVITY_WRAPPER',
-        );
+        AppLogger.log('Connected flushbar called', tag: 'CONNECTIVITY_WRAPPER');
       } else {
         CustomFlushbar.showDisconnected(context: context);
         AppLogger.log(
-          '❌ Disconnected flushbar called',
+          'Disconnected flushbar called',
           tag: 'CONNECTIVITY_WRAPPER',
         );
       }

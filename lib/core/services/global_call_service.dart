@@ -1,4 +1,3 @@
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -18,50 +17,41 @@ class GlobalCallService {
   Map<String, dynamic>? _currentCallData;
   final List<Map<String, dynamic>> _pendingMessages = [];
 
-  // Helper to access pending messages
   List<Map<String, dynamic>> get pendingMessages =>
       List.unmodifiable(_pendingMessages);
 
-  // Initialize with navigation key
   GlobalKey<NavigatorState>? _navigatorKey;
 
   void initialize(GlobalKey<NavigatorState> navigatorKey) {
     _navigatorKey = navigatorKey;
-    AppLogger.log('🔔 GlobalCallService initialized', tag: 'GLOBAL_CALL');
+    AppLogger.log('GlobalCallService initialized', tag: 'GLOBAL_CALL');
   }
 
-  // Show incoming call overlay globally
   Future<void> showIncomingCall({
     required Map<String, dynamic> callData,
     required Function(int sessionId) onAccept,
     required Function(int sessionId) onReject,
   }) async {
     if (_navigatorKey == null || _navigatorKey!.currentState == null) {
-      AppLogger.log('❌ Navigator key not initialized', tag: 'GLOBAL_CALL');
+      AppLogger.log('Navigator key not initialized', tag: 'GLOBAL_CALL');
       return;
     }
 
     final overlayState = _navigatorKey!.currentState!.overlay;
     if (overlayState == null) {
-      AppLogger.log('❌ Overlay state not available', tag: 'GLOBAL_CALL');
+      AppLogger.log('Overlay state not available', tag: 'GLOBAL_CALL');
       return;
     }
 
-    // Remove any existing overlay
     hideIncomingCall();
 
     _currentCallData = callData;
-    _pendingMessages.clear(); // Clear any old messages
+    _pendingMessages.clear();
 
-    AppLogger.log(
-      '📞 Showing global incoming call overlay',
-      tag: 'GLOBAL_CALL',
-    );
+    AppLogger.log('Showing global incoming call overlay', tag: 'GLOBAL_CALL');
 
-    // Start playing ringtone
     await _playRingtone();
 
-    // Create and insert overlay
     _overlayEntry = OverlayEntry(
       builder: (context) => _IncomingCallOverlay(
         callData: callData,
@@ -84,13 +74,11 @@ class GlobalCallService {
     overlayState.insert(_overlayEntry!);
   }
 
-  // Play system ringtone or custom ringtone
   Future<void> _playRingtone() async {
     if (_isRinging) return;
 
     try {
       _isRinging = true;
-      // Play system ringtone
       await FlutterRingtonePlayer().play(
         android: AndroidSounds.ringtone,
         ios: IosSounds.glass,
@@ -98,7 +86,7 @@ class GlobalCallService {
         volume: 1.0,
       );
     } catch (e) {
-      AppLogger.log('❌ Failed to play system ringtone: $e');
+      AppLogger.log('Failed to play system ringtone: $e');
     }
   }
 
@@ -108,7 +96,6 @@ class GlobalCallService {
     await FlutterRingtonePlayer().stop();
   }
 
-  // Hide incoming call overlay
   void hideIncomingCall() {
     _stopRingtone();
     if (_overlayEntry != null && _overlayEntry!.mounted) {
@@ -119,12 +106,12 @@ class GlobalCallService {
 
     WakelockPlus.disable();
 
-    AppLogger.log('📵 Incoming call overlay hidden', tag: 'GLOBAL_CALL');
+    AppLogger.log('Incoming call overlay hidden', tag: 'GLOBAL_CALL');
   }
 
   void addPendingMessage(Map<String, dynamic> message) {
     AppLogger.log(
-      '💾 Buffering pending message: ${message['type']}',
+      'Buffering pending message: ${message['type']}',
       tag: 'GLOBAL_CALL',
     );
     _pendingMessages.add(message);
@@ -140,7 +127,6 @@ class GlobalCallService {
   }
 }
 
-// Incoming call overlay widget
 class _IncomingCallOverlay extends StatelessWidget {
   final Map<String, dynamic> callData;
   final VoidCallback onAccept;
@@ -164,10 +150,8 @@ class _IncomingCallOverlay extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Caller info
             Column(
               children: [
-                // Caller image
                 Container(
                   width: 120,
                   height: 120,
@@ -197,8 +181,6 @@ class _IncomingCallOverlay extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 30),
-
-                // Caller name
                 Text(
                   callerName,
                   style: TextStyle(
@@ -208,22 +190,16 @@ class _IncomingCallOverlay extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 10),
-
-                // Incoming call text
                 Text(
                   'Incoming call...',
                   style: TextStyle(fontSize: 18, color: Colors.white70),
                 ),
               ],
             ),
-
             SizedBox(height: 80),
-
-            // Call action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Reject button
                 GestureDetector(
                   onTap: onReject,
                   child: Container(
@@ -243,8 +219,6 @@ class _IncomingCallOverlay extends StatelessWidget {
                     child: Icon(Icons.call_end, color: Colors.white, size: 35),
                   ),
                 ),
-
-                // Accept button
                 GestureDetector(
                   onTap: onAccept,
                   child: Container(
@@ -272,6 +246,3 @@ class _IncomingCallOverlay extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -9,7 +9,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getUserProfile() async {
     final token = await _authService.getToken();
-    
+
     if (token == null) {
       throw Exception('No authentication token found');
     }
@@ -34,7 +34,7 @@ class ProfileService {
 
   Future<void> updateTip(int tip) async {
     final token = await _authService.getToken();
-    
+
     if (token == null) {
       throw Exception('No authentication token found');
     }

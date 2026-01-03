@@ -20,9 +20,7 @@ class ReferralService {
 
     final url = '${UrlConstants.baseUrl}/referrals';
 
-    AppLogger.log('==================================');
     AppLogger.log('FETCHING REFERRAL CODE');
-    AppLogger.log('==================================');
     AppLogger.log('URL: $url');
     AppLogger.log('Method: POST');
 

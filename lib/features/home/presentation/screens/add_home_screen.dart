@@ -6,6 +6,7 @@ import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/places_service.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
 import 'package:muvam/features/home/presentation/screens/map_picker_screen.dart';
@@ -80,7 +81,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
         _showPredictions = true;
       });
     } catch (e) {
-      print('Error searching places: $e');
+      AppLogger.log('Error searching places: $e');
     }
   }
 
@@ -101,7 +102,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
           _showPredictions = false;
         });
 
-        // Generate new session token
         _sessionToken = DateTime.now().millisecondsSinceEpoch.toString();
       }
     } catch (e) {
@@ -159,7 +159,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
 
       if (!mounted) return;
 
-      // Just pop with success result - parent screen will show message
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -208,8 +207,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
             SizedBox(height: 15.h),
             Text('    $_title', style: ConstTextStyles.addHomeTitle),
             SizedBox(height: 30.h),
-
-            // Search field with map icon
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Container(
@@ -238,10 +235,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 ),
               ),
             ),
-
             SizedBox(height: 10.h),
-
-            // Predictions list
             if (_showPredictions && _predictions.isNotEmpty)
               Expanded(
                 child: ListView.separated(
@@ -274,8 +268,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
               )
             else
               Spacer(),
-
-            // Save button
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: SizedBox(
@@ -309,7 +301,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 ),
               ),
             ),
-
             SizedBox(height: 20.h),
           ],
         ),

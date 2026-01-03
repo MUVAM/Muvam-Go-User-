@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/chat/presentation/widgets/in_app_notification.dart';
 
 class NotificationService {
@@ -18,7 +19,6 @@ class NotificationService {
     if (context == null) return;
 
     try {
-      // Check if overlay is available
       final overlay = Overlay.of(context, rootOverlay: true);
       if (overlay == null) return;
 
@@ -38,7 +38,7 @@ class NotificationService {
 
       overlay.insert(_currentNotification!);
     } catch (e) {
-      print('❌ Failed to show notification: $e');
+      AppLogger.log('Failed to show notification: $e');
     }
   }
 

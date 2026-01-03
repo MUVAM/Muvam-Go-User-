@@ -58,7 +58,7 @@ To verify the fix is working:
 
 ```dart
 // Check if handlers are properly set up
-print('WebSocket onIncomingCall handler: ${_webSocketService.onIncomingCall != null}');
+AppLogger.log('WebSocket onIncomingCall handler: ${_webSocketService.onIncomingCall != null}');
 
 // Monitor call flow in logs
 AppLogger.log('Call handler status check', tag: 'CALL_DEBUG');

@@ -16,7 +16,7 @@ class FavouriteLocationService {
     final url = '${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}';
     final requestBody = jsonEncode(request.toJson());
 
-    AppLogger.log('🔄 Adding favourite location:');
+    AppLogger.log('Adding favourite location:');
     AppLogger.log('URL: $url');
     AppLogger.log('Token: ${token?.substring(0, 20)}...');
     AppLogger.log('Request Body: $requestBody');
@@ -47,7 +47,7 @@ class FavouriteLocationService {
     final token = await _getToken();
     final url = '${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}';
 
-    AppLogger.log('🔄 Getting favourite locations:');
+    AppLogger.log('Getting favourite locations:');
     AppLogger.log('URL: $url');
     AppLogger.log('Token: ${token?.substring(0, 20)}...');
 

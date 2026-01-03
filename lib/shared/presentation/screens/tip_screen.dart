@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
@@ -7,6 +6,7 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/trips/presentation/screens/custom_tip_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +20,7 @@ class TipScreen extends StatefulWidget {
 
 class _TipScreenState extends State<TipScreen> {
   final List<dynamic> tipAmounts = [0, 500, 1000, 1500, 2000, 'Custom'];
-  dynamic selectedTip; // Can be int or 'Custom'
+  dynamic selectedTip;
   bool _isLoading = false;
 
   Future<void> _submitTip() async {
@@ -29,8 +29,9 @@ class _TipScreenState extends State<TipScreen> {
     if (widget.rideId == null) {
       // Handle general tip setting (preference)
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Default tip setting updated!')),
+        CustomFlushbar.showInfo(
+          context: context,
+          message: 'Default tip setting updated!',
         );
         Navigator.pop(context);
       }
@@ -46,7 +47,7 @@ class _TipScreenState extends State<TipScreen> {
       final url = 'http://44.222.121.219/api/v1/rides/${widget.rideId}/tip';
 
       AppLogger.log(
-        '💸 Sending tip: $selectedTip to ride ${widget.rideId}',
+        'Sending tip: $selectedTip to ride ${widget.rideId}',
         tag: 'TIP',
       );
 
@@ -56,18 +57,16 @@ class _TipScreenState extends State<TipScreen> {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          
-          
-          'amount': selectedTip}),
+        body: jsonEncode({'amount': selectedTip}),
       );
 
-      AppLogger.log('💸 Tip response: ${response.body}', tag: 'TIP');
+      AppLogger.log('Tip response: ${response.body}', tag: 'TIP');
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tip sent successfully!')),
+          CustomFlushbar.showSuccess(
+            context: context,
+            message: 'Tip sent successfully!',
           );
           Navigator.pop(context);
         }
@@ -75,7 +74,7 @@ class _TipScreenState extends State<TipScreen> {
         throw Exception('Failed to send tip');
       }
     } catch (e) {
-      AppLogger.log('❌ Failed to send tip: $e', tag: 'TIP');
+      AppLogger.log('Failed to send tip: $e', tag: 'TIP');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -98,7 +97,6 @@ class _TipScreenState extends State<TipScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 20.h),
-                // Back button
                 Row(
                   children: [
                     GestureDetector(
@@ -148,9 +146,6 @@ class _TipScreenState extends State<TipScreen> {
                     return GestureDetector(
                       onTap: () async {
                         if (isCustom) {
-                          // Standardize how CustomTipScreen behaves.
-                          // It should preferably return a value.
-                          // For now just navigate.
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -160,8 +155,6 @@ class _TipScreenState extends State<TipScreen> {
                           // If logic was added to CustomTipScreen to return value:
                           if (result != null && result is int) {
                             setState(() {
-                              // Assuming we can handle custom amounts not in the list
-                              // We might need to update the list or just use selectedTip
                               selectedTip = result;
                             });
                           }
@@ -238,7 +231,7 @@ class _TipScreenState extends State<TipScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: 20.h), // Bottom padding
+                SizedBox(height: 20.h),
               ],
             ),
           ),

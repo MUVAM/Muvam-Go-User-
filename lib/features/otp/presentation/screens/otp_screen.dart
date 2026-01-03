@@ -92,7 +92,6 @@ class _OtpScreenState extends State<OtpScreen> {
                   children: [
                     SizedBox(height: 60.h),
                     Image.asset(ConstImages.otp, width: 426.w, height: 426.h),
-                    // SizedBox(height: 30.h),
                     Text(
                       'Phone Verification',
                       style: ConstTextStyles.boldTitle,
@@ -240,9 +239,10 @@ class _OtpScreenState extends State<OtpScreen> {
                                     AppLogger.log('Token: ${response.token}');
                                     AppLogger.log('IsNew: ${response.isNew}');
 
-                                    // Check if user role is driver
-                                    final userRole = response.user?['Role'] as String?;
-                                    if (userRole != null && userRole.toLowerCase() != 'passenger') {
+                                    final userRole =
+                                        response.user?['Role'] as String?;
+                                    if (userRole != null &&
+                                        userRole.toLowerCase() != 'passenger') {
                                       showDialog(
                                         context: context,
                                         builder: (context) => AlertDialog(
@@ -258,7 +258,9 @@ class _OtpScreenState extends State<OtpScreen> {
                                               child: Text(
                                                 'OK',
                                                 style: TextStyle(
-                                                  color: Color(ConstColors.mainColor),
+                                                  color: Color(
+                                                    ConstColors.mainColor,
+                                                  ),
                                                 ),
                                               ),
                                             ),

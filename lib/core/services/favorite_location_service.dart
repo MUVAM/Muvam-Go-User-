@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -21,13 +20,13 @@ class FavoriteLocationService {
     }
   }
 
-  /// Save a favorite location (home, work, or favourite)
+  // Save a favorite location (home, work, or favourite)
   Future<FavoriteLocationResponse> saveFavoriteLocation({
-    required String name, // 'home', 'work', or 'favourite'
-    required String destLocation, // POINT format
+    required String name,
+    required String destLocation,
     required String destAddress,
   }) async {
-    AppLogger.log('📍 Saving favorite location: $name', tag: 'FAV_LOCATION');
+    AppLogger.log('Saving favorite location: $name', tag: 'FAV_LOCATION');
 
     final token = await _getToken();
 
@@ -76,9 +75,9 @@ class FavoriteLocationService {
     }
   }
 
-  /// Get all favorite locations
+  // Get all favorite locations
   Future<List<FavoriteLocation>> getFavoriteLocations() async {
-    AppLogger.log('📍 Fetching favorite locations', tag: 'FAV_LOCATION');
+    AppLogger.log('Fetching favorite locations', tag: 'FAV_LOCATION');
 
     final token = await _getToken();
 
@@ -133,9 +132,9 @@ class FavoriteLocationService {
     }
   }
 
-  /// Delete a favorite location
+  // Delete a favorite location
   Future<bool> deleteFavoriteLocation(int id) async {
-    AppLogger.log('📍 Deleting favorite location: $id', tag: 'FAV_LOCATION');
+    AppLogger.log('Deleting favorite location: $id', tag: 'FAV_LOCATION');
 
     final token = await _getToken();
 

@@ -15,49 +15,39 @@ class ConnectivityProvider with ChangeNotifier {
   }
 
   Future<void> _initialize() async {
-    // Set up connectivity change listener
     _connectivityService.onConnectivityChanged = (isConnected) {
       AppLogger.log(
-        '📥 CALLBACK RECEIVED in provider! isConnected: $isConnected',
+        'CALLBACK RECEIVED in provider! isConnected: $isConnected',
         tag: 'CONNECTIVITY_PROVIDER',
       );
 
       _isConnected = isConnected;
-
-      AppLogger.log(
-        '🔔 Calling notifyListeners() to update UI',
-        tag: 'CONNECTIVITY_PROVIDER',
-      );
-
       notifyListeners();
 
       AppLogger.log(
-        '✅ notifyListeners() called successfully',
+        'notifyListeners() called successfully',
         tag: 'CONNECTIVITY_PROVIDER',
       );
     };
 
     AppLogger.log(
-      '🔧 Callback registered, initializing service...',
+      'Callback registered, initializing service...',
       tag: 'CONNECTIVITY_PROVIDER',
     );
 
-    // Initialize the service
     await _connectivityService.initialize();
 
-    // Get initial status
     _isConnected = _connectivityService.isConnected;
     _hasShownInitialStatus = true;
 
     AppLogger.log(
-      '✅ Provider initialized. Initial status: $_isConnected',
+      'Provider initialized. Initial status: $_isConnected',
       tag: 'CONNECTIVITY_PROVIDER',
     );
 
     notifyListeners();
   }
 
-  /// Manually check connectivity
   Future<bool> checkConnectivity() async {
     final isConnected = await _connectivityService.checkConnectivity();
     _isConnected = isConnected;
@@ -65,7 +55,6 @@ class ConnectivityProvider with ChangeNotifier {
     return isConnected;
   }
 
-  /// Check if initial status has been shown
   bool get hasShownInitialStatus => _hasShownInitialStatus;
 
   @override

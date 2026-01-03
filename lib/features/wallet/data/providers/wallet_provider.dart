@@ -153,7 +153,6 @@ class WalletProvider with ChangeNotifier {
     }
   }
 
-  // Check Virtual Account - NEW METHOD
   Future<bool> checkVirtualAccount() async {
     _setLoading(true);
     _setError(null);

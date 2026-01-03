@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 
@@ -17,7 +16,7 @@ class ConnectivityService {
   // Callback for connectivity changes
   Function(bool isConnected)? onConnectivityChanged;
 
-  /// Initialize connectivity monitoring
+  // Initialize connectivity monitoring
   Future<void> initialize() async {
     // Check initial connectivity status
     await checkConnectivity();
@@ -29,10 +28,10 @@ class ConnectivityService {
       _handleConnectivityChange(results);
     });
 
-    AppLogger.log('✅ Connectivity service initialized', tag: 'CONNECTIVITY');
+    AppLogger.log('Connectivity service initialized', tag: 'CONNECTIVITY');
   }
 
-  /// Check current connectivity status
+  // Check current connectivity status
   Future<bool> checkConnectivity() async {
     try {
       final results = await _connectivity.checkConnectivity();
@@ -60,13 +59,13 @@ class ConnectivityService {
     }
   }
 
-  /// Handle connectivity changes
+  // Handle connectivity changes
   void _handleConnectivityChange(List<ConnectivityResult> results) {
     final wasConnected = _isConnected;
     _isConnected = _hasConnection(results);
 
     AppLogger.log(
-      '📡 Connectivity changed: ${_isConnected ? "Connected" : "Disconnected"}',
+      'Connectivity changed: ${_isConnected ? "Connected" : "Disconnected"}',
       tag: 'CONNECTIVITY',
     );
 
@@ -78,25 +77,25 @@ class ConnectivityService {
     // Only notify if status actually changed
     if (wasConnected != _isConnected) {
       AppLogger.log(
-        '🔔 Status ACTUALLY changed! Calling callback...',
+        'Status ACTUALLY changed! Calling callback...',
         tag: 'CONNECTIVITY',
       );
 
       if (onConnectivityChanged != null) {
         onConnectivityChanged!.call(_isConnected);
-        AppLogger.log('✅ Callback executed', tag: 'CONNECTIVITY');
+        AppLogger.log('Callback executed', tag: 'CONNECTIVITY');
       } else {
-        AppLogger.log('❌ No callback registered!', tag: 'CONNECTIVITY');
+        AppLogger.log('No callback registered!', tag: 'CONNECTIVITY');
       }
     } else {
       AppLogger.log(
-        'ℹ️ Status unchanged, not calling callback',
+        'Status unchanged, not calling callback',
         tag: 'CONNECTIVITY',
       );
     }
   }
 
-  /// Check if any of the results indicate a connection
+  // Check if any of the results indicate a connection
   bool _hasConnection(List<ConnectivityResult> results) {
     return results.any(
       (result) =>
@@ -106,7 +105,6 @@ class ConnectivityService {
     );
   }
 
-  /// Dispose the service
   void dispose() {
     _connectivitySubscription?.cancel();
     AppLogger.log('Connectivity service disposed', tag: 'CONNECTIVITY');

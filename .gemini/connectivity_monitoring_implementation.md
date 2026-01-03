@@ -352,11 +352,11 @@ void testConnectivity() async {
   final provider = ConnectivityProvider();
   
   // Check initial status
-  print('Initial status: ${provider.isConnected}');
+  AppLogger.log('Initial status: ${provider.isConnected}');
   
   // Manually check
   bool status = await provider.checkConnectivity();
-  print('Manual check: $status');
+  AppLogger.log('Manual check: $status');
   
   // Clean up
   provider.dispose();

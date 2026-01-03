@@ -37,7 +37,7 @@ import 'package:muvam/features/services/presentation/screens/services_screen.dar
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
-import 'package:muvam/services/directions_service.dart';
+import 'package:muvam/core/services/directions_service.dart';
 import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -629,16 +629,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadFavouriteLocations() async {
-    print('🔄 Loading favourite locations on home screen...');
+    AppLogger.log('🔄 Loading favourite locations on home screen...');
     try {
       _favouriteLocations = await _favouriteService.getFavouriteLocations();
-      print('✅ Loaded ${_favouriteLocations.length} favourite locations:');
+      AppLogger.log(
+        '✅ Loaded ${_favouriteLocations.length} favourite locations:',
+      );
       for (final fav in _favouriteLocations) {
-        print('  - ${fav.name}: ${fav.destAddress}');
+        AppLogger.log('  - ${fav.name}: ${fav.destAddress}');
       }
       setState(() {});
     } catch (e) {
-      print('❌ Error loading favourite locations: $e');
+      AppLogger.log('❌ Error loading favourite locations: $e');
     }
   }
 
@@ -671,8 +673,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _webSocketService.onRideAccepted = (data) {
-      print('🎉 Ride accepted callback triggered!');
-      print('Driver data: $data');
+      AppLogger.log('🎉 Ride accepted callback triggered!');
+      AppLogger.log('Driver data: $data');
 
       // Extract driver information from WebSocket data
       final driverData = data['driver'] ?? {};
@@ -870,21 +872,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkActiveRides() async {
-    print('=== CHECKING ACTIVE RIDES ===');
+    AppLogger.log('=== CHECKING ACTIVE RIDES ===');
     try {
       final result = await _rideService.getActiveRides();
-      print('Active rides result: $result');
+      AppLogger.log('Active rides result: $result');
 
       if (result['success'] == true) {
         final data = result['data'];
         final rides = data['rides'] as List? ?? [];
-        print('Number of active rides: ${rides.length}');
+        AppLogger.log('Number of active rides: ${rides.length}');
 
         if (rides.isNotEmpty) {
           final activeRide = rides.first;
-          print('Active ride found: $activeRide');
-          print('Ride Status: ${activeRide['Status']}');
-          print('Ride ID: ${activeRide['ID']}');
+          AppLogger.log('Active ride found: $activeRide');
+          AppLogger.log('Ride Status: ${activeRide['Status']}');
+          AppLogger.log('Ride ID: ${activeRide['ID']}');
 
           setState(() {
             _activeRide = activeRide;
@@ -893,18 +895,18 @@ class _HomeScreenState extends State<HomeScreen> {
           // Show active ride UI based on status
           _handleActiveRideStatus(activeRide);
         } else {
-          print('No active rides found');
+          AppLogger.log('No active rides found');
           setState(() {
             _activeRide = null;
           });
         }
       } else {
-        print('Failed to get active rides: ${result['message']}');
+        AppLogger.log('Failed to get active rides: ${result['message']}');
       }
     } catch (e) {
-      print('Error checking active rides: $e');
+      AppLogger.log('Error checking active rides: $e');
     }
-    print('=== END CHECKING ACTIVE RIDES ===\n');
+    AppLogger.log('=== END CHECKING ACTIVE RIDES ===\n');
   }
 
   void _startActiveRideChecking() {
@@ -917,7 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleActiveRideStatus(Map<String, dynamic> ride) {
     final status = ride['Status']?.toString().toLowerCase() ?? '';
     final rideId = ride['ID'] as int?;
-    print('Handling active ride with status: $status');
+    AppLogger.log('Handling active ride with status: $status');
 
     // Store ride ID when active
     if (rideId != null &&
@@ -956,9 +958,9 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         // Parse PostGIS locations and add markers to map
-        print('📍 Parsing PostGIS locations...');
-        print('PickupLocation: ${ride['PickupLocation']}');
-        print('DestLocation: ${ride['DestLocation']}');
+        AppLogger.log('📍 Parsing PostGIS locations...');
+        AppLogger.log('PickupLocation: ${ride['PickupLocation']}');
+        AppLogger.log('DestLocation: ${ride['DestLocation']}');
 
         // Add pickup and drop-off markers to map
         _addActiveRideMarkers(ride);
@@ -993,10 +995,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (status == 'started') {
           // Show in-car UI
         } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
-          print('✅ Showing driver accepted sheet for status: $status');
+          AppLogger.log('✅ Showing driver accepted sheet for status: $status');
           _showDriverAcceptedSheet();
         } else {
-          print(
+          AppLogger.log(
             '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
           );
         }
@@ -1025,7 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
 
       default:
-        print('Unknown ride status: $status');
+        AppLogger.log('Unknown ride status: $status');
     }
   }
 
@@ -1393,7 +1395,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _showSuggestions = predictions.isNotEmpty;
       });
     } catch (e) {
-      print('Error searching locations: $e');
+      AppLogger.log('Error searching locations: $e');
       setState(() {
         _locationSuggestions = [];
         _showSuggestions = false;
@@ -1470,12 +1472,12 @@ class _HomeScreenState extends State<HomeScreen> {
           fromController.text = currentAddress;
           _isLocationLoaded = true;
         });
-        print(
+        AppLogger.log(
           '📍 Current user location: ${position.latitude}, ${position.longitude}',
         );
       }
     } catch (e) {
-      print('Error getting location: $e');
+      AppLogger.log('Error getting location: $e');
     }
   }
 
@@ -2032,7 +2034,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return LatLng(latitude, longitude);
       }
     } catch (e) {
-      print('Error parsing PostGIS point: $e');
+      AppLogger.log('Error parsing PostGIS point: $e');
     }
     return null;
   }
@@ -2141,7 +2143,7 @@ class _HomeScreenState extends State<HomeScreen> {
   //                                   );
   //                                   Navigator.pop(context);
   //                                 } catch (e) {
-  //                                   print('Error rating ride: $e');
+  //                                   AppLogger.log('Error rating ride: $e');
   //                                 }
   //                               }
   //                             }
@@ -3535,7 +3537,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentLocation.longitude + 0.01,
     );
 
-    print('🗺️ Getting real route path...');
+    AppLogger.log('🗺️ Getting real route path...');
 
     // Get the actual route polyline from Google Directions API
     final routePoints = await _directionsService.getRoutePolyline(
@@ -3543,7 +3545,7 @@ class _HomeScreenState extends State<HomeScreen> {
       destination: _destinationCoordinates!,
     );
 
-    print('✅ Got ${routePoints.length} route points');
+    AppLogger.log('✅ Got ${routePoints.length} route points');
 
     // Create custom marker icons from widgets
     final pickupIcon = await _createBitmapDescriptorFromWidget(
@@ -3653,7 +3655,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _estimateRide();
     } catch (e) {
-      print('Failed to get estimate: $e');
+      AppLogger.log('Failed to get estimate: $e');
       return;
     }
 
@@ -8444,7 +8446,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      print('Error parsing PostGIS location: $e');
+      AppLogger.log('Error parsing PostGIS location: $e');
     }
     return null;
   }

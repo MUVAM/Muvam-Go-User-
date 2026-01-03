@@ -12,7 +12,6 @@ class BiometricAuthService {
   final LocalAuthentication _auth = LocalAuthentication();
   DateTime? _lastBackgroundTime;
 
-  /// Check if biometric authentication is available on the device
   Future<bool> canCheckBiometrics() async {
     try {
       return await _auth.canCheckBiometrics;
@@ -22,7 +21,6 @@ class BiometricAuthService {
     }
   }
 
-  /// Get available biometric types
   Future<List<BiometricType>> getAvailableBiometrics() async {
     try {
       return await _auth.getAvailableBiometrics();
@@ -32,25 +30,21 @@ class BiometricAuthService {
     }
   }
 
-  /// Check if biometric authentication is enabled in settings
   Future<bool> isBiometricEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('biometric_enabled') ?? false;
   }
 
-  /// Get the lock timing setting
   Future<String> getLockTiming() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('lock_timing') ?? 'immediately';
   }
 
-  /// Authenticate user with biometrics
   Future<bool> authenticate({
     required String reason,
     bool biometricOnly = false,
   }) async {
     try {
-      // Check if device supports biometrics
       final canCheck = await canCheckBiometrics();
       AppLogger.log('Can check biometrics: $canCheck', tag: 'BIOMETRIC');
 
@@ -59,7 +53,6 @@ class BiometricAuthService {
         return false;
       }
 
-      // Check if device is enrolled
       final isDeviceSupported = await _auth.isDeviceSupported();
       AppLogger.log('Device supported: $isDeviceSupported', tag: 'BIOMETRIC');
 
@@ -68,7 +61,6 @@ class BiometricAuthService {
         return false;
       }
 
-      // Get available biometrics
       final availableBiometrics = await getAvailableBiometrics();
       AppLogger.log(
         'Available biometrics: $availableBiometrics',
@@ -103,7 +95,6 @@ class BiometricAuthService {
         tag: 'BIOMETRIC',
       );
 
-      // Handle specific error codes
       switch (e.code) {
         case 'NotAvailable':
           AppLogger.log('Biometric not available', tag: 'BIOMETRIC');
@@ -128,7 +119,6 @@ class BiometricAuthService {
     }
   }
 
-  /// Check if app should be locked based on timing settings
   Future<bool> shouldLockApp() async {
     final isEnabled = await isBiometricEnabled();
     if (!isEnabled) return false;
@@ -151,7 +141,6 @@ class BiometricAuthService {
     }
   }
 
-  /// Record when app goes to background
   void recordBackgroundTime() {
     _lastBackgroundTime = DateTime.now();
     AppLogger.log(
@@ -160,13 +149,11 @@ class BiometricAuthService {
     );
   }
 
-  /// Clear background time (when app is unlocked)
   void clearBackgroundTime() {
     _lastBackgroundTime = null;
     AppLogger.log('Background time cleared', tag: 'BIOMETRIC');
   }
 
-  /// Get biometric type name for display
   Future<String> getBiometricTypeName() async {
     final types = await getAvailableBiometrics();
     if (types.contains(BiometricType.face)) {
@@ -179,14 +166,12 @@ class BiometricAuthService {
     return 'Biometric';
   }
 
-  /// Check if user has stored credentials (for login screen)
   Future<bool> hasStoredCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     return token != null && token.isNotEmpty;
   }
 
-  /// Authenticate for login
   Future<bool> authenticateForLogin() async {
     final isEnabled = await isBiometricEnabled();
     if (!isEnabled) return false;

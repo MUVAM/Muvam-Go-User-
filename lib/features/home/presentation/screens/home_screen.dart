@@ -28,10 +28,8 @@ import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
+import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
-import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
-import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
 import 'package:muvam/features/services/presentation/screens/services_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
@@ -44,12 +42,9 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import 'add_home_screen.dart';
-// import 'chat_screen.dart';
 import 'map_selection_screen.dart';
 
-//FOR PASSENGER
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -2187,25 +2182,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
 
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(
-        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
-      ),
-    );
-
-    // Check if user has virtual account
     final hasAccount = await walletProvider.checkVirtualAccount();
 
-    // Close loading indicator
-    if (mounted) {
-      Navigator.pop(context);
-    }
-
     AppLogger.log('Navigate to appropriate screen');
-    // Navigate to appropriate screen
     if (mounted) {
       if (hasAccount) {
         AppLogger.log('Navigate to appropriate WalletScreen');
@@ -2276,74 +2255,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
-  }
-
-  void _showContactBottomSheet() {
-    Navigator.pop(context); // Close drawer
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Contact us', style: ConstTextStyles.addHomeTitle),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Icon(Icons.close, size: 24.sp),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-            ListTile(
-              onTap: () async {
-                Navigator.pop(context); // Close the bottom sheet
-                await _launchPhoneDialer();
-              },
-              leading: Image.asset(
-                ConstImages.phoneCall,
-                width: 22.w,
-                height: 22.h,
-              ),
-              title: Text('Via Call', style: ConstTextStyles.contactOption),
-              trailing: Icon(
-                Icons.arrow_forward_ios,
-                size: 12.sp,
-                color: Colors.grey,
-              ),
-            ),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            ListTile(
-              onTap: () async {
-                Navigator.pop(context); // Close the bottom sheet
-                await _launchWhatsApp();
-              },
-              leading: Image.asset(
-                ConstImages.whatsapp,
-                width: 22.w,
-                height: 22.h,
-              ),
-              title: Text('Via WhatsApp', style: ConstTextStyles.contactOption),
-              trailing: Icon(
-                Icons.arrow_forward_ios,
-                size: 12.sp,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _dismissSuggestions() {
@@ -2427,7 +2338,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _dismissSuggestions,
         child: Scaffold(
           key: _scaffoldKey,
-          drawer: _buildDrawer(),
+          drawer: const AppDrawer(),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _currentIndex,
             backgroundColor: Colors.white,
@@ -4515,117 +4426,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDrawer() {
-    final profileProvider = Provider.of<UserProfileProvider>(context);
-    return Drawer(
-      child: Column(
-        children: [
-          SizedBox(height: 60.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Row(
-              children: [
-                profileProvider.userProfilePhoto.isNotEmpty
-                    ? CircleAvatar(
-                        radius: 30.r,
-                        backgroundImage: NetworkImage(
-                          profileProvider.userProfilePhoto,
-                        ),
-                      )
-                    : Image.asset(
-                        ConstImages.avatar,
-                        width: 60.w,
-                        height: 60.h,
-                      ),
-                SizedBox(width: 15.w),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProfileScreen(),
-                        ),
-                      );
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profileProvider.userShortName,
-                          style: ConstTextStyles.drawerName,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        Text(
-                          'My Account',
-                          style: ConstTextStyles.drawerAccount.copyWith(
-                            color: Color(ConstColors.drawerAccountColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20.h),
-          Divider(thickness: 1, color: Colors.grey.shade300),
-          // _buildDrawerItem('Book a trip', ConstImages.car),
-          // _buildDrawerItem('Activities', ConstImages.serviceEscort),
-          _buildDrawerItem(
-            'Wallet',
-            ConstImages.wallet,
-            onTap: _navigateToWallet,
-          ),
-          // _buildDrawerItem('Drive with us', ConstImages.car),
-          // _buildDrawerItem(
-          //   'Tip',
-          //   ConstImages.tip,
-          //   onTap: () {
-          //     Navigator.pop(context);
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => const TipScreen()),
-          //     );
-          //   },
-          // ),
-          _buildDrawerItem(
-            'Promo code',
-            ConstImages.code,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => PromoCodeScreen()),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            'Referral',
-            ConstImages.referral,
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ReferralScreen()),
-              );
-            },
-          ),
-          _buildDrawerItem(
-            'Contact Us',
-            ConstImages.phoneCall,
-            onTap: _showContactBottomSheet,
-          ),
-          _buildDrawerItem('FAQ', ConstImages.faq),
-          _buildDrawerItem('About', ConstImages.about),
-        ],
       ),
     );
   }

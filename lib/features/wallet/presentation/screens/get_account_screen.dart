@@ -228,52 +228,52 @@ class _GetAccountScreenState extends State<GetAccountScreen> {
                 ),
               ),
             ),
-            if (walletProvider.isLoading)
-              Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Center(
-                  child: Container(
-                    padding: EdgeInsets.all(24.w),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16.r),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 48.w,
-                          height: 48.h,
-                          child: CircularProgressIndicator(
-                            color: Color(ConstColors.mainColor),
-                            strokeWidth: 4,
-                          ),
-                        ),
-                        SizedBox(height: 20.h),
-                        Text(
-                          'Creating your account...',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          'Please wait a moment',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // if (walletProvider.isLoading)
+            //   Container(
+            //     color: Colors.black.withOpacity(0.5),
+            //     child: Center(
+            //       child: Container(
+            //         padding: EdgeInsets.all(24.w),
+            //         decoration: BoxDecoration(
+            //           color: Colors.white,
+            //           borderRadius: BorderRadius.circular(16.r),
+            //         ),
+            //         child: Column(
+            //           mainAxisSize: MainAxisSize.min,
+            //           children: [
+            //             SizedBox(
+            //               width: 48.w,
+            //               height: 48.h,
+            //               child: CircularProgressIndicator(
+            //                 color: Color(ConstColors.mainColor),
+            //                 strokeWidth: 4,
+            //               ),
+            //             ),
+            //             SizedBox(height: 20.h),
+            //             Text(
+            //               'Creating your account...',
+            //               style: TextStyle(
+            //                 fontFamily: 'Inter',
+            //                 fontSize: 16.sp,
+            //                 fontWeight: FontWeight.w600,
+            //                 color: Colors.black,
+            //               ),
+            //             ),
+            //             SizedBox(height: 8.h),
+            //             Text(
+            //               'Please wait a moment',
+            //               style: TextStyle(
+            //                 fontFamily: 'Inter',
+            //                 fontSize: 14.sp,
+            //                 fontWeight: FontWeight.w400,
+            //                 color: Colors.grey[600],
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         );
       },

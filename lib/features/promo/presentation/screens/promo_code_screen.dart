@@ -114,7 +114,6 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                     ),
                   ),
                   SizedBox(height: 20.h),
-
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(

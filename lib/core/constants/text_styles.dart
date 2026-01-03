@@ -58,8 +58,8 @@ class ConstTextStyles {
 
   static const TextStyle drawerItem1 = TextStyle(
     fontFamily: ConstFonts.inter,
-    fontWeight: FontWeight.w400,
-    fontSize: 15,
+    fontWeight: FontWeight.w500,
+    fontSize: 18,
   );
 
   static const TextStyle savedLocation = TextStyle(

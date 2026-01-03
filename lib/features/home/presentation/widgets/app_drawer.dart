@@ -4,10 +4,13 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/home/presentation/widgets/drawer_item.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
 import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
+import 'package:muvam/features/support/presentation/about_screen.dart';
+import 'package:muvam/features/support/presentation/faq_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
@@ -48,22 +51,23 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   void _navigateToWallet() async {
-    Navigator.pop(context);
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     final hasAccount = await walletProvider.checkVirtualAccount();
 
-    if (mounted) {
-      if (hasAccount) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletScreen()),
-        );
-      } else {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
-        );
-      }
+    if (!mounted) return;
+
+    Navigator.pop(context);
+
+    if (hasAccount) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const WalletScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
+      );
     }
   }
 
@@ -75,7 +79,7 @@ class _AppDrawerState extends State<AppDrawer> {
       if (await canLaunchUrl(phoneUri)) {
         await launchUrl(phoneUri);
         AppLogger.log(
-          '📞 Launched phone dialer for: $phoneNumber',
+          'Launched phone dialer for: $phoneNumber',
           tag: 'CONTACT',
         );
       } else {
@@ -102,7 +106,7 @@ class _AppDrawerState extends State<AppDrawer> {
     try {
       if (await canLaunchUrl(whatsappUri)) {
         await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-        AppLogger.log('💬 Launched WhatsApp for: $phoneNumber', tag: 'CONTACT');
+        AppLogger.log('Launched WhatsApp for: $phoneNumber', tag: 'CONTACT');
       } else {
         AppLogger.error('Could not launch WhatsApp', tag: 'CONTACT');
         if (mounted) {
@@ -188,26 +192,6 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  Widget _buildDrawerItem(
-    String title,
-    String iconPath, {
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-        child: Row(
-          children: [
-            Image.asset(iconPath, width: 24.w, height: 24.h),
-            SizedBox(width: 20.w),
-            Text(title, style: ConstTextStyles.drawerItem1),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final profileProvider = Provider.of<UserProfileProvider>(context);
@@ -220,7 +204,7 @@ class _AppDrawerState extends State<AppDrawer> {
             Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: EdgeInsets.only(top: 40.h, right: 20.w),
+                padding: EdgeInsets.only(top: 40.h, right: 10.w),
                 child: IconButton(
                   icon: Icon(Icons.close, size: 24.sp),
                   onPressed: () => Navigator.pop(context),
@@ -303,17 +287,17 @@ class _AppDrawerState extends State<AppDrawer> {
             SizedBox(height: 10.h),
             Divider(thickness: 1, color: Colors.grey.shade200, height: 1),
             SizedBox(height: 8.h),
-            _buildDrawerItem('Book a trip', ConstImages.car),
-            _buildDrawerItem('Activities', ConstImages.activities),
-            _buildDrawerItem(
-              'Wallet',
-              ConstImages.wallet,
+            // DrawerItem(title: 'Book a trip', iconPath: ConstImages.car),
+            DrawerItem(title: 'Activities', iconPath: ConstImages.activities),
+            DrawerItem(
+              title: 'Wallet',
+              iconPath: ConstImages.wallet,
               onTap: _navigateToWallet,
             ),
-            _buildDrawerItem('Drive with us', ConstImages.car),
-            _buildDrawerItem(
-              'Promo code',
-              ConstImages.code,
+            DrawerItem(title: 'Drive with us', iconPath: ConstImages.car),
+            DrawerItem(
+              title: 'Promo code',
+              iconPath: ConstImages.code,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -322,9 +306,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 );
               },
             ),
-            _buildDrawerItem(
-              'Referral',
-              ConstImages.referral,
+            DrawerItem(
+              title: 'Referral',
+              iconPath: ConstImages.referral,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -333,13 +317,33 @@ class _AppDrawerState extends State<AppDrawer> {
                 );
               },
             ),
-            _buildDrawerItem(
-              'Contact us',
-              ConstImages.phoneCall,
+            DrawerItem(
+              title: 'Contact us',
+              iconPath: ConstImages.phoneCall,
               onTap: _showContactBottomSheet,
             ),
-            _buildDrawerItem('FAQ', ConstImages.faq),
-            _buildDrawerItem('About', ConstImages.about),
+            DrawerItem(
+              title: 'FAQ',
+              iconPath: ConstImages.faq,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => FaqScreen()),
+                );
+              },
+            ),
+            DrawerItem(
+              title: 'About',
+              iconPath: ConstImages.about,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AboutUsScreen()),
+                );
+              },
+            ),
             Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),

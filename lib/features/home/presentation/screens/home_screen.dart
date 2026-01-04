@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -13,6 +14,7 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/services/call_service.dart';
+import 'package:muvam/core/services/directions_service.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/message_notification_handler.dart';
 import 'package:muvam/core/services/payment_service.dart';
@@ -30,11 +32,11 @@ import 'package:muvam/features/home/data/models/favourite_location_models.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
+import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/services/presentation/screens/services_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
-import 'package:muvam/core/services/directions_service.dart';
 import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -42,6 +44,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import 'add_home_screen.dart';
 import 'map_selection_screen.dart';
 
@@ -56,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isBottomSheetVisible = true;
   bool _showDestinationField = false;
+  bool _showStopField = false; // Controls stop address visibility
 
   Map<String, dynamic>? _incomingCall;
   final CallService _callService = CallService();
@@ -71,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = TimeOfDay.now();
   int? selectedCancelReason;
+  bool isScheduledRide = false; // Track if booking is scheduled
   GoogleMapController? _mapController;
   LatLng _currentLocation = LatLng(6.8720015, 7.4069943); // Default location
   BitmapDescriptor? _driverIcon;
@@ -2543,40 +2548,42 @@ class _HomeScreenState extends State<HomeScreen> {
                                               color: Colors.grey,
                                             ),
 
-                                            SizedBox(height: 4.h),
-                                            Container(
-                                              width: 14.w,
-                                              height: 14.h,
-                                              decoration: BoxDecoration(
-                                                color: Colors.black,
-                                                shape: BoxShape.circle,
+                                            if (_showStopField) ...[
+                                              SizedBox(height: 4.h),
+                                              Container(
+                                                width: 14.w,
+                                                height: 14.h,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black,
+                                                  shape: BoxShape.circle,
+                                                ),
                                               ),
-                                            ),
-                                            SizedBox(height: 5.h),
-                                            Container(
-                                              width: 2.w,
-                                              height: 8.h,
-                                              color: Colors.grey,
-                                            ),
-                                            SizedBox(height: 4.h),
-                                            Container(
-                                              width: 2.w,
-                                              height: 8.h,
-                                              color: Colors.grey,
-                                            ),
-                                            SizedBox(height: 4.h),
+                                              SizedBox(height: 5.h),
+                                              Container(
+                                                width: 2.w,
+                                                height: 8.h,
+                                                color: Colors.grey,
+                                              ),
+                                              SizedBox(height: 4.h),
+                                              Container(
+                                                width: 2.w,
+                                                height: 8.h,
+                                                color: Colors.grey,
+                                              ),
+                                              SizedBox(height: 4.h),
 
-                                            Container(
-                                              width: 2.w,
-                                              height: 8.h,
-                                              color: Colors.grey,
-                                            ),
+                                              Container(
+                                                width: 2.w,
+                                                height: 8.h,
+                                                color: Colors.grey,
+                                              ),
+                                            ],
                                             SizedBox(height: 5.h),
                                             Container(
                                               width: 14.w,
                                               height: 14.h,
                                               decoration: BoxDecoration(
-                                                color: Colors.green,
+                                                color: Colors.red,
                                                 shape: BoxShape.circle,
                                               ),
                                             ),
@@ -2588,209 +2595,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Expanded(
                                       child: Column(
                                         children: [
-                                          Container(
-                                            width: 338.w,
-                                            height: 50.h,
-                                            decoration: BoxDecoration(
-                                              color: Color(
-                                                ConstColors.fieldColor,
-                                              ).withOpacity(0.12),
-                                              borderRadius:
-                                                  BorderRadius.circular(8.r),
-                                            ),
-                                            child: TextField(
-                                              controller: fromController,
-                                              readOnly: _showDestinationField
-                                                  ? !_isFromFieldEditable
-                                                  : false,
-                                              onTap: () {
-                                                if (!_showDestinationField) {
-                                                  setState(() {
-                                                    _showDestinationField =
-                                                        true;
-                                                    _isFromFieldFocused = true;
-                                                    _showSuggestions = false;
-                                                  });
-                                                } else if (!_isFromFieldEditable &&
-                                                    _isLocationLoaded) {
-                                                  setState(() {
-                                                    _isFromFieldEditable = true;
-                                                    _isFromFieldFocused = true;
-                                                  });
-                                                } else {
-                                                  setState(() {
-                                                    _isFromFieldFocused = true;
-                                                  });
-                                                }
-                                              },
-                                              onChanged: (value) {
-                                                if (_isFromFieldFocused ||
-                                                    !_showDestinationField) {
-                                                  _searchLocations(value);
-                                                }
-                                              },
-                                              decoration: InputDecoration(
-                                                hintText: _showDestinationField
-                                                    ? 'From?'
-                                                    : 'Where to?',
-                                                prefixIcon: Icon(
-                                                  Icons.search,
-                                                  size: 20.sp,
-                                                  color: Colors.grey,
-                                                ),
-                                                suffixIcon:
-                                                    _showDestinationField
-                                                    ? Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          if (fromController
-                                                              .text
-                                                              .isNotEmpty)
-                                                            GestureDetector(
-                                                              onTap: () {
-                                                                setState(() {
-                                                                  fromController
-                                                                      .clear();
-                                                                  _isFromFieldEditable =
-                                                                      false;
-                                                                });
-                                                              },
-                                                              child: Container(
-                                                                width: 24.w,
-                                                                height: 24.h,
-                                                                margin:
-                                                                    EdgeInsets.only(
-                                                                      right:
-                                                                          8.w,
-                                                                    ),
-                                                                child: Icon(
-                                                                  Icons.clear,
-                                                                  size: 16.sp,
-                                                                  color: Colors
-                                                                      .grey,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          GestureDetector(
-                                                            onTap: () async {
-                                                              setState(() {
-                                                                _showMapTooltip =
-                                                                    true;
-                                                              });
-                                                              Future.delayed(
-                                                                Duration(
-                                                                  seconds: 2,
-                                                                ),
-                                                                () {
-                                                                  if (mounted) {
-                                                                    setState(() {
-                                                                      _showMapTooltip =
-                                                                          false;
-                                                                    });
-                                                                  }
-                                                                },
-                                                              );
-                                                              final result = await Navigator.push(
-                                                                context,
-                                                                MaterialPageRoute(
-                                                                  builder: (context) => MapSelectionScreen(
-                                                                    isFromField:
-                                                                        true,
-                                                                    initialLocation:
-                                                                        _currentLocation,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                              if (result !=
-                                                                  null) {
-                                                                setState(() {
-                                                                  fromController
-                                                                          .text =
-                                                                      result['address'];
-                                                                  _pickupCoordinates =
-                                                                      result['location'];
-                                                                  _currentLocation =
-                                                                      result['location'];
-                                                                });
-                                                                // Check if both fields are filled to show vehicle selection
-                                                                if (toController
-                                                                    .text
-                                                                    .isNotEmpty) {
-                                                                  _checkBothFields();
-                                                                }
-                                                              }
-                                                            },
-                                                            child: Stack(
-                                                              children: [
-                                                                Container(
-                                                                  width: 24.w,
-                                                                  height: 24.h,
-                                                                  margin:
-                                                                      EdgeInsets.only(
-                                                                        right:
-                                                                            8.w,
-                                                                      ),
-                                                                  child: Icon(
-                                                                    Icons.map,
-                                                                    size: 16.sp,
-                                                                    color: Color(
-                                                                      ConstColors
-                                                                          .mainColor,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                                if (_showMapTooltip)
-                                                                  Positioned(
-                                                                    right: 35.w,
-                                                                    top: -25.h,
-                                                                    child: Container(
-                                                                      padding: EdgeInsets.symmetric(
-                                                                        horizontal:
-                                                                            8.w,
-                                                                        vertical:
-                                                                            4.h,
-                                                                      ),
-                                                                      decoration: BoxDecoration(
-                                                                        color: Colors
-                                                                            .black87,
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                              4.r,
-                                                                            ),
-                                                                      ),
-                                                                      child: Text(
-                                                                        'Select from map',
-                                                                        style: TextStyle(
-                                                                          color:
-                                                                              Colors.white,
-                                                                          fontSize:
-                                                                              10.sp,
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                    : null,
-                                                border: InputBorder.none,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                      horizontal: 10.w,
-                                                      vertical: 8.h,
-                                                    ),
-                                              ),
-                                            ),
-                                          ),
-                                          if (_showDestinationField)
-                                            Column(
-                                              children: [
-                                                SizedBox(height: 10.h),
-                                                Container(
-                                                  width: 338.w,
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Container(
                                                   height: 50.h,
                                                   decoration: BoxDecoration(
                                                     color: Color(
@@ -2802,41 +2610,192 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         ),
                                                   ),
                                                   child: TextField(
-                                                    controller: stopController,
+                                                    controller: fromController,
+                                                    readOnly:
+                                                        _showDestinationField
+                                                        ? !_isFromFieldEditable
+                                                        : false,
+                                                    onTap: () {
+                                                      if (!_showDestinationField) {
+                                                        setState(() {
+                                                          _showDestinationField =
+                                                              true;
+                                                          _isFromFieldFocused =
+                                                              true;
+                                                          _showSuggestions =
+                                                              false;
+                                                        });
+                                                      } else if (!_isFromFieldEditable &&
+                                                          _isLocationLoaded) {
+                                                        setState(() {
+                                                          _isFromFieldEditable =
+                                                              true;
+                                                          _isFromFieldFocused =
+                                                              true;
+                                                        });
+                                                      } else {
+                                                        setState(() {
+                                                          _isFromFieldFocused =
+                                                              true;
+                                                        });
+                                                      }
+                                                    },
+                                                    onChanged: (value) {
+                                                      if (_isFromFieldFocused ||
+                                                          !_showDestinationField) {
+                                                        _searchLocations(value);
+                                                      }
+                                                    },
                                                     decoration: InputDecoration(
                                                       hintText:
-                                                          'Add stop (optional)',
+                                                          _showDestinationField
+                                                          ? 'From?'
+                                                          : 'Where to?',
                                                       prefixIcon: Icon(
-                                                        Icons.add_location,
+                                                        Icons.search,
                                                         size: 20.sp,
                                                         color: Colors.grey,
                                                       ),
                                                       suffixIcon:
-                                                          stopController
-                                                              .text
-                                                              .isNotEmpty
-                                                          ? GestureDetector(
-                                                              onTap: () {
-                                                                setState(() {
-                                                                  stopController
-                                                                      .clear();
-                                                                });
-                                                              },
-                                                              child: Container(
-                                                                width: 24.w,
-                                                                height: 24.h,
-                                                                margin:
-                                                                    EdgeInsets.only(
-                                                                      right:
-                                                                          8.w,
+                                                          _showDestinationField
+                                                          ? Row(
+                                                              mainAxisSize:
+                                                                  MainAxisSize
+                                                                      .min,
+                                                              children: [
+                                                                if (fromController
+                                                                    .text
+                                                                    .isNotEmpty)
+                                                                  GestureDetector(
+                                                                    onTap: () {
+                                                                      setState(() {
+                                                                        fromController
+                                                                            .clear();
+                                                                        _isFromFieldEditable =
+                                                                            false;
+                                                                      });
+                                                                    },
+                                                                    child: Container(
+                                                                      width:
+                                                                          24.w,
+                                                                      height:
+                                                                          24.h,
+                                                                      margin: EdgeInsets.only(
+                                                                        right:
+                                                                            8.w,
+                                                                      ),
+                                                                      child: Icon(
+                                                                        Icons
+                                                                            .clear,
+                                                                        size: 16
+                                                                            .sp,
+                                                                        color: Colors
+                                                                            .grey,
+                                                                      ),
                                                                     ),
-                                                                child: Icon(
-                                                                  Icons.clear,
-                                                                  size: 16.sp,
-                                                                  color: Colors
-                                                                      .grey,
+                                                                  ),
+                                                                GestureDetector(
+                                                                  onTap: () async {
+                                                                    setState(() {
+                                                                      _showMapTooltip =
+                                                                          true;
+                                                                    });
+                                                                    Future.delayed(
+                                                                      Duration(
+                                                                        seconds:
+                                                                            2,
+                                                                      ),
+                                                                      () {
+                                                                        if (mounted) {
+                                                                          setState(
+                                                                            () {
+                                                                              _showMapTooltip = false;
+                                                                            },
+                                                                          );
+                                                                        }
+                                                                      },
+                                                                    );
+                                                                    final result = await Navigator.push(
+                                                                      context,
+                                                                      MaterialPageRoute(
+                                                                        builder:
+                                                                            (
+                                                                              context,
+                                                                            ) => MapSelectionScreen(
+                                                                              isFromField: true,
+                                                                              initialLocation: _currentLocation,
+                                                                            ),
+                                                                      ),
+                                                                    );
+                                                                    if (result !=
+                                                                        null) {
+                                                                      setState(() {
+                                                                        fromController.text =
+                                                                            result['address'];
+                                                                        _pickupCoordinates =
+                                                                            result['location'];
+                                                                        _currentLocation =
+                                                                            result['location'];
+                                                                      });
+                                                                      // Check if both fields are filled to show vehicle selection
+                                                                      if (toController
+                                                                          .text
+                                                                          .isNotEmpty) {
+                                                                        _checkBothFields();
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  child: Stack(
+                                                                    children: [
+                                                                      Container(
+                                                                        width:
+                                                                            24.w,
+                                                                        height:
+                                                                            24.h,
+                                                                        margin: EdgeInsets.only(
+                                                                          right:
+                                                                              8.w,
+                                                                        ),
+                                                                        child: Icon(
+                                                                          Icons
+                                                                              .map,
+                                                                          size:
+                                                                              16.sp,
+                                                                          color: Color(
+                                                                            ConstColors.mainColor,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                      if (_showMapTooltip)
+                                                                        Positioned(
+                                                                          right:
+                                                                              35.w,
+                                                                          top: -25
+                                                                              .h,
+                                                                          child: Container(
+                                                                            padding: EdgeInsets.symmetric(
+                                                                              horizontal: 8.w,
+                                                                              vertical: 4.h,
+                                                                            ),
+                                                                            decoration: BoxDecoration(
+                                                                              color: Colors.black87,
+                                                                              borderRadius: BorderRadius.circular(
+                                                                                4.r,
+                                                                              ),
+                                                                            ),
+                                                                            child: Text(
+                                                                              'Select from map',
+                                                                              style: TextStyle(
+                                                                                color: Colors.white,
+                                                                                fontSize: 10.sp,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                    ],
+                                                                  ),
                                                                 ),
-                                                              ),
+                                                              ],
                                                             )
                                                           : null,
                                                       border: InputBorder.none,
@@ -2846,10 +2805,93 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             vertical: 8.h,
                                                           ),
                                                     ),
-                                                    onChanged: (value) =>
-                                                        setState(() {}),
                                                   ),
                                                 ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _showStopField =
+                                                        !_showStopField;
+                                                  });
+                                                },
+                                                child: Icon(
+                                                  Icons.add,
+                                                  color: Colors.grey,
+                                                  size: 18.sp,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_showDestinationField)
+                                            Column(
+                                              children: [
+                                                if (_showStopField) ...[
+                                                  SizedBox(height: 10.h),
+                                                  Container(
+                                                    width: 338.w,
+                                                    height: 50.h,
+                                                    decoration: BoxDecoration(
+                                                      color: Color(
+                                                        ConstColors.fieldColor,
+                                                      ).withOpacity(0.12),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8.r,
+                                                          ),
+                                                    ),
+                                                    child: TextField(
+                                                      controller:
+                                                          stopController,
+                                                      decoration: InputDecoration(
+                                                        hintText:
+                                                            'Add stop (optional)',
+                                                        prefixIcon: Icon(
+                                                          Icons.add_location,
+                                                          size: 20.sp,
+                                                          color: Colors.grey,
+                                                        ),
+                                                        suffixIcon:
+                                                            stopController
+                                                                .text
+                                                                .isNotEmpty
+                                                            ? GestureDetector(
+                                                                onTap: () {
+                                                                  setState(() {
+                                                                    stopController
+                                                                        .clear();
+                                                                  });
+                                                                },
+                                                                child: Container(
+                                                                  width: 24.w,
+                                                                  height: 24.h,
+                                                                  margin:
+                                                                      EdgeInsets.only(
+                                                                        right:
+                                                                            8.w,
+                                                                      ),
+                                                                  child: Icon(
+                                                                    Icons.clear,
+                                                                    size: 16.sp,
+                                                                    color: Colors
+                                                                        .grey,
+                                                                  ),
+                                                                ),
+                                                              )
+                                                            : null,
+                                                        border:
+                                                            InputBorder.none,
+                                                        contentPadding:
+                                                            EdgeInsets.symmetric(
+                                                              horizontal: 10.w,
+                                                              vertical: 8.h,
+                                                            ),
+                                                      ),
+                                                      onChanged: (value) =>
+                                                          setState(() {}),
+                                                    ),
+                                                  ),
+                                                ],
                                                 SizedBox(height: 10.h),
                                                 Container(
                                                   width: 338.w,
@@ -3435,7 +3477,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _checkBothFields() {
     if (fromController.text.length >= 3 && toController.text.length >= 3) {
       _updateMapWithRoute();
-      _showVehicleSelection();
+      _showBookingDetails();
     }
   }
 
@@ -3742,9 +3784,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return options;
   }
 
-  void _showBookingDetails() {
+  void _showBookingDetails() async {
     // Reset booking state
     _isBookingRide = false;
+
+    // Get estimate data first
+    try {
+      await _estimateRide();
+    } catch (e) {
+      AppLogger.log('Failed to get estimate: $e');
+      return;
+    }
+
+    if (_currentEstimate == null) return;
+
+    // Set default vehicle if none selected
+    if (selectedVehicle == null) {
+      setState(() {
+        selectedVehicle = 0; // Default to first vehicle (Regular vehicle)
+      });
+    }
 
     final selectedOption = selectedVehicle != null
         ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
@@ -3917,7 +3976,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 AppLogger.log(
                                   '💳 Selected Payment Method: $selectedPaymentMethod',
                                 );
-                                _currentRideResponse = await _requestRide();
+                                // Combine selected date and time into DateTime for scheduled rides
+                                final scheduledDateTime = isScheduledRide
+                                    ? DateTime(
+                                        selectedDate.year,
+                                        selectedDate.month,
+                                        selectedDate.day,
+                                        selectedTime.hour,
+                                        selectedTime.minute,
+                                      )
+                                    : null;
+                                _currentRideResponse = await _requestRide(
+                                  isScheduled: isScheduledRide,
+                                  scheduledDateTime: scheduledDateTime,
+                                );
 
                                 if (_currentRideResponse != null) {
                                   AppLogger.log(
@@ -3984,7 +4056,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Navigator.pop(context);
 
                                         // Show booking request sheet
-                                        _showBookingRequestSheet();
+                                        // Show appropriate sheet based on ride type
+                                        if (isScheduledRide) {
+                                          // Store addresses before clearing
+                                          final pickupAddress =
+                                              fromController.text.isNotEmpty
+                                              ? fromController.text
+                                              : 'Current location';
+                                          final destAddress =
+                                              toController.text.isNotEmpty
+                                              ? toController.text
+                                              : 'Destination';
+                                          _showTripScheduledSheet(
+                                            pickupAddress: pickupAddress,
+                                            destAddress: destAddress,
+                                          );
+                                          // Reset scheduled ride flag
+                                          setState(() {
+                                            isScheduledRide = false;
+                                          });
+                                        } else {
+                                          _showBookingRequestSheet();
+                                        }
                                       }
                                     } else {
                                       AppLogger.log(
@@ -4099,7 +4192,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 AppLogger.log(
                                   '💳 Selected Payment Method: $selectedPaymentMethod',
                                 );
-                                _currentRideResponse = await _requestRide();
+                                // Combine selected date and time into DateTime for scheduled rides
+                                final scheduledDateTime = isScheduledRide
+                                    ? DateTime(
+                                        selectedDate.year,
+                                        selectedDate.month,
+                                        selectedDate.day,
+                                        selectedTime.hour,
+                                        selectedTime.minute,
+                                      )
+                                    : null;
+                                _currentRideResponse = await _requestRide(
+                                  isScheduled: isScheduledRide,
+                                  scheduledDateTime: scheduledDateTime,
+                                );
 
                                 if (mounted) {
                                   AppLogger.log(
@@ -4117,7 +4223,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                     _showDestinationField = false;
                                   });
                                   Navigator.pop(context);
-                                  _showBookingRequestSheet();
+                                  // Show appropriate sheet based on ride type
+                                  if (isScheduledRide) {
+                                    // Store addresses before clearing
+                                    final pickupAddress =
+                                        fromController.text.isNotEmpty
+                                        ? fromController.text
+                                        : 'Current location';
+                                    final destAddress =
+                                        toController.text.isNotEmpty
+                                        ? toController.text
+                                        : 'Destination';
+                                    _showTripScheduledSheet(
+                                      pickupAddress: pickupAddress,
+                                      destAddress: destAddress,
+                                    );
+                                    // Reset scheduled ride flag
+                                    setState(() {
+                                      isScheduledRide = false;
+                                    });
+                                  } else {
+                                    _showBookingRequestSheet();
+                                  }
                                 }
                               } catch (e) {
                                 AppLogger.error(
@@ -4229,7 +4356,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               )
                             : Text(
-                                'Book Now',
+                                isScheduledRide
+                                    ? 'Confirm Booking'
+                                    : 'Book Now',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16.sp,
@@ -4241,6 +4370,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+              if (isScheduledRide) ...[
+                SizedBox(height: 10.h),
+                Text(
+                  'Scheduled for: ${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year} at ${selectedTime.format(context)}',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
           ),
         ),
@@ -4290,6 +4432,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(Icons.close, size: 24.sp),
                 ),
               ],
+            ),
+            SizedBox(height: 20.h),
+            // Promo code container
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PromoCodeScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Apply 20% off promo code',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '>>>',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             SizedBox(height: 20.h),
             _buildPaymentOption('Pay with wallet'),
@@ -4591,77 +4777,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: GestureDetector(
-                        onTap: () async {
-                          // Combine selected date and time into DateTime
-                          final scheduledDateTime = DateTime(
-                            selectedDate.year,
-                            selectedDate.month,
-                            selectedDate.day,
-                            selectedTime.hour,
-                            selectedTime.minute,
-                          );
-
-                          // Book the scheduled ride
+                        onTap: () {
+                          // Set the scheduled ride flag
                           setState(() {
-                            _isBookingRide = true;
+                            isScheduledRide = true;
                           });
-
-                          try {
-                            _currentRideResponse = await _requestRide(
-                              isScheduled: true,
-                              scheduledDateTime: scheduledDateTime,
-                            );
-
-                            if (_currentRideResponse != null) {
-                              // Store addresses before clearing
-                              final pickupAddress =
-                                  fromController.text.isNotEmpty
-                                  ? fromController.text
-                                  : 'Current location';
-                              final destAddress = toController.text.isNotEmpty
-                                  ? toController.text
-                                  : 'Destination';
-
-                              fromController.clear();
-                              toController.clear();
-                              setState(() {
-                                _showDestinationField = false;
-                                _isBookingRide = false;
-                              });
-                              // Close prebook sheet first
-                              Navigator.pop(context);
-                              // Then show trip scheduled sheet after frame completes
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  _showTripScheduledSheet(
-                                    pickupAddress: pickupAddress,
-                                    destAddress: destAddress,
-                                  );
-                                }
-                              });
-                            } else {
-                              // API returned null - show error
-                              setState(() {
-                                _isBookingRide = false;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Failed to schedule ride. Please try again.',
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            setState(() {
-                              _isBookingRide = false;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to schedule ride: $e'),
-                              ),
-                            );
-                          }
+                          // Close prebook sheet
+                          Navigator.pop(context);
+                          // Show booking details sheet
+                          _showBookingDetails();
                         },
                         child: Center(
                           child: Text(

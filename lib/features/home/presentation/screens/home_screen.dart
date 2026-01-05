@@ -933,6 +933,33 @@ class _HomeScreenState extends State<HomeScreen> {
         // Extract driver and ride information
         final driverData = ride['Driver'] ?? {};
         if (driverData.isNotEmpty) {
+          // Extract vehicle information from Vehicles array
+          final vehicles = driverData['Vehicles'] as List?;
+          final vehicleData = (vehicles != null && vehicles.isNotEmpty) 
+              ? vehicles[0] 
+              : null;
+          
+          // Build vehicle model string from Make, ModelType, Year, and Color
+          String vehicleModel = 'Vehicle';
+          if (vehicleData != null) {
+            final make = vehicleData['Make']?.toString().trim() ?? '';
+            final modelType = vehicleData['ModelType']?.toString().trim() ?? '';
+            final year = vehicleData['Year']?.toString() ?? '';
+            final color = vehicleData['Color']?.toString().trim() ?? '';
+            
+            // Combine: "Make ModelType Year Color" (e.g., "Honda Modelo 2024 White")
+            vehicleModel = [make, modelType, year, color]
+                .where((part) => part.isNotEmpty)
+                .join(' ');
+            
+            if (vehicleModel.isEmpty) {
+              vehicleModel = 'Vehicle';
+            }
+          }
+          
+          // Get license plate from vehicle data
+          final licensePlate = vehicleData?['LicensePlate']?.toString() ?? 'N/A';
+          
           _assignedDriver = Driver(
             id: driverData['ID']?.toString() ?? 'driver_${ride['DriverID']}',
             name:
@@ -940,8 +967,8 @@ class _HomeScreenState extends State<HomeScreen> {
             profilePicture: driverData['profile_photo']?.toString() ?? '',
             phoneNumber: driverData['phone']?.toString() ?? '',
             rating: (driverData['average_rating'] ?? 4.5).toDouble(),
-            vehicleModel: 'Vehicle',
-            plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
+            vehicleModel: vehicleModel,
+            plateNumber: licensePlate,
           );
         }
 

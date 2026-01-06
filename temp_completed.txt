@@ -1,0 +1,18 @@
+﻿case 'completed':
+        // Check if passenger has rated
+        AppLogger.log('=== RIDE COMPLETED ===');
+        AppLogger.log('Last completed ride ID: $_lastCompletedRideId');
+        AppLogger.log('Dismissed rides: $_dismissedRatingRides');
+        AppLogger.log('Is in dismissed list: ${_dismissedRatingRides.contains(_lastCompletedRideId)}');
+        
+        if (_lastCompletedRideId != null && !_dismissedRatingRides.contains(_lastCompletedRideId)) {
+          AppLogger.log('âœ… Calling _checkAndShowRating');
+          _checkAndShowRating(_lastCompletedRideId!);
+        } else {
+          AppLogger.log('âš ï¸ Not checking rating - ride ID null or already dismissed');
+        }
+        break;
+
+      case 'cancelled':
+        // Clear active ride state and map markers
+ 

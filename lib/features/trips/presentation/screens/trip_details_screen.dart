@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
+import 'package:muvam/features/trips/presentation/screens/edit_prebooking_screen.dart';
 import 'package:provider/provider.dart';
-import '../widgets/edit_prebooking_sheet.dart';
 
 class TripDetailsScreen extends StatefulWidget {
   final int rideId;
@@ -314,38 +314,26 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     ),
                   ),
                   Spacer(),
-                  Container(
-                    width: 353.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: Color(ConstColors.mainColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: GestureDetector(
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(20.r),
-                            ),
-                          ),
-                          builder: (context) => EditPrebookingSheet(
-                            onCancel: () {
-                              Navigator.pop(context);
-                              // Add cancel prebooking logic here
-                            },
-                            onSave: () {
-                              Navigator.pop(context);
-                              Navigator.pop(context);
-                            },
-                          ),
-                        );
-                      },
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditPrebookingScreen(ride: ride),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 353.w,
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
                       child: Center(
                         child: Text(
-                          'Edit pre booking',
+                          'Edit prebooking',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16.sp,

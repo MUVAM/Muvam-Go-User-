@@ -218,7 +218,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               : 'Not set',
                         ),
                         SizedBox(height: 30.h),
-
                         // Biometric Setup Button
                         GestureDetector(
                           onTap: () {

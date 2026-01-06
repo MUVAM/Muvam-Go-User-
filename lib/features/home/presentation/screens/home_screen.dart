@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -44,7 +43,6 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import 'add_home_screen.dart';
 import 'map_selection_screen.dart';
 
@@ -935,10 +933,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (driverData.isNotEmpty) {
           // Extract vehicle information from Vehicles array
           final vehicles = driverData['Vehicles'] as List?;
-          final vehicleData = (vehicles != null && vehicles.isNotEmpty) 
-              ? vehicles[0] 
+          final vehicleData = (vehicles != null && vehicles.isNotEmpty)
+              ? vehicles[0]
               : null;
-          
+
           // Build vehicle model string from Make, ModelType, Year, and Color
           String vehicleModel = 'Vehicle';
           if (vehicleData != null) {
@@ -946,20 +944,24 @@ class _HomeScreenState extends State<HomeScreen> {
             final modelType = vehicleData['ModelType']?.toString().trim() ?? '';
             final year = vehicleData['Year']?.toString() ?? '';
             final color = vehicleData['Color']?.toString().trim() ?? '';
-            
+
             // Combine: "Make ModelType Year Color" (e.g., "Honda Modelo 2024 White")
-            vehicleModel = [make, modelType, year, color]
-                .where((part) => part.isNotEmpty)
-                .join(' ');
-            
+            vehicleModel = [
+              make,
+              modelType,
+              year,
+              color,
+            ].where((part) => part.isNotEmpty).join(' ');
+
             if (vehicleModel.isEmpty) {
               vehicleModel = 'Vehicle';
             }
           }
-          
+
           // Get license plate from vehicle data
-          final licensePlate = vehicleData?['LicensePlate']?.toString() ?? 'N/A';
-          
+          final licensePlate =
+              vehicleData?['LicensePlate']?.toString() ?? 'N/A';
+
           _assignedDriver = Driver(
             id: driverData['ID']?.toString() ?? 'driver_${ride['DriverID']}',
             name:

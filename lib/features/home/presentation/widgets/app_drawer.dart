@@ -256,6 +256,7 @@ class _AppDrawerState extends State<AppDrawer> {
                               fontWeight: FontWeight.w600,
                               color: Colors.black,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: 4.h),
                           Row(

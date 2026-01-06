@@ -18,8 +18,10 @@ class _EditFullNameScreenState extends State<EditFullNameScreen> {
   final TextEditingController lastNameController = TextEditingController(
     text: 'Doe',
   );
+  final TextEditingController emailController = TextEditingController(text: '');
   bool isFirstNameEditable = false;
   bool isLastNameEditable = false;
+  bool isEmailEditable = false;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +89,26 @@ class _EditFullNameScreenState extends State<EditFullNameScreen> {
                 },
               ),
               SizedBox(height: 20.h),
+              EditableNameField(
+                label: 'Last name',
+                controller: lastNameController,
+                isEditable: isLastNameEditable,
+                onEditTap: () {
+                  setState(() {
+                    isLastNameEditable = !isLastNameEditable;
+                  });
+                },
+              ),
+              EditableNameField(
+                label: 'Email address',
+                controller: emailController,
+                isEditable: isEmailEditable,
+                onEditTap: () {
+                  setState(() {
+                    isEmailEditable = !isEmailEditable;
+                  });
+                },
+              ),
               EditableNameField(
                 label: 'Last name',
                 controller: lastNameController,

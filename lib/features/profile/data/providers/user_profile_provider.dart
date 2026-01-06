@@ -8,12 +8,20 @@ class UserProfileProvider with ChangeNotifier {
 
   ProfileResponse? _profileResponse;
   bool _isLoading = false;
+<<<<<<< HEAD
+=======
+  bool _isUpdating = false;
+>>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   String? _errorMessage;
 
   ProfileResponse? get profileResponse => _profileResponse;
   UserProfile? get userProfile => _profileResponse?.user;
   Vehicle? get defaultVehicle => _profileResponse?.defaultVehicle;
   bool get isLoading => _isLoading;
+<<<<<<< HEAD
+=======
+  bool get isUpdating => _isUpdating;
+>>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   String? get errorMessage => _errorMessage;
 
   String get userName => userProfile?.fullName ?? 'User';
@@ -71,6 +79,52 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
+<<<<<<< HEAD
+=======
+  Future<bool> updateUserProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String dateOfBirth,
+  }) async {
+    AppLogger.log('UserProfileProvider: Updating user profile');
+
+    _isUpdating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _profileService.updateUserProfile(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        dateOfBirth: dateOfBirth,
+      );
+
+      _isUpdating = false;
+
+      if (result['success'] == true) {
+        await fetchUserProfile();
+
+        AppLogger.log('UserProfileProvider: Profile updated successfully');
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = result['message'] ?? 'Failed to update profile';
+        AppLogger.log('UserProfileProvider: Update failed - $_errorMessage');
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isUpdating = false;
+      AppLogger.log('UserProfileProvider: Error updating profile - $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+>>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   Future<Map<String, dynamic>> getCachedUserData() async {
     return await _profileService.getCachedUserData();
   }

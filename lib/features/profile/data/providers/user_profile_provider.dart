@@ -8,20 +8,14 @@ class UserProfileProvider with ChangeNotifier {
 
   ProfileResponse? _profileResponse;
   bool _isLoading = false;
-<<<<<<< HEAD
-=======
   bool _isUpdating = false;
->>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   String? _errorMessage;
 
   ProfileResponse? get profileResponse => _profileResponse;
   UserProfile? get userProfile => _profileResponse?.user;
   Vehicle? get defaultVehicle => _profileResponse?.defaultVehicle;
   bool get isLoading => _isLoading;
-<<<<<<< HEAD
-=======
   bool get isUpdating => _isUpdating;
->>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   String? get errorMessage => _errorMessage;
 
   String get userName => userProfile?.fullName ?? 'User';
@@ -79,8 +73,6 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
-<<<<<<< HEAD
-=======
   Future<bool> updateUserProfile({
     required String firstName,
     required String lastName,
@@ -124,7 +116,6 @@ class UserProfileProvider with ChangeNotifier {
     }
   }
 
->>>>>>> df7a4b2f2371c4c61dd2d15151cbfe8fc8d54ac0
   Future<Map<String, dynamic>> getCachedUserData() async {
     return await _profileService.getCachedUserData();
   }

@@ -10,6 +10,7 @@ class RidesProvider with ChangeNotifier {
   Ride? _selectedRide;
   bool _isLoading = false;
   bool _isLoadingDetails = false;
+  bool _isUpdating = false;
   String? _errorMessage;
   Timer? _refreshTimer;
 
@@ -17,6 +18,7 @@ class RidesProvider with ChangeNotifier {
   Ride? get selectedRide => _selectedRide;
   bool get isLoading => _isLoading;
   bool get isLoadingDetails => _isLoadingDetails;
+  bool get isUpdating => _isUpdating;
   String? get errorMessage => _errorMessage;
 
   List<Ride> get prebookedRides =>
@@ -65,6 +67,54 @@ class RidesProvider with ChangeNotifier {
       _errorMessage = e.toString();
       _isLoadingDetails = false;
       notifyListeners();
+    }
+  }
+
+  Future<bool> updateRide({
+    required int rideId,
+    required String pickup,
+    required String pickupAddress,
+    required String dest,
+    required String destAddress,
+    required String paymentMethod,
+    required String vehicleType,
+    required String serviceType,
+  }) async {
+    _isUpdating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _ridesService.updateRide(
+        rideId: rideId,
+        pickup: pickup,
+        pickupAddress: pickupAddress,
+        dest: dest,
+        destAddress: destAddress,
+        paymentMethod: paymentMethod,
+        vehicleType: vehicleType,
+        serviceType: serviceType,
+      );
+
+      _isUpdating = false;
+
+      if (result['success'] == true) {
+        // Refresh the ride details after successful update
+        await fetchRideDetails(rideId);
+        // Also refresh the rides list
+        await fetchRides();
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = result['message'] ?? 'Failed to update ride';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isUpdating = false;
+      notifyListeners();
+      return false;
     }
   }
 

@@ -344,6 +344,63 @@ class RideService {
     }
   }
 
+  // Add this method to your existing RideService class
+
+  Future<Map<String, dynamic>> updateRide({
+    required int rideId,
+    required String pickup,
+    required String pickupAddress,
+    required String dest,
+    required String destAddress,
+    required String paymentMethod,
+    required String vehicleType,
+    required String serviceType,
+  }) async {
+    final token = await _getToken();
+    final url = '${UrlConstants.baseUrl}/rides/update/$rideId';
+    final requestBody = {
+      'pickup': pickup,
+      'pickup_address': pickupAddress,
+      'dest': dest,
+      'dest_address': destAddress,
+      'payment_method': paymentMethod,
+      'vehicle_type': vehicleType,
+      'service_type': serviceType,
+    };
+
+    AppLogger.log('=== UPDATE RIDE REQUEST ===', tag: 'UPDATE_RIDE');
+    AppLogger.log('URL: $url', tag: 'UPDATE_RIDE');
+    AppLogger.log(
+      'Request Body: ${jsonEncode(requestBody)}',
+      tag: 'UPDATE_RIDE',
+    );
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    AppLogger.log(
+      'Response Status: ${response.statusCode}',
+      tag: 'UPDATE_RIDE',
+    );
+    AppLogger.log('Response Body: ${response.body}', tag: 'UPDATE_RIDE');
+    AppLogger.log('=== END UPDATE RIDE ===', tag: 'UPDATE_RIDE');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to update ride: ${response.body}',
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> cancelRide({
     required int rideId,
     required String reason,

@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/wallet/presentation/screens/get_account_screen.dart';
+import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
 
 class WalletEmptyScreen extends StatelessWidget {
   const WalletEmptyScreen({super.key});
@@ -29,15 +30,23 @@ class WalletEmptyScreen extends StatelessWidget {
                       height: 30.h,
                     ),
                   ),
-                  Text(
-                    'How to fund?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Color(ConstColors.mainColor),
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HowToFundScreen(),
+                      ),
+                    ),
+                    child: Text(
+                      'How to fund?',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.0,
+                        letterSpacing: -0.32,
+                        color: Color(ConstColors.mainColor),
+                      ),
                     ),
                   ),
                 ],

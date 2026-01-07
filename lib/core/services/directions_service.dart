@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
 
 class DirectionsService {
-  static final String _apiKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
+  static final String _apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
 
   /// Get route polyline points between two locations
   Future<List<LatLng>> getRoutePolyline({
@@ -17,6 +17,15 @@ class DirectionsService {
     List<LatLng>? waypoints,
   }) async {
     try {
+      // Check if API key is present
+      if (_apiKey.isEmpty) {
+        AppLogger.log('❌ ERROR: Google API key is missing or empty!');
+        AppLogger.log('⚠️ Using straight line fallback');
+        return [origin, destination];
+      }
+
+      AppLogger.log('✅ Google API key is present (length: ${_apiKey.length})');
+
       String url =
           'https://maps.googleapis.com/maps/api/directions/json?'
           'origin=${origin.latitude},${origin.longitude}'
@@ -31,12 +40,20 @@ class DirectionsService {
         url += '&waypoints=$waypointsStr';
       }
 
-      AppLogger.log('Fetching directions from Google Maps API...');
+      AppLogger.log('🌐 Fetching directions from Google Maps API...');
+      AppLogger.log('📍 Origin: ${origin.latitude}, ${origin.longitude}');
+      AppLogger.log(
+        '📍 Destination: ${destination.latitude}, ${destination.longitude}',
+      );
 
       final response = await http.get(Uri.parse(url));
 
+      AppLogger.log('📡 Response status code: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
+        AppLogger.log('📊 API Response status: ${data['status']}');
 
         if (data['status'] == 'OK') {
           final routes = data['routes'] as List;
@@ -44,27 +61,45 @@ class DirectionsService {
             final route = routes[0];
             final polylinePoints = route['overview_polyline']['points'];
 
-            AppLogger.log('Route fetched successfully');
+            AppLogger.log('✅ Route fetched successfully');
+            AppLogger.log(
+              '📏 Polyline points encoded length: ${polylinePoints.length}',
+            );
 
-            return _decodePolyline(polylinePoints);
+            final decodedPoints = _decodePolyline(polylinePoints);
+            AppLogger.log('✅ Decoded ${decodedPoints.length} route points');
+
+            return decodedPoints;
+          } else {
+            AppLogger.log('❌ No routes found in response');
           }
         } else {
-          AppLogger.log('Directions API error: ${data['status']}');
+          AppLogger.log('❌ Directions API error status: ${data['status']}');
           AppLogger.log(
-            'Error message: ${data['error_message'] ?? 'No error message'}',
+            '❌ Error message: ${data['error_message'] ?? 'No error message provided'}',
           );
+
+          // Log additional details if available
+          if (data.containsKey('available_travel_modes')) {
+            AppLogger.log(
+              'ℹ️ Available travel modes: ${data['available_travel_modes']}',
+            );
+          }
         }
       } else {
-        AppLogger.log('HTTP error: ${response.statusCode}');
+        AppLogger.log('❌ HTTP error: ${response.statusCode}');
+        AppLogger.log('❌ Response body: ${response.body}');
       }
-    } catch (e) {
-      AppLogger.log('Error getting route: $e');
+    } catch (e, stackTrace) {
+      AppLogger.log('❌ Exception getting route: $e');
+      AppLogger.log('📚 Stack trace: $stackTrace');
     }
 
     // Return straight line as fallback (API key needed for real routes)
     AppLogger.log(
-      'Using straight line - need valid Google Maps API key for real routes',
+      '⚠️ FALLBACK: Using straight line between origin and destination',
     );
+    AppLogger.log('⚠️ This means the Google Directions API call failed');
     return [origin, destination];
   }
 

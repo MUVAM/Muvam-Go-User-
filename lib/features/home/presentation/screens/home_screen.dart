@@ -3929,8 +3929,53 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _checkBothFields() {
+  void _checkBothFields() async {
     if (fromController.text.length >= 3 && toController.text.length >= 3) {
+      // Geocode addresses if coordinates aren't already set
+      // (coordinates are set when user selects from autocomplete suggestions)
+      try {
+        // Geocode pickup address if not already set
+        if (_pickupCoordinates == null && fromController.text.isNotEmpty) {
+          AppLogger.log('📍 Geocoding pickup address: ${fromController.text}');
+          final pickupLocations = await locationFromAddress(
+            fromController.text,
+          );
+          if (pickupLocations.isNotEmpty) {
+            _pickupCoordinates = LatLng(
+              pickupLocations.first.latitude,
+              pickupLocations.first.longitude,
+            );
+            AppLogger.log(
+              '✅ Pickup geocoded to: ${_pickupCoordinates!.latitude}, ${_pickupCoordinates!.longitude}',
+            );
+          } else {
+            AppLogger.log('⚠️ No results found for pickup address');
+          }
+        }
+
+        // Geocode destination address if not already set
+        if (_destinationCoordinates == null && toController.text.isNotEmpty) {
+          AppLogger.log(
+            '📍 Geocoding destination address: ${toController.text}',
+          );
+          final destLocations = await locationFromAddress(toController.text);
+          if (destLocations.isNotEmpty) {
+            _destinationCoordinates = LatLng(
+              destLocations.first.latitude,
+              destLocations.first.longitude,
+            );
+            AppLogger.log(
+              '✅ Destination geocoded to: ${_destinationCoordinates!.latitude}, ${_destinationCoordinates!.longitude}',
+            );
+          } else {
+            AppLogger.log('⚠️ No results found for destination address');
+          }
+        }
+      } catch (e) {
+        AppLogger.log('❌ Error geocoding addresses: $e');
+        // Continue anyway - _updateMapWithRoute will use fallback coordinates
+      }
+
       _updateMapWithRoute();
       _showBookingDetails();
     }

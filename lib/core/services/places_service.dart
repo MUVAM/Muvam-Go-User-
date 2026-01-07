@@ -6,7 +6,7 @@ import 'package:muvam/core/utils/app_logger.dart';
 
 class PlacesService {
   static String get _apiKey =>
-      dotenv.env['GOOGLE_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
+      dotenv.env['GOOGLE_PLACES_API_KEY'] ?? dotenv.env['API_KEY'] ?? '';
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   Future<List<PlacePrediction>> getPlacePredictions(

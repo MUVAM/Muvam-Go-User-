@@ -197,8 +197,8 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
                       ConstImages.back,
-                      width: 24.w,
-                      height: 24.h,
+                      width: 30.w,
+                      height: 30.h,
                     ),
                   ),
                 ],
@@ -241,7 +241,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 child: ListView.separated(
                   padding: EdgeInsets.symmetric(
                     horizontal: 20.w,
-                    vertical: 10.h,
+                    vertical: 5.h,
                   ),
                   itemCount: _predictions.length,
                   separatorBuilder: (context, index) =>

@@ -5,6 +5,7 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
 import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dart';
 import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
 import 'package:muvam/features/wallet/presentation/widgets/wallet_card.dart';
@@ -96,15 +97,23 @@ class _WalletScreenState extends State<WalletScreen> {
                           height: 30.h,
                         ),
                       ),
-                      Text(
-                        'How to fund',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Color(ConstColors.mainColor),
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HowToFundScreen(),
+                          ),
+                        ),
+                        child: Text(
+                          'How to fund',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            height: 1.0,
+                            letterSpacing: -0.32,
+                            color: Color(ConstColors.mainColor),
+                          ),
                         ),
                       ),
                     ],

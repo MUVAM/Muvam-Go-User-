@@ -297,7 +297,12 @@ class _AppDrawerState extends State<AppDrawer> {
             DrawerItem(
               title: 'Activities',
               iconPath: ConstImages.calendarBlack,
-              onTap: () {},
+              onTap: () {
+                CustomFlushbar.showInfo(
+                  context: context,
+                  message: "Coming soon...",
+                );
+              },
             ),
             DrawerItem(
               title: 'Wallet',
@@ -307,6 +312,12 @@ class _AppDrawerState extends State<AppDrawer> {
             DrawerItem(
               title: 'Drive with us',
               iconPath: ConstImages.carIconSvg,
+              onTap: () {
+                CustomFlushbar.showInfo(
+                  context: context,
+                  message: "Coming soon...",
+                );
+              },
             ),
             DrawerItem(
               title: 'Promo code',

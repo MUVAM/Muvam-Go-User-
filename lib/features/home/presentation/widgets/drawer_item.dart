@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class DrawerItem extends StatelessWidget {
   final String title;
@@ -19,12 +19,25 @@ class DrawerItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 18.h),
         child: Row(
           children: [
-            Image.asset(iconPath, width: 24.w, height: 24.h),
-            SizedBox(width: 20.w),
-            Text(title, style: ConstTextStyles.drawerItem1),
+            SvgPicture.asset(
+              iconPath,
+              width: 24.w,
+              height: 24.h,
+              fit: BoxFit.contain,
+            ),
+            SizedBox(width: 16.w),
+            Text(
+              title,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
           ],
         ),
       ),

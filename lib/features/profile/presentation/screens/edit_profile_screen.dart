@@ -16,10 +16,11 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController firstNameController;
-  late TextEditingController lastNameController;
-  late TextEditingController emailController;
+  late TextEditingController fullNameController;
+  late TextEditingController phoneController;
   late TextEditingController dobController;
+  late TextEditingController emailController;
+  late TextEditingController stateController;
 
   @override
   void initState() {
@@ -29,16 +30,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       listen: false,
     );
 
-    firstNameController = TextEditingController(
-      text: profileProvider.userFirstName,
-    );
-    lastNameController = TextEditingController(
-      text: profileProvider.userLastName,
-    );
-    emailController = TextEditingController(text: profileProvider.userEmail);
+    fullNameController = TextEditingController(text: profileProvider.userName);
+    phoneController = TextEditingController(text: profileProvider.userPhone);
     dobController = TextEditingController(
       text: profileProvider.userDateOfBirth,
     );
+    emailController = TextEditingController(text: profileProvider.userEmail);
+    stateController = TextEditingController(text: profileProvider.userCity);
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -89,18 +87,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (firstNameController.text.trim().isEmpty) {
+    if (fullNameController.text.trim().isEmpty) {
       CustomFlushbar.showError(
         context: context,
-        message: 'Please enter first name',
-      );
-      return;
-    }
-
-    if (lastNameController.text.trim().isEmpty) {
-      CustomFlushbar.showError(
-        context: context,
-        message: 'Please enter last name',
+        message: 'Please enter full name',
       );
       return;
     }
@@ -124,9 +114,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final provider = context.read<UserProfileProvider>();
 
+    // Split full name into first and last name
+    final nameParts = fullNameController.text.trim().split(' ');
+    final firstName = nameParts.first;
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
     final success = await provider.updateUserProfile(
-      firstName: firstNameController.text.trim(),
-      lastName: lastNameController.text.trim(),
+      firstName: firstName,
+      lastName: lastName,
       email: emailController.text.trim(),
       dateOfBirth: dobController.text.trim(),
     );
@@ -157,10 +152,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    firstNameController.dispose();
-    lastNameController.dispose();
-    emailController.dispose();
+    fullNameController.dispose();
+    phoneController.dispose();
     dobController.dispose();
+    emailController.dispose();
+    stateController.dispose();
     super.dispose();
   }
 
@@ -173,13 +169,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           builder: (context, provider, child) {
             return Column(
               children: [
+                SizedBox(height: 16.h),
                 Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 20.w,
-                    vertical: 20.h,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
@@ -187,7 +180,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           width: 40.w,
                           height: 40.h,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
+                            color: Color(0xFFF5F5F5),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -197,75 +190,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: provider.isUpdating ? null : _saveProfile,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 20.w,
-                            vertical: 5.h,
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'Edit profile',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: provider.isUpdating
-                                ? Colors.grey
-                                : Color(ConstColors.mainColor),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: provider.isUpdating
-                              ? SizedBox(
-                                  width: 20.w,
-                                  height: 20.h,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  'Save',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
                         ),
                       ),
+                      SizedBox(width: 40.w),
                     ],
                   ),
                 ),
+                SizedBox(height: 32.h),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: 20.w),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(height: 20.h),
-                        Text(
-                          'Edit Profile',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                        ),
-                        SizedBox(height: 30.h),
                         EditProfileTextField(
-                          label: 'First name',
-                          controller: firstNameController,
+                          label: 'Full name',
+                          controller: fullNameController,
                         ),
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 16.h),
                         EditProfileTextField(
-                          label: 'Last name',
-                          controller: lastNameController,
+                          label: 'Phone number',
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          readOnly: true,
                         ),
-                        SizedBox(height: 20.h),
-                        EditProfileTextField(
-                          label: 'Email',
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        SizedBox(height: 20.h),
+                        SizedBox(height: 16.h),
                         GestureDetector(
                           onTap: () => _selectDate(context),
                           child: AbsorbPointer(
@@ -277,8 +237,59 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ),
                           ),
                         ),
+                        SizedBox(height: 16.h),
+                        EditProfileTextField(
+                          label: 'Email address',
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        SizedBox(height: 16.h),
+                        EditProfileTextField(
+                          label: 'State',
+                          controller: stateController,
+                          readOnly: true,
+                        ),
                         SizedBox(height: 40.h),
                       ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 20.w,
+                    vertical: 20.h,
+                  ),
+                  child: GestureDetector(
+                    onTap: provider.isUpdating ? null : _saveProfile,
+                    child: Container(
+                      width: double.infinity,
+                      height: 47.h,
+                      decoration: BoxDecoration(
+                        color: provider.isUpdating
+                            ? Colors.grey
+                            : Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Center(
+                        child: provider.isUpdating
+                            ? SizedBox(
+                                width: 24.w,
+                                height: 24.h,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : Text(
+                                'Save changes',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
                     ),
                   ),
                 ),

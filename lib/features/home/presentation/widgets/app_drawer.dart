@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
+import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
+import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'package:muvam/features/home/presentation/widgets/drawer_item.dart';
+import 'package:muvam/features/profile/presentation/widgets/logout_sheet.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
@@ -197,6 +203,7 @@ class _AppDrawerState extends State<AppDrawer> {
     final profileProvider = Provider.of<UserProfileProvider>(context);
 
     return Drawer(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
       child: Container(
         color: Colors.white,
         child: Column(
@@ -204,7 +211,7 @@ class _AppDrawerState extends State<AppDrawer> {
             Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: EdgeInsets.only(top: 40.h, right: 10.w),
+                padding: EdgeInsets.only(top: 20.h, right: 0.w),
                 child: IconButton(
                   icon: Icon(Icons.close, size: 24.sp),
                   onPressed: () => Navigator.pop(context),
@@ -285,20 +292,36 @@ class _AppDrawerState extends State<AppDrawer> {
                 ],
               ),
             ),
-            SizedBox(height: 10.h),
-            Divider(thickness: 1, color: Colors.grey.shade200, height: 1),
-            SizedBox(height: 8.h),
-            // DrawerItem(title: 'Book a trip', iconPath: ConstImages.car),
-            DrawerItem(title: 'Activities', iconPath: ConstImages.activities),
+            SizedBox(height: 24.h),
+            Divider(thickness: 1, color: Color(0xFFEEEEEE), height: 1),
+            DrawerItem(
+              title: 'Activities',
+              iconPath: ConstImages.calendarBlack,
+              onTap: () {
+                CustomFlushbar.showInfo(
+                  context: context,
+                  message: "Coming soon...",
+                );
+              },
+            ),
             DrawerItem(
               title: 'Wallet',
-              iconPath: ConstImages.wallet,
+              iconPath: ConstImages.walletStreamline,
               onTap: _navigateToWallet,
             ),
-            DrawerItem(title: 'Drive with us', iconPath: ConstImages.car),
+            DrawerItem(
+              title: 'Drive with us',
+              iconPath: ConstImages.carIconSvg,
+              onTap: () {
+                CustomFlushbar.showInfo(
+                  context: context,
+                  message: "Coming soon...",
+                );
+              },
+            ),
             DrawerItem(
               title: 'Promo code',
-              iconPath: ConstImages.code,
+              iconPath: ConstImages.tag,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -309,7 +332,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             DrawerItem(
               title: 'Referral',
-              iconPath: ConstImages.referral,
+              iconPath: ConstImages.settings,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -320,12 +343,12 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             DrawerItem(
               title: 'Contact us',
-              iconPath: ConstImages.phoneCall,
+              iconPath: ConstImages.callIcon,
               onTap: _showContactBottomSheet,
             ),
             DrawerItem(
               title: 'FAQ',
-              iconPath: ConstImages.faq,
+              iconPath: ConstImages.questionCircle,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -336,7 +359,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             DrawerItem(
               title: 'About',
-              iconPath: ConstImages.about,
+              iconPath: ConstImages.book,
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -345,14 +368,13 @@ class _AppDrawerState extends State<AppDrawer> {
                 );
               },
             ),
-            Spacer(),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Row(
                 children: [
                   Container(
-                    width: 48.w,
-                    height: 48.h,
+                    width: 40.w,
+                    height: 40.h,
                     decoration: BoxDecoration(
                       color: Color(ConstColors.mainColor),
                       shape: BoxShape.circle,
@@ -360,16 +382,16 @@ class _AppDrawerState extends State<AppDrawer> {
                     child: Icon(
                       Icons.wb_sunny_outlined,
                       color: Colors.white,
-                      size: 24.sp,
+                      size: 20.sp,
                     ),
                   ),
-                  SizedBox(width: 16.w),
+                  SizedBox(width: 12.w),
                   Expanded(
                     child: Text(
                       'Light mode',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 16.sp,
+                        fontSize: 14.sp,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
@@ -383,9 +405,69 @@ class _AppDrawerState extends State<AppDrawer> {
                 ],
               ),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 16.h),
+            GestureDetector(
+              onTap: () => _showLogoutSheet(context),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      ConstImages.logout,
+                      width: 24.w,
+                      height: 24.h,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(width: 16.w),
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFEF5350),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLogoutSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => LogoutSheet(
+        onLogout: () async {
+          final profileProvider = Provider.of<UserProfileProvider>(
+            context,
+            listen: false,
+          );
+          final authProvider = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          );
+
+          await profileProvider.clearProfile();
+          await authProvider.logout();
+
+          // Close the logout sheet
+          Navigator.pop(context);
+
+          // Navigate to onboarding screen and clear all previous routes
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+            (route) => false,
+          );
+        },
+        onGoBack: () => Navigator.pop(context),
       ),
     );
   }

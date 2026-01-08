@@ -41,7 +41,7 @@ class LogoutSheet extends StatelessWidget {
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 20.h),
+          SizedBox(height: 16.h),
           Text(
             'Are you sure you want to log out of your account?',
             textAlign: TextAlign.center,
@@ -52,7 +52,7 @@ class LogoutSheet extends StatelessWidget {
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 30.h),
+          SizedBox(height: 25.h),
           Row(
             children: [
               GestureDetector(

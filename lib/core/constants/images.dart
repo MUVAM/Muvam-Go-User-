@@ -34,4 +34,5 @@ class ConstImages {
   static const String calenddarIcon = 'assets/svg/calendar.svg';
   static const String clockCircleIcon = 'assets/svg/clock-circle.svg';
   static const String locationIconPin = 'assets/images/location_pin.png';
+  static const String logout = 'assets/images/logout.png';
 }

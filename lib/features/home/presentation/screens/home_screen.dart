@@ -2520,22 +2520,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: ListView(
                               controller: scrollController,
+                              padding: EdgeInsets.zero,
                               children: [
-                                SizedBox(
-                                  child: Column(
-                                    children: [
-                                      // SizedBox(height: 10.h),
-                                      Container(
-                                        width: 69.w,
-                                        height: 5.h,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade300,
-                                          borderRadius: BorderRadius.circular(
-                                            2.5.r,
-                                          ),
+                                Padding(
+                                  padding: EdgeInsets.only(top: 10.h),
+                                  child: Center(
+                                    child: Container(
+                                      width: 69.w,
+                                      height: 5.h,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(
+                                          2.5.r,
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                                 SizedBox(height: 10.h),
@@ -4335,91 +4334,118 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () => _showAddNoteSheet(),
-                child: Column(
+                onTap: () => _showAddNoteSheet(
+                  onNoteChanged: () {
+                    setBookingState(() {});
+                  },
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Icon(Icons.message, size: 25.67.w),
-                    SizedBox(height: 4.67.h),
-                    Text(
-                      'Add note',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w400,
-                        height: 22 / 16,
-                        letterSpacing: -0.41,
-                        color: Colors.black,
-                      ),
+                    Column(
+                      children: [
+                        Icon(Icons.message, size: 25.67.w),
+                        SizedBox(height: 4.67.h),
+                        Text(
+                          'Add note',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w400,
+                            height: 22 / 16,
+                            letterSpacing: -0.41,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
                     ),
+                    // Check icon indicator when note is added
+                    if (noteController.text.isNotEmpty)
+                      Positioned(
+                        top: -5.h,
+                        right: -5.w,
+                        child: Image.asset(
+                          'assets/images/check.png',
+                          width: 20.w,
+                          height: 20.h,
+                        ),
+                      ),
                   ],
                 ),
               ),
               SizedBox(height: 20.h),
               Divider(thickness: 1, color: Colors.grey.shade300),
               SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Image.asset(
-                    selectedVehicle != null
-                        ? ConstImages.car
-                        : ConstImages.bike,
-                    width: 55.w,
-                    height: 26.h,
-                  ),
-                  SizedBox(width: 15.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selectedOption,
-                          style: ConstTextStyles.vehicleTitle,
-                        ),
-                        Text(
-                          '4 passengers',
-                          style: ConstTextStyles.vehicleSubtitle,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _currentEstimate != null && selectedVehicle != null
-                            ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
-                            : '₦12,000',
-                        style: ConstTextStyles.vehicleTitle,
-                      ),
-                      Text(
-                        _currentEstimate != null
-                            ? '${_currentEstimate!.durationMin.round()} min'
-                            : 'Fixed',
-                        style: ConstTextStyles.fixedPrice.copyWith(
-                          color: Color(ConstColors.recentLocationColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 10.w),
-                  GestureDetector(
-                    onTap: () {
+              GestureDetector( onTap: () {
                       Navigator.pop(context);
                       _showVehicleSelection();
                     },
-                    child: Icon(Icons.arrow_forward_ios, size: 16.sp),
-                  ),
-                ],
+                child: Row(
+                  children: [
+                    Image.asset(
+                      selectedVehicle != null
+                          ? ConstImages.car
+                          : ConstImages.bike,
+                      width: 55.w,
+                      height: 26.h,
+                    ),
+                    SizedBox(width: 15.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            selectedOption,
+                            style: ConstTextStyles.vehicleTitle,
+                          ),
+                          Text(
+                            '4 passengers',
+                            style: ConstTextStyles.vehicleSubtitle,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _currentEstimate != null && selectedVehicle != null
+                              ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
+                              : '₦12,000',
+                          style: ConstTextStyles.vehicleTitle,
+                        ),
+                        Text(
+                          _currentEstimate != null
+                              ? '${_currentEstimate!.durationMin.round()} min'
+                              : 'Fixed',
+                          style: ConstTextStyles.fixedPrice.copyWith(
+                            color: Color(ConstColors.recentLocationColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 10.w),
+                    Icon(Icons.arrow_forward_ios, size: 16.sp),
+                  ],
+                ),
               ),
               SizedBox(height: 20.h),
               Divider(thickness: 1, color: Colors.grey.shade300),
               SizedBox(height: 20.h),
               GestureDetector(
-                onTap: () => _showPaymentMethods(),
+                onTap: () => _showPaymentMethods(
+                  onPaymentChanged: () {
+                    setBookingState(() {});
+                  },
+                ),
                 child: Row(
                   children: [
-                    Image.asset(ConstImages.wallet, width: 24.w, height: 24.h),
+                    Image.asset(
+                      _getPaymentMethodIcon(selectedPaymentMethod),
+                      width: 24.w,
+                      height: 24.h,
+                    ),
                     SizedBox(width: 15.w),
                     Expanded(
                       child: Text(
@@ -4883,7 +4909,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showPaymentMethods() {
+  void _showPaymentMethods({VoidCallback? onPaymentChanged}) {
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
@@ -4971,20 +4997,36 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20.h),
-            _buildPaymentOption('Pay with wallet'),
+            _buildPaymentOption('Pay with wallet', onPaymentChanged: onPaymentChanged),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('Pay with card'),
+            _buildPaymentOption('Pay with card', onPaymentChanged: onPaymentChanged),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('pay4me'),
+            _buildPaymentOption('pay4me', onPaymentChanged: onPaymentChanged),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('Pay in car'),
+            _buildPaymentOption('Pay in car', onPaymentChanged: onPaymentChanged),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPaymentOption(String method) {
+
+  String _getPaymentMethodIcon(String method) {
+    switch (method) {
+      case 'Pay with wallet':
+        return 'assets/images/wallet_icon.png';
+      case 'Pay with card':
+        return 'assets/images/card_icon.png';
+      case 'pay4me':
+        return 'assets/images/pay4me_icon.png';
+      case 'Pay in car':
+        return 'assets/images/payincar_icon.png';
+      default:
+        return 'assets/images/wallet_icon.png';
+    }
+  }
+
+  Widget _buildPaymentOption(String method, {VoidCallback? onPaymentChanged}) {
     final isSelected = selectedPaymentMethod == method;
     return GestureDetector(
       onTap: () {
@@ -4997,12 +5039,24 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedPaymentMethod = method;
         });
         AppLogger.log('💳 New payment method set: $selectedPaymentMethod');
+        
+        // Call the callback to update parent sheet
+        if (onPaymentChanged != null) {
+          onPaymentChanged();
+        }
+        
         Navigator.pop(context);
       },
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: 15.h),
         child: Row(
           children: [
+            Image.asset(
+              _getPaymentMethodIcon(method),
+              width: 24.w,
+              height: 24.h,
+            ),
+            SizedBox(width: 15.w),
             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
             if (isSelected) Icon(Icons.check, color: Colors.green, size: 20.sp),
           ],
@@ -5011,7 +5065,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showAddNoteSheet() {
+  void _showAddNoteSheet({VoidCallback? onNoteChanged}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -5086,6 +5140,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: GestureDetector(
                     onTap: noteController.text.isNotEmpty
                         ? () {
+                            // Call the callback to update parent sheet
+                            if (onNoteChanged != null) {
+                              onNoteChanged();
+                            }
                             Navigator.pop(context);
                           }
                         : null,

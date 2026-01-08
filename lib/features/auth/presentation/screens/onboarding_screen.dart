@@ -80,6 +80,69 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 countryFlag = country.flagEmoji;
                               });
                             },
+                            countryListTheme: CountryListThemeData(
+                              borderRadius: BorderRadius.circular(8.r),
+                              // Search field styling
+                              searchTextStyle: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                              inputDecoration: InputDecoration(
+                                hintText: 'Search location',
+                                hintStyle: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey,
+                                  height: 1.0,
+                                ),
+                                prefixIcon: Padding(
+                                  padding: EdgeInsets.all(12.w),
+                                  child: Image.asset(
+                                    'assets/images/search.png',
+                                    width: 20.w,
+                                    height: 20.h,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 1,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 1,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.r),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12.w,
+                                  vertical: 12.h,
+                                ),
+                              ),
+                              // Country list item styling
+                              textStyle: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              bottomSheetHeight: 500.h,
+                              backgroundColor: Colors.white,
+                            ),
+                            // Show phone code in the list
+                            showPhoneCode: true,
                           );
                         },
                         child: Container(

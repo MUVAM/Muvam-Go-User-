@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
@@ -9,6 +10,7 @@ import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
 import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:pinput/pinput.dart';
 import 'dart:async';
 
 class OtpScreen extends StatefulWidget {
@@ -20,11 +22,8 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  List<TextEditingController> otpControllers = List.generate(
-    6,
-    (index) => TextEditingController(),
-  );
-  List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
+  final TextEditingController pinController = TextEditingController();
+  final FocusNode focusNode = FocusNode();
   Timer? _timer;
   int _countdown = 20;
 
@@ -32,11 +31,9 @@ class _OtpScreenState extends State<OtpScreen> {
   void initState() {
     super.initState();
     startTimer();
-    for (int i = 0; i < otpControllers.length; i++) {
-      otpControllers[i].addListener(() {
-        setState(() {});
-      });
-    }
+    pinController.addListener(() {
+      setState(() {});
+    });
   }
 
   void startTimer() {
@@ -54,17 +51,13 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (var controller in otpControllers) {
-      controller.dispose();
-    }
-    for (var node in focusNodes) {
-      node.dispose();
-    }
+    pinController.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
   bool get isOtpComplete {
-    return otpControllers.every((controller) => controller.text.isNotEmpty);
+    return pinController.text.length == 6;
   }
 
   @override
@@ -102,73 +95,76 @@ class _OtpScreenState extends State<OtpScreen> {
                       style: ConstTextStyles.lightSubtitle,
                     ),
                     SizedBox(height: 42.h),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(6, (index) {
-                        return SizedBox(
-                          width: 45.w,
-                          child: TextField(
-                            controller: otpControllers[index],
-                            focusNode: focusNodes[index],
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            maxLength: 1,
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w600,
+                    Pinput(
+                      controller: pinController,
+                      focusNode: focusNode,
+                      length: 6,
+                      defaultPinTheme: PinTheme(
+                        width: 45.w,
+                        height: 50.h,
+                        textStyle: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey.shade300,
+                              width: 2,
                             ),
-                            decoration: InputDecoration(
-                              border: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: otpControllers[index].text.isNotEmpty
-                                      ? Color(ConstColors.mainColor)
-                                      : Colors.grey.shade300,
-                                  width: 2,
-                                ),
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
-                                  width: 2,
-                                ),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Color(ConstColors.mainColor),
-                                  width: 2,
-                                ),
-                              ),
-                              counterText: '',
-                            ),
-                            onChanged: (value) {
-                              if (value.length > 1) {
-                                otpControllers[index].text = value.substring(
-                                  value.length - 1,
-                                );
-                                otpControllers[index]
-                                    .selection = TextSelection.fromPosition(
-                                  TextPosition(
-                                    offset: otpControllers[index].text.length,
-                                  ),
-                                );
-                              }
-                              if (value.isNotEmpty && index < 5) {
-                                focusNodes[index + 1].requestFocus();
-                              } else if (value.isEmpty && index > 0) {
-                                focusNodes[index - 1].requestFocus();
-                              }
-                            },
-                            onTap: () {
-                              otpControllers[index].selection =
-                                  TextSelection.fromPosition(
-                                    TextPosition(
-                                      offset: otpControllers[index].text.length,
-                                    ),
-                                  );
-                            },
                           ),
-                        );
-                      }),
+                        ),
+                      ),
+                      focusedPinTheme: PinTheme(
+                        width: 45.w,
+                        height: 50.h,
+                        textStyle: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Color(ConstColors.mainColor),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      submittedPinTheme: PinTheme(
+                        width: 45.w,
+                        height: 50.h,
+                        textStyle: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Color(ConstColors.mainColor),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      hapticFeedbackType: HapticFeedbackType.lightImpact,
+                      onCompleted: (pin) {
+                        // Auto-submit when OTP is complete (optional)
+                      },
+                      cursor: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            margin: EdgeInsets.only(bottom: 9.h),
+                            width: 22.w,
+                            height: 1,
+                            color: Color(ConstColors.mainColor),
+                          ),
+                        ],
+                      ),
                     ),
                     SizedBox(height: 30.h),
                     Consumer<AuthProvider>(
@@ -222,9 +218,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         return GestureDetector(
                           onTap: isOtpComplete && !authProvider.isLoading
                               ? () async {
-                                  final otpCode = otpControllers
-                                      .map((c) => c.text)
-                                      .join();
+                                  final otpCode = pinController.text;
                                   final success = await authProvider.verifyOtp(
                                     otpCode,
                                     widget.phoneNumber,

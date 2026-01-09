@@ -68,7 +68,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _circlePositionAnimation = Tween<Offset>(
-      begin: const Offset(0, 1.5), // Start from bottom
+      begin: const Offset(0, 5), // Start from bottom
       end: Offset.zero, // Move to center
     ).animate(CurvedAnimation(
       parent: _circlePositionController,

@@ -127,12 +127,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _etaUpdateTimer;
   bool _hasInitializedMapCamera = false;
   final bool _userIsInteractingWithMap = false;
+  late DraggableScrollableController _sheetController;
+  double _currentSheetSize = 0.4; // Track current sheet size
 
   @override
   void initState() {
     super.initState();
     // Get WebSocket instance
     _webSocketService = WebSocketService.instance;
+
+    // Initialize sheet controller
+    _sheetController = DraggableScrollableController();
+    _sheetController.addListener(_onSheetChanged);
 
     _getCurrentLocation();
     _forceUpdateLocation();
@@ -175,6 +181,28 @@ class _HomeScreenState extends State<HomeScreen> {
       _checkActiveRides();
       _startActiveRideChecking();
     });
+  }
+
+  void _onSheetChanged() {
+    if (_sheetController.isAttached) {
+      final newSize = _sheetController.size;
+      
+      // Only update if size changed significantly
+      if ((newSize - _currentSheetSize).abs() > 0.01) {
+        setState(() {
+          _currentSheetSize = newSize;
+          
+          // Show destination field when dragged up beyond threshold (0.45)
+          // Hide when dragged down to near default height (0.3)
+          if (newSize > 0.45 && !_showDestinationField) {
+            _showDestinationField = true;
+          } else if (newSize <= 0.3 && _showDestinationField) {
+            // Hide when dragged back down
+            _showDestinationField = false;
+          }
+        });
+      }
+    }
   }
 
   Map<String, dynamic>?
@@ -2499,6 +2527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Bottom sheet
                     if (_isBottomSheetVisible)
                       DraggableScrollableSheet(
+                        controller: _sheetController,
                         initialChildSize: 0.4,
                         minChildSize: 0.2,
                         maxChildSize: 0.8,
@@ -4316,7 +4345,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setBookingState) => Container(
-          height: 400.h,
+          height: 351.h,
           padding: EdgeInsets.all(20.w),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -4345,7 +4374,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Column(
                       children: [
                         Icon(Icons.message, size: 25.67.w),
-                        SizedBox(height: 4.67.h),
+                        // SizedBox(height: 4.67.h),
                         Text(
                           'Add note',
                           textAlign: TextAlign.center,
@@ -4374,7 +4403,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 20.h),
+              // SizedBox(height: 10.h),
               Divider(thickness: 1, color: Colors.grey.shade300),
               SizedBox(height: 20.h),
               GestureDetector( onTap: () {
@@ -4443,8 +4472,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Image.asset(
                       _getPaymentMethodIcon(selectedPaymentMethod),
-                      width: 24.w,
-                      height: 24.h,
+                      width: 55.w,
+                      height: 30.h,
                     ),
                     SizedBox(width: 15.w),
                     Expanded(
@@ -4457,7 +4486,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              Spacer(),
+              SizedBox(height: 30.h),
+              // Spacer(),
               Row(
                 children: [
                   GestureDetector(
@@ -5053,8 +5083,8 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Image.asset(
               _getPaymentMethodIcon(method),
-              width: 24.w,
-              height: 24.h,
+              width: 55.w,
+              height: 30.h,
             ),
             SizedBox(width: 15.w),
             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
@@ -8975,6 +9005,10 @@ class _HomeScreenState extends State<HomeScreen> {
     toController.dispose();
     stopController.dispose();
     noteController.dispose();
+    
+    // Dispose sheet controller
+    _sheetController.removeListener(_onSheetChanged);
+    _sheetController.dispose();
 
     super.dispose();
   }

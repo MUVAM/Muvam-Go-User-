@@ -34,6 +34,172 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
+  void _showCustomCountryPicker(BuildContext context) {
+    final TextEditingController searchController = TextEditingController();
+    List<Country> allCountries = CountryService().getAll();
+    List<Country> filteredCountries = allCountries;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(8.r)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              height: 500.h,
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+              child: Column(
+                children: [
+                  // Search field
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: TextField(
+                      controller: searchController,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Search location',
+                        hintStyle: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                          height: 1.0,
+                        ),
+                        suffixIcon: Padding(
+                          padding: EdgeInsets.all(12.w),
+                          child: Image.asset(
+                            'assets/images/search.png',
+                            width: 20.w,
+                            height: 20.h,
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                          borderSide: BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                          borderSide: BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                          borderSide: BorderSide(
+                            color: Colors.grey,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12.w,
+                          vertical: 12.h,
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setModalState(() {
+                          if (value.isEmpty) {
+                            filteredCountries = allCountries;
+                          } else {
+                            filteredCountries = allCountries
+                                .where((country) =>
+                                    country.name
+                                        .toLowerCase()
+                                        .contains(value.toLowerCase()) ||
+                                    country.phoneCode.contains(value))
+                                .toList();
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  // Country list
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredCountries.length,
+                      itemBuilder: (context, index) {
+                        final country = filteredCountries[index];
+                        return InkWell(
+                          onTap: () {
+                            setState(() {
+                              countryCode = '+${country.phoneCode}';
+                              countryFlag = country.flagEmoji;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16.w,
+                                  vertical: 12.h,
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Flag
+                                    Text(
+                                      country.flagEmoji,
+                                      style: TextStyle(fontSize: 24.sp),
+                                    ),
+                                    SizedBox(width: 12.w),
+                                    // Country name
+                                    Expanded(
+                                      child: Text(
+                                        country.name,
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    // Country code at the far right
+                                    Text(
+                                      '+${country.phoneCode}',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Divider below each country
+                              Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: Colors.grey[200],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,78 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          showCountryPicker(
-                            context: context,
-                            onSelect: (Country country) {
-                              setState(() {
-                                countryCode = '+${country.phoneCode}';
-                                countryFlag = country.flagEmoji;
-                              });
-                            },
-                            countryListTheme: CountryListThemeData(
-                              borderRadius: BorderRadius.circular(8.r),
-                              // Search field styling
-                              searchTextStyle: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[700],
-                              ),
-                              inputDecoration: InputDecoration(
-                                hintText: 'Search location',
-                                hintStyle: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey,
-                                  height: 1.0,
-                                ),
-                                prefixIcon: Padding(
-                                  padding: EdgeInsets.all(12.w),
-                                  child: Image.asset(
-                                    'assets/images/search.png',
-                                    width: 20.w,
-                                    height: 20.h,
-                                  ),
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.r),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey,
-                                    width: 1,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.r),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey,
-                                    width: 1,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.r),
-                                  borderSide: BorderSide(
-                                    color: Colors.grey,
-                                    width: 1.5,
-                                  ),
-                                ),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12.w,
-                                  vertical: 12.h,
-                                ),
-                              ),
-                              // Country list item styling
-                              textStyle: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              bottomSheetHeight: 500.h,
-                              backgroundColor: Colors.white,
-                            ),
-                            // Show phone code in the list
-                            showPhoneCode: true,
-                          );
+                          _showCustomCountryPicker(context);
                         },
                         child: Container(
                           width: 85.w,

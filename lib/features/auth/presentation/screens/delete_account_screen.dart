@@ -39,8 +39,8 @@ class DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
                       ConstImages.back,
-                      width: 24.w,
-                      height: 24.h,
+                      width: 30.w,
+                      height: 30.h,
                     ),
                   ),
                   SizedBox(width: 15.w),

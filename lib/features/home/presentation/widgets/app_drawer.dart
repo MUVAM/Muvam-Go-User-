@@ -7,6 +7,7 @@ import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'package:muvam/features/home/presentation/widgets/drawer_item.dart';
@@ -421,6 +422,40 @@ class _AppDrawerState extends State<AppDrawer> {
                     SizedBox(width: 16.w),
                     Text(
                       'Logout',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFEF5350),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DeleteAccountScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      ConstImages.bin,
+                      width: 24.w,
+                      height: 24.h,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(width: 16.w),
+                    Text(
+                      'Delete account',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 18.sp,

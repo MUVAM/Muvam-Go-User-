@@ -7,9 +7,9 @@ import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
-import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'package:pinput/pinput.dart';
 import 'dart:async';
 
@@ -277,7 +277,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) =>
-                                              const HomeScreen(),
+                                              const MainNavigationScreen(),
                                         ),
                                       );
                                     }

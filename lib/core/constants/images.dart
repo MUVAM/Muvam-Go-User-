@@ -44,4 +44,5 @@ class ConstImages {
   static const String tag = 'assets/svg/Tag.svg';
   static const String walletStreamline = 'assets/svg/Wallet-streamline.svg';
   static const String bin = 'assets/svg/Bin.svg';
+  static const String search = 'assets/svg/search.svg';
 }

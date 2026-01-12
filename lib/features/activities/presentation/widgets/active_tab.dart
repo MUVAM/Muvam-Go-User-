@@ -92,8 +92,7 @@ class ActiveTab extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  width: 353.w,
-                  height: 120.h,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(5.r),
@@ -102,12 +101,7 @@ class ActiveTab extends StatelessWidget {
                       width: 0.5,
                     ),
                   ),
-                  padding: EdgeInsets.only(
-                    top: 12.h,
-                    right: 15.w,
-                    bottom: 12.h,
-                    left: 15.w,
-                  ),
+                  padding: EdgeInsets.all(15.sp),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

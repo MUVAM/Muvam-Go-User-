@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
-import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/widgets/edit_profile_text_field.dart';
 import 'package:provider/provider.dart';
@@ -138,7 +138,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
+            MaterialPageRoute(
+              builder: (context) => const MainNavigationScreen(),
+            ),
           );
         }
       });

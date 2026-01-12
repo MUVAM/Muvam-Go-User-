@@ -5,11 +5,10 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
-import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
-import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:muvam/features/home/presentation/widgets/drawer_item.dart';
 import 'package:muvam/features/profile/presentation/widgets/logout_sheet.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
@@ -299,9 +298,13 @@ class _AppDrawerState extends State<AppDrawer> {
               title: 'Activities',
               iconPath: ConstImages.calendarBlack,
               onTap: () {
-                CustomFlushbar.showInfo(
-                  context: context,
-                  message: "Coming soon...",
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const MainNavigationScreen(initialIndex: 2),
+                  ),
                 );
               },
             ),

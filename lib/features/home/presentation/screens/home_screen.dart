@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -23,7 +23,6 @@ import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
-import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
@@ -33,18 +32,12 @@ import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
-import 'package:muvam/features/services/presentation/screens/services_screen.dart';
-import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'add_home_screen.dart';
 import 'map_selection_screen.dart';
 
@@ -186,12 +179,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onSheetChanged() {
     if (_sheetController.isAttached) {
       final newSize = _sheetController.size;
-      
+
       // Only update if size changed significantly
       if ((newSize - _currentSheetSize).abs() > 0.01) {
         setState(() {
           _currentSheetSize = newSize;
-          
+
           // Show destination field when dragged up beyond threshold (0.45)
           // Hide when dragged down to near default height (0.3)
           if (newSize > 0.45 && !_showDestinationField) {
@@ -2219,18 +2212,6 @@ class _HomeScreenState extends State<HomeScreen> {
   //   );
   // }
 
-  Widget _buildDrawerItem(
-    String title,
-    String iconPath, {
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      leading: Image.asset(iconPath, width: 24.w, height: 24.h),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
-
   // @override
   // void dispose() {
   //   _webSocketService.disconnect();
@@ -2240,86 +2221,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   //   super.dispose();
   // }
-
-  void _navigateToWallet() async {
-    Navigator.pop(context);
-
-    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-
-    final hasAccount = await walletProvider.checkVirtualAccount();
-
-    AppLogger.log('Navigate to appropriate screen');
-    if (mounted) {
-      if (hasAccount) {
-        AppLogger.log('Navigate to appropriate WalletScreen');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletScreen()),
-        );
-      } else {
-        AppLogger.log('Navigate to appropriate WalletEmptyScreen');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
-        );
-      }
-    }
-  }
-
-  Future<void> _launchPhoneDialer() async {
-    const phoneNumber = '07032992768';
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-
-    try {
-      if (await canLaunchUrl(phoneUri)) {
-        await launchUrl(phoneUri);
-        AppLogger.log(
-          '📞 Launched phone dialer for: $phoneNumber',
-          tag: 'CONTACT',
-        );
-      } else {
-        AppLogger.error('Could not launch phone dialer', tag: 'CONTACT');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open phone dialer')),
-          );
-        }
-      }
-    } catch (e) {
-      AppLogger.error('Error launching phone dialer', error: e, tag: 'CONTACT');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
-  Future<void> _launchWhatsApp() async {
-    const phoneNumber = '2347032992768'; // WhatsApp format with country code
-    final Uri whatsappUri = Uri.parse('https://wa.me/$phoneNumber');
-
-    try {
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-        AppLogger.log('💬 Launched WhatsApp for: $phoneNumber', tag: 'CONTACT');
-      } else {
-        AppLogger.error('Could not launch WhatsApp', tag: 'CONTACT');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open WhatsApp')),
-          );
-        }
-      }
-    } catch (e) {
-      AppLogger.error('Error launching WhatsApp', error: e, tag: 'CONTACT');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
 
   void _dismissSuggestions() {
     setState(() {
@@ -2403,596 +2304,292 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Scaffold(
           key: _scaffoldKey,
           drawer: const AppDrawer(),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            backgroundColor: Colors.white,
-            selectedItemColor: Color(ConstColors.mainColor),
-            unselectedItemColor: Colors.grey,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            items: [
-              BottomNavigationBarItem(
-                icon: Image.asset(
-                  ConstImages.homeIcon,
-                  width: 24.w,
-                  height: 24.h,
-                  color: _currentIndex == 0
-                      ? Color(ConstColors.mainColor)
-                      : Colors.grey,
+          body: Stack(
+            children: [
+              // Google Maps background
+              GoogleMap(
+                onMapCreated: (GoogleMapController controller) {
+                  _mapController = controller;
+                  _forceUpdateLocation();
+                },
+                initialCameraPosition: CameraPosition(
+                  target: _currentLocation,
+                  zoom: 15.0,
                 ),
-                label: 'Home',
+                markers: _mapMarkers,
+                polylines: _mapPolylines,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: false,
               ),
-              BottomNavigationBarItem(
-                icon: Image.asset(
-                  ConstImages.services,
-                  width: 24.w,
-                  height: 24.h,
-                  color: _currentIndex == 1
-                      ? Color(ConstColors.mainColor)
-                      : Colors.grey,
-                ),
-                label: 'Services',
-              ),
-              BottomNavigationBarItem(
-                icon: Image.asset(
-                  ConstImages.activities,
-                  width: 24.w,
-                  height: 24.h,
-                  color: _currentIndex == 2
-                      ? Color(ConstColors.mainColor)
-                      : Colors.grey,
-                ),
-                label: 'Activities',
-              ),
-            ],
-          ),
-          body: _currentIndex == 1
-              ? const ServicesScreen()
-              : _currentIndex == 2
-              ? ActivitiesScreen()
-              : Stack(
-                  children: [
-                    // Google Maps background
-                    GoogleMap(
-                      onMapCreated: (GoogleMapController controller) {
-                        _mapController = controller;
-                        _forceUpdateLocation();
-                      },
-                      initialCameraPosition: CameraPosition(
-                        target: _currentLocation,
-                        zoom: 15.0,
-                      ),
-                      markers: _mapMarkers,
-                      polylines: _mapPolylines,
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: false,
+              Positioned(
+                top: 50.h,
+                left: 20.w,
+                child: GestureDetector(
+                  onTap: () {
+                    Scaffold.of(context).openDrawer();
+                  },
+                  child: Container(
+                    width: 50.w,
+                    height: 50.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25.r),
                     ),
-
-                    // Drawer date
-                    Positioned(
-                      top: 66.h,
-                      left: 20.w,
-                      child: GestureDetector(
-                        onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                        child: Container(
-                          width: 50.w,
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(25.r),
+                    padding: EdgeInsets.all(10.w),
+                    child: Icon(Icons.menu, size: 24.sp),
+                  ),
+                ),
+              ),
+              // Active ride indicator
+              if (_activeRide != null)
+                Positioned(
+                  top: 66.h,
+                  right: 30.w,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_activeRide != null) {
+                        _hasUserDismissedSheet = false;
+                        _showDriverAcceptedSheet();
+                      }
+                    },
+                    child: Container(
+                      width: 50.w,
+                      height: 50.h,
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        borderRadius: BorderRadius.circular(25.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
                           ),
-                          padding: EdgeInsets.all(10.w),
-                          child: Icon(Icons.menu, size: 24.sp),
-                        ),
+                        ],
+                      ),
+                      padding: EdgeInsets.all(10.w),
+                      child: Icon(
+                        Icons.directions_car,
+                        size: 24.sp,
+                        color: Colors.white,
                       ),
                     ),
-                    // Active ride indicator
-                    if (_activeRide != null)
-                      Positioned(
-                        top: 66.h,
-                        right: 30.w,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (_activeRide != null) {
-                              _hasUserDismissedSheet = false;
-                              _showDriverAcceptedSheet();
-                            }
-                          },
-                          child: Container(
-                            width: 50.w,
-                            height: 50.h,
-                            decoration: BoxDecoration(
-                              color: Color(ConstColors.mainColor),
-                              borderRadius: BorderRadius.circular(25.r),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 4),
+                  ),
+                ),
+              // Bottom sheet
+              if (_isBottomSheetVisible)
+                // Replace your existing DraggableScrollableSheet builder content with this:
+                DraggableScrollableSheet(
+                  controller: _sheetController,
+                  initialChildSize: 0.4,
+                  minChildSize: 0.2,
+                  maxChildSize: 0.9,
+                  builder: (BuildContext context, ScrollController scrollController) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(20.r),
+                          topRight: Radius.circular(20.r),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: Offset(0, -2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Drag handle - NOT scrollable
+                          Padding(
+                            padding: EdgeInsets.only(top: 10.h),
+                            child: Center(
+                              child: Container(
+                                width: 69.w,
+                                height: 5.h,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(2.5.r),
                                 ),
-                              ],
-                            ),
-                            padding: EdgeInsets.all(10.w),
-                            child: Icon(
-                              Icons.directions_car,
-                              size: 24.sp,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Bottom sheet
-                    if (_isBottomSheetVisible)
-                      DraggableScrollableSheet(
-                        controller: _sheetController,
-                        initialChildSize: 0.4,
-                        minChildSize: 0.2,
-                        maxChildSize: 0.8,
-                        builder: (BuildContext context, ScrollController scrollController) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(20.r),
-                                topRight: Radius.circular(20.r),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: Offset(0, -2),
-                                ),
-                              ],
                             ),
-                            child: ListView(
-                              controller: scrollController,
-                              padding: EdgeInsets.zero,
+                          ),
+                          SizedBox(height: 10.h),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20.w),
+                            child: Row(
                               children: [
-                                Padding(
-                                  padding: EdgeInsets.only(top: 10.h),
-                                  child: Center(
-                                    child: Container(
-                                      width: 69.w,
-                                      height: 5.h,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade300,
-                                        borderRadius: BorderRadius.circular(
-                                          2.5.r,
+                                SizedBox(
+                                  width: 14.w,
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        width: 14.w,
+                                        height: 14.h,
+                                        decoration: BoxDecoration(
+                                          color: Color(ConstColors.mainColor),
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
-                                    ),
+                                      if (_showDestinationField) ...[
+                                        SizedBox(height: 5.h),
+                                        Container(
+                                          width: 2.w,
+                                          height: 8.h,
+                                          color: Colors.grey,
+                                        ),
+                                        SizedBox(height: 4.h),
+                                        Container(
+                                          width: 2.w,
+                                          height: 8.h,
+                                          color: Colors.grey,
+                                        ),
+                                        SizedBox(height: 4.h),
+                                        Container(
+                                          width: 2.w,
+                                          height: 8.h,
+                                          color: Colors.grey,
+                                        ),
+                                        if (_showStopField) ...[
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 14.w,
+                                            height: 14.h,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          SizedBox(height: 5.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                          SizedBox(height: 4.h),
+                                          Container(
+                                            width: 2.w,
+                                            height: 8.h,
+                                            color: Colors.grey,
+                                          ),
+                                        ],
+                                        SizedBox(height: 5.h),
+                                        Container(
+                                          width: 14.w,
+                                          height: 14.h,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                                SizedBox(height: 10.h),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 20.w,
-                                  ),
-                                  child: Row(
+                                SizedBox(width: 15.w),
+                                Expanded(
+                                  child: Column(
                                     children: [
-                                      SizedBox(
-                                        width: 14.w,
-                                        child: Column(
-                                          children: [
-                                            Container(
-                                              width: 14.w,
-                                              height: 14.h,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Container(
+                                              height: 50.h,
                                               decoration: BoxDecoration(
                                                 color: Color(
-                                                  ConstColors.mainColor,
-                                                ),
-                                                shape: BoxShape.circle,
+                                                  ConstColors.fieldColor,
+                                                ).withOpacity(0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(8.r),
                                               ),
-                                            ),
-                                            if (_showDestinationField) ...[
-                                              SizedBox(height: 5.h),
-                                              Container(
-                                                width: 2.w,
-                                                height: 8.h,
-                                                color: Colors.grey,
-                                              ),
-                                              SizedBox(height: 4.h),
-                                              Container(
-                                                width: 2.w,
-                                                height: 8.h,
-                                                color: Colors.grey,
-                                              ),
-                                              SizedBox(height: 4.h),
-                                              Container(
-                                                width: 2.w,
-                                                height: 8.h,
-                                                color: Colors.grey,
-                                              ),
-
-                                              if (_showStopField) ...[
-                                                SizedBox(height: 4.h),
-                                                Container(
-                                                  width: 14.w,
-                                                  height: 14.h,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 5.h),
-                                                Container(
-                                                  width: 2.w,
-                                                  height: 8.h,
-                                                  color: Colors.grey,
-                                                ),
-                                                SizedBox(height: 4.h),
-                                                Container(
-                                                  width: 2.w,
-                                                  height: 8.h,
-                                                  color: Colors.grey,
-                                                ),
-                                                SizedBox(height: 4.h),
-
-                                                Container(
-                                                  width: 2.w,
-                                                  height: 8.h,
-                                                  color: Colors.grey,
-                                                ),
-                                              ],
-                                              SizedBox(height: 5.h),
-                                              Container(
-                                                width: 14.w,
-                                                height: 14.h,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(width: 15.w),
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Container(
-                                                    height: 50.h,
-                                                    decoration: BoxDecoration(
-                                                      color: Color(
-                                                        ConstColors.fieldColor,
-                                                      ).withOpacity(0.12),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8.r,
-                                                          ),
-                                                    ),
-                                                    child: TextField(
-                                                      controller:
-                                                          fromController,
-                                                      readOnly:
-                                                          _showDestinationField
-                                                          ? !_isFromFieldEditable
-                                                          : false,
-                                                      onTap: () {
-                                                        if (!_showDestinationField) {
-                                                          setState(() {
-                                                            _showDestinationField =
-                                                                true;
-                                                            _isFromFieldFocused =
-                                                                true;
-                                                            _showSuggestions =
-                                                                false;
-                                                          });
-                                                        } else if (!_isFromFieldEditable &&
-                                                            _isLocationLoaded) {
-                                                          setState(() {
-                                                            _isFromFieldEditable =
-                                                                true;
-                                                            _isFromFieldFocused =
-                                                                true;
-                                                          });
-                                                        } else {
-                                                          setState(() {
-                                                            _isFromFieldFocused =
-                                                                true;
-                                                          });
-                                                        }
-                                                      },
-                                                      onChanged: (value) {
-                                                        if (_isFromFieldFocused ||
-                                                            !_showDestinationField) {
-                                                          _searchLocations(
-                                                            value,
-                                                          );
-                                                        }
-                                                      },
-                                                      decoration: InputDecoration(
-                                                        hintText:
-                                                            _showDestinationField
-                                                            ? 'From?'
-                                                            : 'Where to?',
-                                                        prefixIcon: Icon(
-                                                          Icons.search,
-                                                          size: 20.sp,
-                                                          color: Colors.grey,
-                                                        ),
-                                                        suffixIcon:
-                                                            _showDestinationField
-                                                            ? Row(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  if (fromController
-                                                                      .text
-                                                                      .isNotEmpty)
-                                                                    GestureDetector(
-                                                                      onTap: () {
-                                                                        setState(() {
-                                                                          fromController
-                                                                              .clear();
-                                                                          _isFromFieldEditable =
-                                                                              false;
-                                                                        });
-                                                                      },
-                                                                      child: Container(
-                                                                        width:
-                                                                            24.w,
-                                                                        height:
-                                                                            24.h,
-                                                                        margin: EdgeInsets.only(
-                                                                          right:
-                                                                              8.w,
-                                                                        ),
-                                                                        child: Icon(
-                                                                          Icons
-                                                                              .clear,
-                                                                          size:
-                                                                              16.sp,
-                                                                          color:
-                                                                              Colors.grey,
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  GestureDetector(
-                                                                    onTap: () async {
-                                                                      setState(() {
-                                                                        _showMapTooltip =
-                                                                            true;
-                                                                      });
-                                                                      Future.delayed(
-                                                                        Duration(
-                                                                          seconds:
-                                                                              2,
-                                                                        ),
-                                                                        () {
-                                                                          if (mounted) {
-                                                                            setState(() {
-                                                                              _showMapTooltip = false;
-                                                                            });
-                                                                          }
-                                                                        },
-                                                                      );
-                                                                      final result = await Navigator.push(
-                                                                        context,
-                                                                        MaterialPageRoute(
-                                                                          builder:
-                                                                              (
-                                                                                context,
-                                                                              ) => MapSelectionScreen(
-                                                                                isFromField: true,
-                                                                                initialLocation: _currentLocation,
-                                                                              ),
-                                                                        ),
-                                                                      );
-                                                                      if (result !=
-                                                                          null) {
-                                                                        setState(() {
-                                                                          fromController.text =
-                                                                              result['address'];
-                                                                          _pickupCoordinates =
-                                                                              result['location'];
-                                                                          _currentLocation =
-                                                                              result['location'];
-                                                                        });
-                                                                        // Check if both fields are filled to show vehicle selection
-                                                                        if (toController
-                                                                            .text
-                                                                            .isNotEmpty) {
-                                                                          _checkBothFields();
-                                                                        }
-                                                                      }
-                                                                    },
-                                                                    child: Stack(
-                                                                      children: [
-                                                                        Container(
-                                                                          width:
-                                                                              24.w,
-                                                                          height:
-                                                                              24.h,
-                                                                          margin: EdgeInsets.only(
-                                                                            right:
-                                                                                8.w,
-                                                                          ),
-                                                                          child: Icon(
-                                                                            Icons.map,
-                                                                            size:
-                                                                                16.sp,
-                                                                            color: Color(
-                                                                              ConstColors.mainColor,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                        if (_showMapTooltip)
-                                                                          Positioned(
-                                                                            right:
-                                                                                35.w,
-                                                                            top:
-                                                                                -25.h,
-                                                                            child: Container(
-                                                                              padding: EdgeInsets.symmetric(
-                                                                                horizontal: 8.w,
-                                                                                vertical: 4.h,
-                                                                              ),
-                                                                              decoration: BoxDecoration(
-                                                                                color: Colors.black87,
-                                                                                borderRadius: BorderRadius.circular(
-                                                                                  4.r,
-                                                                                ),
-                                                                              ),
-                                                                              child: Text(
-                                                                                'Select from map',
-                                                                                style: TextStyle(
-                                                                                  color: Colors.white,
-                                                                                  fontSize: 10.sp,
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                          ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              )
-                                                            : null,
-                                                        border:
-                                                            InputBorder.none,
-                                                        contentPadding:
-                                                            EdgeInsets.symmetric(
-                                                              horizontal: 10.w,
-                                                              vertical: 8.h,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                GestureDetector(
-                                                  onTap: () {
+                                              child: TextField(
+                                                controller: fromController,
+                                                readOnly: _showDestinationField
+                                                    ? !_isFromFieldEditable
+                                                    : false,
+                                                onTap: () {
+                                                  if (!_showDestinationField) {
                                                     setState(() {
-                                                      _showStopField =
-                                                          !_showStopField;
+                                                      _showDestinationField =
+                                                          true;
+                                                      _isFromFieldFocused =
+                                                          true;
+                                                      _showSuggestions = false;
                                                     });
-                                                  },
-                                                  child: Icon(
-                                                    Icons.add,
-                                                    size: 24.sp,
-                                                    color: Color(
-                                                      ConstColors.mainColor,
+                                                  } else if (!_isFromFieldEditable &&
+                                                      _isLocationLoaded) {
+                                                    setState(() {
+                                                      _isFromFieldEditable =
+                                                          true;
+                                                      _isFromFieldFocused =
+                                                          true;
+                                                    });
+                                                  } else {
+                                                    setState(() {
+                                                      _isFromFieldFocused =
+                                                          true;
+                                                    });
+                                                  }
+                                                },
+                                                onChanged: (value) {
+                                                  if (_isFromFieldFocused ||
+                                                      !_showDestinationField) {
+                                                    _searchLocations(value);
+                                                  }
+                                                },
+                                                decoration: InputDecoration(
+                                                  hintText:
+                                                      _showDestinationField
+                                                      ? 'From'
+                                                      : 'Where to',
+                                                  hintStyle: TextStyle(
+                                                    fontSize: 16.sp,
+                                                    color: Colors.grey[400],
+                                                  ),
+                                                  prefixIcon: Padding(
+                                                    padding: EdgeInsets.only(
+                                                      left: 16.w,
+                                                      right: 12.w,
+                                                    ),
+                                                    child: SvgPicture.asset(
+                                                      ConstImages.search,
+                                                      width: 20.w,
+                                                      height: 20.h,
+                                                      color: Colors.grey,
+                                                      fit: BoxFit.scaleDown,
                                                     ),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (_showDestinationField) ...[
-                                              SizedBox(height: 10.h),
-                                              if (_showStopField) ...[
-                                                Container(
-                                                  height: 50.h,
-                                                  decoration: BoxDecoration(
-                                                    color: Color(
-                                                      ConstColors.fieldColor,
-                                                    ).withOpacity(0.12),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8.r,
-                                                        ),
-                                                  ),
-                                                  child: TextField(
-                                                    controller: stopController,
-                                                    onTap: () {
-                                                      setState(() {
-                                                        _isFromFieldFocused =
-                                                            false;
-                                                      });
-                                                    },
-                                                    onChanged: (value) {
-                                                      if (!_isFromFieldFocused) {
-                                                        _searchLocations(value);
-                                                      }
-                                                    },
-                                                    decoration: InputDecoration(
-                                                      hintText: 'Add stop',
-                                                      prefixIcon: Icon(
-                                                        Icons.search,
-                                                        size: 20.sp,
-                                                        color: Colors.grey,
+                                                  prefixIconConstraints:
+                                                      BoxConstraints(
+                                                        minWidth: 48.w,
+                                                        minHeight: 20.h,
                                                       ),
-                                                      suffixIcon: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          if (stopController
-                                                              .text
-                                                              .isNotEmpty)
-                                                            GestureDetector(
-                                                              onTap: () {
-                                                                setState(() {
-                                                                  stopController
-                                                                      .clear();
-                                                                });
-                                                              },
-                                                              child: Container(
-                                                                width: 24.w,
-                                                                height: 24.h,
-                                                                margin:
-                                                                    EdgeInsets.only(
-                                                                      right:
-                                                                          8.w,
-                                                                    ),
-                                                                child: Icon(
-                                                                  Icons.clear,
-                                                                  size: 16.sp,
-                                                                  color: Colors
-                                                                      .grey,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          GestureDetector(
-                                                            onTap: () async {
-                                                              setState(() {
-                                                                _showMapTooltip =
-                                                                    true;
-                                                              });
-                                                              Future.delayed(
-                                                                Duration(
-                                                                  seconds: 2,
-                                                                ),
-                                                                () {
-                                                                  if (mounted) {
-                                                                    setState(() {
-                                                                      _showMapTooltip =
-                                                                          false;
-                                                                    });
-                                                                  }
+                                                  suffixIcon:
+                                                      _showDestinationField
+                                                      ? Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            if (fromController
+                                                                .text
+                                                                .isNotEmpty)
+                                                              GestureDetector(
+                                                                onTap: () {
+                                                                  setState(() {
+                                                                    fromController
+                                                                        .clear();
+                                                                    _isFromFieldEditable =
+                                                                        false;
+                                                                  });
                                                                 },
-                                                              );
-                                                              final result = await Navigator.push(
-                                                                context,
-                                                                MaterialPageRoute(
-                                                                  builder: (context) => MapSelectionScreen(
-                                                                    isFromField:
-                                                                        false,
-                                                                    initialLocation:
-                                                                        _currentLocation,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                              if (result !=
-                                                                  null) {
-                                                                setState(() {
-                                                                  stopController
-                                                                          .text =
-                                                                      result['address'];
-                                                                  _stopCoordinates =
-                                                                      result['location'];
-                                                                });
-                                                              }
-                                                            },
-                                                            child: Stack(
-                                                              children: [
-                                                                Container(
+                                                                child: Container(
                                                                   width: 24.w,
                                                                   height: 24.h,
                                                                   margin:
@@ -3001,177 +2598,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                             8.w,
                                                                       ),
                                                                   child: Icon(
-                                                                    Icons.map,
+                                                                    Icons.clear,
                                                                     size: 16.sp,
-                                                                    color: Color(
-                                                                      ConstColors
-                                                                          .mainColor,
-                                                                    ),
+                                                                    color: Colors
+                                                                        .grey,
                                                                   ),
                                                                 ),
-                                                                if (_showMapTooltip)
-                                                                  Positioned(
-                                                                    right: 35.w,
-                                                                    top: -25.h,
-                                                                    child: Container(
-                                                                      padding: EdgeInsets.symmetric(
-                                                                        horizontal:
-                                                                            8.w,
-                                                                        vertical:
-                                                                            4.h,
-                                                                      ),
-                                                                      decoration: BoxDecoration(
-                                                                        color: Colors
-                                                                            .black87,
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                              4.r,
-                                                                            ),
-                                                                      ),
-                                                                      child: Text(
-                                                                        'Select from map',
-                                                                        style: TextStyle(
-                                                                          color:
-                                                                              Colors.white,
-                                                                          fontSize:
-                                                                              10.sp,
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      border: InputBorder.none,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal: 10.w,
-                                                            vertical: 8.h,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(height: 10.h),
-                                              ],
-                                              Container(
-                                                height: 50.h,
-                                                decoration: BoxDecoration(
-                                                  color: Color(
-                                                    ConstColors.fieldColor,
-                                                  ).withOpacity(0.12),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        8.r,
-                                                      ),
-                                                ),
-                                                child: TextField(
-                                                  controller: toController,
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _isFromFieldFocused =
-                                                          false;
-                                                    });
-                                                  },
-                                                  onChanged: (value) {
-                                                    if (!_isFromFieldFocused) {
-                                                      _searchLocations(value);
-                                                    }
-                                                  },
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Where to?',
-                                                    prefixIcon: Icon(
-                                                      Icons.search,
-                                                      size: 20.sp,
-                                                      color: Colors.grey,
-                                                    ),
-                                                    suffixIcon: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        if (toController
-                                                            .text
-                                                            .isNotEmpty)
-                                                          GestureDetector(
-                                                            onTap: () {
-                                                              setState(() {
-                                                                toController
-                                                                    .clear();
-                                                              });
-                                                            },
-                                                            child: Container(
-                                                              width: 24.w,
-                                                              height: 24.h,
-                                                              margin:
-                                                                  EdgeInsets.only(
-                                                                    right: 8.w,
-                                                                  ),
-                                                              child: Icon(
-                                                                Icons.clear,
-                                                                size: 16.sp,
-                                                                color:
-                                                                    Colors.grey,
                                                               ),
-                                                            ),
-                                                          ),
-                                                        GestureDetector(
-                                                          onTap: () async {
-                                                            setState(() {
-                                                              _showMapTooltip =
-                                                                  true;
-                                                            });
-                                                            Future.delayed(
-                                                              Duration(
-                                                                seconds: 2,
-                                                              ),
-                                                              () {
-                                                                if (mounted) {
-                                                                  setState(() {
-                                                                    _showMapTooltip =
-                                                                        false;
-                                                                  });
-                                                                }
-                                                              },
-                                                            );
-                                                            final result = await Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                builder: (context) =>
-                                                                    MapSelectionScreen(
+                                                            GestureDetector(
+                                                              onTap: () async {
+                                                                final result = await Navigator.push(
+                                                                  context,
+                                                                  MaterialPageRoute(
+                                                                    builder: (context) => MapSelectionScreen(
                                                                       isFromField:
-                                                                          false,
+                                                                          true,
                                                                       initialLocation:
                                                                           _currentLocation,
                                                                     ),
-                                                              ),
-                                                            );
-                                                            if (result !=
-                                                                null) {
-                                                              setState(() {
-                                                                toController
-                                                                        .text =
-                                                                    result['address'];
-                                                                _destinationCoordinates =
-                                                                    result['location'];
-                                                              });
-                                                              // Check if both fields are filled to show vehicle selection
-                                                              if (fromController
-                                                                  .text
-                                                                  .isNotEmpty) {
-                                                                _checkBothFields();
-                                                              }
-                                                            }
-                                                          },
-                                                          child: Stack(
-                                                            children: [
-                                                              Container(
+                                                                  ),
+                                                                );
+                                                                if (result !=
+                                                                    null) {
+                                                                  setState(() {
+                                                                    fromController
+                                                                            .text =
+                                                                        result['address'];
+                                                                    _pickupCoordinates =
+                                                                        result['location'];
+                                                                    _currentLocation =
+                                                                        result['location'];
+                                                                  });
+                                                                  if (toController
+                                                                      .text
+                                                                      .isNotEmpty) {
+                                                                    _checkBothFields();
+                                                                  }
+                                                                }
+                                                              },
+                                                              child: Container(
                                                                 width: 24.w,
                                                                 height: 24.h,
                                                                 margin:
                                                                     EdgeInsets.only(
                                                                       right:
-                                                                          8.w,
+                                                                          16.w,
                                                                     ),
                                                                 child: Icon(
                                                                   Icons.map,
@@ -3182,554 +2653,544 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   ),
                                                                 ),
                                                               ),
-                                                              if (_showMapTooltip)
-                                                                Positioned(
-                                                                  right: 35.w,
-                                                                  top: -25.h,
-                                                                  child: Container(
-                                                                    padding: EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8.w,
-                                                                      vertical:
-                                                                          4.h,
-                                                                    ),
-                                                                    decoration: BoxDecoration(
-                                                                      color: Colors
-                                                                          .black87,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            4.r,
-                                                                          ),
-                                                                    ),
-                                                                    child: Text(
-                                                                      'Select from map',
-                                                                      style: TextStyle(
-                                                                        color: Colors
-                                                                            .white,
-                                                                        fontSize:
-                                                                            10.sp,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    border: InputBorder.none,
-                                                    contentPadding:
-                                                        EdgeInsets.symmetric(
-                                                          horizontal: 10.w,
-                                                          vertical: 8.h,
-                                                        ),
-                                                  ),
+                                                            ),
+                                                          ],
+                                                        )
+                                                      : null,
+                                                  border: InputBorder.none,
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                        horizontal: 0,
+                                                        vertical: 15.h,
+                                                      ),
                                                 ),
                                               ),
-                                            ],
-                                          ],
-                                        ),
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _showStopField =
+                                                    !_showStopField;
+                                              });
+                                            },
+                                            child: Icon(
+                                              Icons.add,
+                                              size: 24.sp,
+                                              color: Color(
+                                                ConstColors.mainColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                      if (_showDestinationField) ...[
+                                        SizedBox(height: 10.h),
+                                        if (_showStopField) ...[
+                                          Container(
+                                            height: 50.h,
+                                            decoration: BoxDecoration(
+                                              color: Color(
+                                                ConstColors.fieldColor,
+                                              ).withOpacity(0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(8.r),
+                                            ),
+                                            child: TextField(
+                                              controller: stopController,
+                                              onTap: () {
+                                                setState(() {
+                                                  _isFromFieldFocused = false;
+                                                });
+                                              },
+                                              onChanged: (value) {
+                                                if (!_isFromFieldFocused) {
+                                                  _searchLocations(value);
+                                                }
+                                              },
+                                              decoration: InputDecoration(
+                                                hintText: 'Add stop',
+                                                hintStyle: TextStyle(
+                                                  fontSize: 16.sp,
+                                                  color: Colors.grey[400],
+                                                ),
+                                                prefixIcon: Padding(
+                                                  padding: EdgeInsets.only(
+                                                    left: 16.w,
+                                                    right: 12.w,
+                                                  ),
+                                                  child: SvgPicture.asset(
+                                                    ConstImages.search,
+                                                    width: 20.w,
+                                                    height: 20.h,
+                                                    color: Colors.grey,
+                                                    fit: BoxFit.scaleDown,
+                                                  ),
+                                                ),
+                                                prefixIconConstraints:
+                                                    BoxConstraints(
+                                                      minWidth: 48.w,
+                                                      minHeight: 20.h,
+                                                    ),
+                                                suffixIcon: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    if (stopController
+                                                        .text
+                                                        .isNotEmpty)
+                                                      GestureDetector(
+                                                        onTap: () {
+                                                          setState(() {
+                                                            stopController
+                                                                .clear();
+                                                          });
+                                                        },
+                                                        child: Container(
+                                                          width: 24.w,
+                                                          height: 24.h,
+                                                          margin:
+                                                              EdgeInsets.only(
+                                                                right: 8.w,
+                                                              ),
+                                                          child: Icon(
+                                                            Icons.clear,
+                                                            size: 16.sp,
+                                                            color: Colors.grey,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    GestureDetector(
+                                                      onTap: () async {
+                                                        final result = await Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder: (context) =>
+                                                                MapSelectionScreen(
+                                                                  isFromField:
+                                                                      false,
+                                                                  initialLocation:
+                                                                      _currentLocation,
+                                                                ),
+                                                          ),
+                                                        );
+                                                        if (result != null) {
+                                                          setState(() {
+                                                            stopController
+                                                                    .text =
+                                                                result['address'];
+                                                            _stopCoordinates =
+                                                                result['location'];
+                                                          });
+                                                        }
+                                                      },
+                                                      child: Container(
+                                                        width: 24.w,
+                                                        height: 24.h,
+                                                        margin: EdgeInsets.only(
+                                                          right: 16.w,
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.map,
+                                                          size: 16.sp,
+                                                          color: Color(
+                                                            ConstColors
+                                                                .mainColor,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                      horizontal: 0,
+                                                      vertical: 15.h,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: 10.h),
+                                        ],
+                                        Container(
+                                          height: 50.h,
+                                          decoration: BoxDecoration(
+                                            color: Color(
+                                              ConstColors.fieldColor,
+                                            ).withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              8.r,
+                                            ),
+                                          ),
+                                          child: TextField(
+                                            controller: toController,
+                                            onTap: () {
+                                              setState(() {
+                                                _isFromFieldFocused = false;
+                                              });
+                                            },
+                                            onChanged: (value) {
+                                              if (!_isFromFieldFocused) {
+                                                _searchLocations(value);
+                                              }
+                                            },
+                                            decoration: InputDecoration(
+                                              hintText: 'Where to',
+                                              hintStyle: TextStyle(
+                                                fontSize: 16.sp,
+                                                color: Colors.grey[400],
+                                              ),
+                                              prefixIcon: Padding(
+                                                padding: EdgeInsets.only(
+                                                  left: 16.w,
+                                                  right: 12.w,
+                                                ),
+                                                child: SvgPicture.asset(
+                                                  ConstImages.search,
+                                                  width: 20.w,
+                                                  height: 20.h,
+                                                  color: Colors.grey,
+                                                  fit: BoxFit.scaleDown,
+                                                ),
+                                              ),
+                                              prefixIconConstraints:
+                                                  BoxConstraints(
+                                                    minWidth: 48.w,
+                                                    minHeight: 20.h,
+                                                  ),
+                                              suffixIcon: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (toController
+                                                      .text
+                                                      .isNotEmpty)
+                                                    GestureDetector(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          toController.clear();
+                                                        });
+                                                      },
+                                                      child: Container(
+                                                        width: 24.w,
+                                                        height: 24.h,
+                                                        margin: EdgeInsets.only(
+                                                          right: 8.w,
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.clear,
+                                                          size: 16.sp,
+                                                          color: Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      final result = await Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              MapSelectionScreen(
+                                                                isFromField:
+                                                                    false,
+                                                                initialLocation:
+                                                                    _currentLocation,
+                                                              ),
+                                                        ),
+                                                      );
+                                                      if (result != null) {
+                                                        setState(() {
+                                                          toController.text =
+                                                              result['address'];
+                                                          _destinationCoordinates =
+                                                              result['location'];
+                                                        });
+                                                        if (fromController
+                                                            .text
+                                                            .isNotEmpty) {
+                                                          _checkBothFields();
+                                                        }
+                                                      }
+                                                    },
+                                                    child: Container(
+                                                      width: 24.w,
+                                                      height: 24.h,
+                                                      margin: EdgeInsets.only(
+                                                        right: 16.w,
+                                                      ),
+                                                      child: Icon(
+                                                        Icons.map,
+                                                        size: 16.sp,
+                                                        color: Color(
+                                                          ConstColors.mainColor,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              border: InputBorder.none,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 0,
+                                                    vertical: 15.h,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+
+                          // Everything below this point IS scrollable
+                          Expanded(
+                            child: ListView(
+                              controller: scrollController,
+                              padding: EdgeInsets.zero,
+                              children: [
                                 if (_showSuggestions &&
                                     _locationSuggestions.isNotEmpty)
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                      horizontal: 20.w,
-                                      vertical: 10.h,
-                                    ),
-                                    constraints: BoxConstraints(
-                                      maxHeight: 300.h,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8.r),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.grey.withOpacity(0.3),
-                                          spreadRadius: 1,
-                                          blurRadius: 5,
-                                          offset: Offset(0, 2),
+                                  ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: NeverScrollableScrollPhysics(),
+                                    itemCount: _locationSuggestions.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: Colors.grey.shade200,
                                         ),
-                                      ],
-                                    ),
-                                    child: ListView.separated(
-                                      shrinkWrap: true,
-                                      physics: NeverScrollableScrollPhysics(),
-                                      itemCount: _locationSuggestions.length,
-                                      separatorBuilder: (context, index) =>
-                                          Divider(
-                                            height: 1,
-                                            color: Colors.grey.shade200,
+                                    itemBuilder: (context, index) {
+                                      final prediction =
+                                          _locationSuggestions[index];
+                                      return ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          Icons.location_on,
+                                          size: 20.sp,
+                                          color: Color(ConstColors.mainColor),
+                                        ),
+                                        title: Text(
+                                          prediction.mainText,
+                                          style: TextStyle(
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w600,
                                           ),
-                                      itemBuilder: (context, index) {
-                                        final prediction =
-                                            _locationSuggestions[index];
-                                        return ListTile(
-                                          dense: true,
-                                          leading: Icon(
-                                            Icons.location_on,
-                                            size: 20.sp,
-                                            color: Color(ConstColors.mainColor),
-                                          ),
-                                          title: Text(
-                                            prediction.mainText,
-                                            style: TextStyle(
-                                              fontSize: 14.sp,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          subtitle:
-                                              prediction
-                                                  .secondaryText
-                                                  .isNotEmpty
-                                              ? Text(
-                                                  prediction.secondaryText,
-                                                  style: TextStyle(
-                                                    fontSize: 12.sp,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                )
-                                              : null,
-                                          trailing: prediction.distance != null
-                                              ? Text(
-                                                  prediction.distance!,
-                                                  style: TextStyle(
-                                                    fontSize: 12.sp,
-                                                    color: Colors.grey[600],
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                )
-                                              : null,
-                                          onTap: () => _selectLocation(
-                                            prediction,
-                                            _isFromFieldFocused,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                SizedBox(height: 15.h),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 20.w,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Saved location',
-                                      style: ConstTextStyles.savedLocation,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 10.h),
-                                Divider(
-                                  thickness: 1,
-                                  color: Colors.grey.shade300,
-                                ),
-                                ListTile(
-                                  leading: Image.asset(
-                                    ConstImages.add,
-                                    width: 24.w,
-                                    height: 24.h,
-                                  ),
-                                  title: Text(
-                                    'Add home location',
-                                    style: ConstTextStyles.locationItem,
-                                  ),
-                                  onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const AddHomeScreen(
-                                              locationType: 'home',
-                                            ),
-                                      ),
-                                    );
-                                    if (result == true) {
-                                      _loadFavouriteLocations();
-                                      CustomFlushbar.showSuccess(
-                                        context: context,
-                                        message:
-                                            'Home Location saved successfully!',
-                                      );
-                                    }
-                                  },
-                                ),
-                                Divider(
-                                  thickness: 1,
-                                  color: Colors.grey.shade300,
-                                ),
-                                ListTile(
-                                  leading: Image.asset(
-                                    ConstImages.add,
-                                    width: 24.w,
-                                    height: 24.h,
-                                  ),
-                                  title: Text(
-                                    'Add work location',
-                                    style: ConstTextStyles.locationItem,
-                                  ),
-                                  onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const AddHomeScreen(
-                                              locationType: 'work',
-                                            ),
-                                      ),
-                                    );
-                                    if (result == true) {
-                                      _loadFavouriteLocations();
-                                      CustomFlushbar.showSuccess(
-                                        context: context,
-                                        message:
-                                            'Work Location saved successfully!',
-                                      );
-                                    }
-                                  },
-                                ),
-                                Divider(
-                                  thickness: 1,
-                                  color: Colors.grey.shade300,
-                                ),
-                                ListTile(
-                                  leading: Image.asset(
-                                    ConstImages.add,
-                                    width: 24.w,
-                                    height: 24.h,
-                                  ),
-                                  title: Text(
-                                    'Add favourite location',
-                                    style: ConstTextStyles.locationItem,
-                                  ),
-                                  onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const AddHomeScreen(
-                                              locationType: 'favourite',
-                                            ),
-                                      ),
-                                    );
-                                    if (result == true) {
-                                      _loadFavouriteLocations();
-                                      CustomFlushbar.showSuccess(
-                                        context: context,
-                                        message:
-                                            'Favourite Location saved successfully!',
-                                      );
-                                    }
-                                  },
-                                ),
-                                SizedBox(height: 15.h),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 20.w,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Recent locations',
-                                      style: ConstTextStyles.recentLocation
-                                          .copyWith(
-                                            color: Color(
-                                              ConstColors.recentLocationColor,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 10.h),
-                                Divider(
-                                  thickness: 1,
-                                  color: Colors.grey.shade300,
-                                ),
-                                Consumer<LocationProvider>(
-                                  builder: (context, locationProvider, child) {
-                                    final allLocations = <Widget>[];
-
-                                    // Add favourite locations with appropriate icons
-                                    for (final fav in _favouriteLocations) {
-                                      allLocations.add(
-                                        Column(
-                                          children: [
-                                            ListTile(
-                                              leading: _getFavoriteLocationIcon(
-                                                fav.name,
-                                              ),
-                                              title: Text(
-                                                fav.name,
-                                                style:
-                                                    ConstTextStyles.drawerItem1,
-                                              ),
-                                              subtitle: Text(
-                                                fav.destAddress,
+                                        ),
+                                        subtitle:
+                                            prediction.secondaryText.isNotEmpty
+                                            ? Text(
+                                                prediction.secondaryText,
                                                 style: TextStyle(
                                                   fontSize: 12.sp,
-                                                  color: Colors.grey,
+                                                  color: Colors.grey[600],
                                                 ),
-                                              ),
-                                              trailing: Icon(
-                                                Icons.star,
-                                                color: Colors.amber,
-                                                size: 24.sp,
-                                              ),
-                                              onTap: () {
-                                                if (_isFromFieldFocused) {
-                                                  fromController.text =
-                                                      fav.destAddress;
-                                                } else {
-                                                  toController.text =
-                                                      fav.destAddress;
-                                                }
-                                                setState(() {
-                                                  _showSuggestions = false;
-                                                });
-                                                // Check if both fields are filled
-                                                if (fromController
-                                                            .text
-                                                            .length >=
-                                                        3 &&
-                                                    toController.text.length >=
-                                                        3) {
-                                                  _checkBothFields();
-                                                }
-                                              },
-                                              onLongPress: () async {
-                                                final shouldDelete = await showDialog<bool>(
-                                                  context: context,
-                                                  builder: (context) => Dialog(
-                                                    backgroundColor:
-                                                        Colors.white,
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12.r,
-                                                          ),
-                                                    ),
-                                                    child: Padding(
-                                                      padding: EdgeInsets.all(
-                                                        20.w,
-                                                      ),
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Text(
-                                                            'Remove from ${fav.name}',
-                                                            style: TextStyle(
-                                                              fontFamily:
-                                                                  'Inter',
-                                                              fontSize: 18.sp,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              color:
-                                                                  Colors.black,
-                                                            ),
-                                                          ),
-                                                          SizedBox(
-                                                            height: 12.h,
-                                                          ),
-                                                          Text(
-                                                            'This location will be removed from your favourites. You can add it again anytime.',
-                                                            style: TextStyle(
-                                                              fontFamily:
-                                                                  'Inter',
-                                                              fontSize: 14.sp,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w400,
-                                                              color: Colors
-                                                                  .black87,
-                                                            ),
-                                                          ),
-                                                          SizedBox(
-                                                            height: 24.h,
-                                                          ),
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .end,
-                                                            children: [
-                                                              Container(
-                                                                width: 120.w,
-                                                                height: 40.h,
-                                                                child: ElevatedButton(
-                                                                  onPressed: () =>
-                                                                      Navigator.pop(
-                                                                        context,
-                                                                        false,
-                                                                      ),
-                                                                  style: ElevatedButton.styleFrom(
-                                                                    backgroundColor:
-                                                                        Color(
-                                                                          0xFFB1B1B1,
-                                                                        ),
-                                                                    shape: RoundedRectangleBorder(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            8.r,
-                                                                          ),
-                                                                    ),
-                                                                    elevation:
-                                                                        0,
-                                                                  ),
-                                                                  child: Text(
-                                                                    'Cancel',
-                                                                    style: TextStyle(
-                                                                      fontFamily:
-                                                                          'Inter',
-                                                                      fontSize:
-                                                                          14.sp,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                      color: Colors
-                                                                          .white,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                              SizedBox(
-                                                                width: 12.w,
-                                                              ),
-                                                              Container(
-                                                                width: 120.w,
-                                                                height: 40.h,
-                                                                child: ElevatedButton(
-                                                                  onPressed: () =>
-                                                                      Navigator.pop(
-                                                                        context,
-                                                                        true,
-                                                                      ),
-                                                                  style: ElevatedButton.styleFrom(
-                                                                    backgroundColor: Color(
-                                                                      ConstColors
-                                                                          .mainColor,
-                                                                    ),
-                                                                    shape: RoundedRectangleBorder(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            8.r,
-                                                                          ),
-                                                                    ),
-                                                                    elevation:
-                                                                        0,
-                                                                  ),
-                                                                  child: Text(
-                                                                    'Remove',
-                                                                    style: TextStyle(
-                                                                      fontFamily:
-                                                                          'Inter',
-                                                                      fontSize:
-                                                                          14.sp,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w600,
-                                                                      color: Colors
-                                                                          .white,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-
-                                                if (shouldDelete == true) {
-                                                  try {
-                                                    await _favouriteService
-                                                        .deleteFavouriteLocation(
-                                                          fav.id,
-                                                        );
-                                                    _loadFavouriteLocations();
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Favourite removed',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                      ),
-                                                    );
-                                                  } catch (e) {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Failed to remove favourite',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                }
-                                              },
-                                            ),
-                                            Divider(
-                                              thickness: 1,
-                                              color: Colors.grey.shade300,
-                                            ),
-                                          ],
+                                              )
+                                            : null,
+                                        trailing: prediction.distance != null
+                                            ? Text(
+                                                prediction.distance!,
+                                                style: TextStyle(
+                                                  fontSize: 12.sp,
+                                                  color: Colors.grey[600],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              )
+                                            : null,
+                                        onTap: () => _selectLocation(
+                                          prediction,
+                                          _isFromFieldFocused,
                                         ),
                                       );
-                                    }
+                                    },
+                                  ),
 
-                                    // Add recent locations without star
-                                    for (final recent
-                                        in locationProvider.recentLocations) {
-                                      if (!recent.isFavourite) {
+                                if (!_showSuggestions ||
+                                    _locationSuggestions.isEmpty) ...[
+                                  SizedBox(height: 15.h),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 20.w,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Saved location',
+                                        style: ConstTextStyles.savedLocation,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: 10.h),
+                                  Divider(
+                                    thickness: 1,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  ListTile(
+                                    leading: Image.asset(
+                                      ConstImages.add,
+                                      width: 24.w,
+                                      height: 24.h,
+                                    ),
+                                    title: Text(
+                                      'Add home location',
+                                      style: ConstTextStyles.locationItem,
+                                    ),
+                                    onTap: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const AddHomeScreen(
+                                                locationType: 'home',
+                                              ),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        _loadFavouriteLocations();
+                                        CustomFlushbar.showSuccess(
+                                          context: context,
+                                          message:
+                                              'Home Location saved successfully!',
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  Divider(
+                                    thickness: 1,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  ListTile(
+                                    leading: Image.asset(
+                                      ConstImages.add,
+                                      width: 24.w,
+                                      height: 24.h,
+                                    ),
+                                    title: Text(
+                                      'Add work location',
+                                      style: ConstTextStyles.locationItem,
+                                    ),
+                                    onTap: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const AddHomeScreen(
+                                                locationType: 'work',
+                                              ),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        _loadFavouriteLocations();
+                                        CustomFlushbar.showSuccess(
+                                          context: context,
+                                          message:
+                                              'Work Location saved successfully!',
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  Divider(
+                                    thickness: 1,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  ListTile(
+                                    leading: Image.asset(
+                                      ConstImages.add,
+                                      width: 24.w,
+                                      height: 24.h,
+                                    ),
+                                    title: Text(
+                                      'Add favourite location',
+                                      style: ConstTextStyles.locationItem,
+                                    ),
+                                    onTap: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const AddHomeScreen(
+                                                locationType: 'favourite',
+                                              ),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        _loadFavouriteLocations();
+                                        CustomFlushbar.showSuccess(
+                                          context: context,
+                                          message:
+                                              'Favourite Location saved successfully!',
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  SizedBox(height: 15.h),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 20.w,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Recent locations',
+                                        style: ConstTextStyles.recentLocation
+                                            .copyWith(
+                                              color: Color(
+                                                ConstColors.recentLocationColor,
+                                              ),
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: 10.h),
+                                  Divider(
+                                    thickness: 1,
+                                    color: Colors.grey.shade300,
+                                  ),
+
+                                  Consumer<LocationProvider>(
+                                    builder: (context, locationProvider, child) {
+                                      final allLocations = <Widget>[];
+
+                                      for (final fav in _favouriteLocations) {
                                         allLocations.add(
                                           Column(
                                             children: [
                                               ListTile(
-                                                leading: Image.asset(
-                                                  ConstImages.locationPin,
-                                                  width: 24.w,
-                                                  height: 24.h,
-                                                ),
+                                                leading:
+                                                    _getFavoriteLocationIcon(
+                                                      fav.name,
+                                                    ),
                                                 title: Text(
-                                                  recent.name,
+                                                  fav.name,
                                                   style: ConstTextStyles
                                                       .drawerItem1,
                                                 ),
                                                 subtitle: Text(
-                                                  recent.address,
+                                                  fav.destAddress,
                                                   style: TextStyle(
                                                     fontSize: 12.sp,
                                                     color: Colors.grey,
                                                   ),
                                                 ),
+                                                trailing: Icon(
+                                                  Icons.star,
+                                                  color: Colors.amber,
+                                                  size: 24.sp,
+                                                ),
                                                 onTap: () {
                                                   if (_isFromFieldFocused) {
                                                     fromController.text =
-                                                        recent.address;
+                                                        fav.destAddress;
                                                   } else {
                                                     toController.text =
-                                                        recent.address;
+                                                        fav.destAddress;
                                                   }
                                                   setState(() {
                                                     _showSuggestions = false;
                                                   });
-                                                  // Check if both fields are filled
                                                   if (fromController
                                                               .text
                                                               .length >=
@@ -3741,217 +3202,93 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     _checkBothFields();
                                                   }
                                                 },
-                                                onLongPress: () async {
-                                                  final shouldDelete = await showDialog<bool>(
-                                                    context: context,
-                                                    builder: (context) => Dialog(
-                                                      backgroundColor:
-                                                          Colors.white,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12.r,
-                                                            ),
-                                                      ),
-                                                      child: Padding(
-                                                        padding: EdgeInsets.all(
-                                                          20.w,
-                                                        ),
-                                                        child: Column(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Text(
-                                                              'Remove from ${recent.name}',
-                                                              style: TextStyle(
-                                                                fontFamily:
-                                                                    'Inter',
-                                                                fontSize: 18.sp,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                                color: Colors
-                                                                    .black,
-                                                              ),
-                                                            ),
-                                                            SizedBox(
-                                                              height: 12.h,
-                                                            ),
-                                                            Text(
-                                                              'This location will be removed from your favourites. You can add it again anytime.',
-                                                              style: TextStyle(
-                                                                fontFamily:
-                                                                    'Inter',
-                                                                fontSize: 14.sp,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w400,
-                                                                color: Colors
-                                                                    .black87,
-                                                              ),
-                                                            ),
-                                                            SizedBox(
-                                                              height: 24.h,
-                                                            ),
-                                                            Row(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .end,
-                                                              children: [
-                                                                Container(
-                                                                  width: 120.w,
-                                                                  height: 40.h,
-                                                                  child: ElevatedButton(
-                                                                    onPressed: () =>
-                                                                        Navigator.pop(
-                                                                          context,
-                                                                          false,
-                                                                        ),
-                                                                    style: ElevatedButton.styleFrom(
-                                                                      backgroundColor:
-                                                                          Color(
-                                                                            0xFFB1B1B1,
-                                                                          ),
-                                                                      shape: RoundedRectangleBorder(
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                              8.r,
-                                                                            ),
-                                                                      ),
-                                                                      elevation:
-                                                                          0,
-                                                                    ),
-                                                                    child: Text(
-                                                                      'Cancel',
-                                                                      style: TextStyle(
-                                                                        fontFamily:
-                                                                            'Inter',
-                                                                        fontSize:
-                                                                            14.sp,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                        color: Colors
-                                                                            .white,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                                SizedBox(
-                                                                  width: 12.w,
-                                                                ),
-                                                                Container(
-                                                                  width: 120.w,
-                                                                  height: 40.h,
-                                                                  child: ElevatedButton(
-                                                                    onPressed: () =>
-                                                                        Navigator.pop(
-                                                                          context,
-                                                                          true,
-                                                                        ),
-                                                                    style: ElevatedButton.styleFrom(
-                                                                      backgroundColor: Color(
-                                                                        ConstColors
-                                                                            .mainColor,
-                                                                      ),
-                                                                      shape: RoundedRectangleBorder(
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(
-                                                                              8.r,
-                                                                            ),
-                                                                      ),
-                                                                      elevation:
-                                                                          0,
-                                                                    ),
-                                                                    child: Text(
-                                                                      'Remove',
-                                                                      style: TextStyle(
-                                                                        fontFamily:
-                                                                            'Inter',
-                                                                        fontSize:
-                                                                            14.sp,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                        color: Colors
-                                                                            .white,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  );
-
-                                                  if (shouldDelete == true) {
-                                                    // Remove from recent locations
-                                                    locationProvider
-                                                        .deleteRecentLocation(
-                                                          recent.name,
-                                                        );
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Location removed',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                      ),
-                                                    );
-                                                  }
-                                                },
                                               ),
-                                              if (recent !=
-                                                      locationProvider
-                                                          .recentLocations
-                                                          .where(
-                                                            (r) =>
-                                                                !r.isFavourite,
-                                                          )
-                                                          .last ||
-                                                  _favouriteLocations
-                                                      .isNotEmpty ||
-                                                  locationProvider
-                                                          .recentLocations
-                                                          .where(
-                                                            (r) =>
-                                                                !r.isFavourite,
-                                                          )
-                                                          .length >
-                                                      locationProvider
-                                                          .recentLocations
-                                                          .where(
-                                                            (r) =>
-                                                                !r.isFavourite,
-                                                          )
-                                                          .length)
-                                                Divider(
-                                                  thickness: 1,
-                                                  color: Colors.grey.shade300,
-                                                ),
+                                              Divider(
+                                                thickness: 1,
+                                                color: Colors.grey.shade300,
+                                              ),
                                             ],
                                           ),
                                         );
                                       }
-                                    }
 
-                                    return Column(children: allLocations);
-                                  },
-                                ),
+                                      for (final recent
+                                          in locationProvider.recentLocations) {
+                                        if (!recent.isFavourite) {
+                                          allLocations.add(
+                                            Column(
+                                              children: [
+                                                ListTile(
+                                                  leading: Image.asset(
+                                                    ConstImages.locationPin,
+                                                    width: 24.w,
+                                                    height: 24.h,
+                                                  ),
+                                                  title: Text(
+                                                    recent.name,
+                                                    style: ConstTextStyles
+                                                        .drawerItem1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                  ),
+                                                  subtitle: Text(
+                                                    recent.address,
+                                                    style: TextStyle(
+                                                      fontSize: 12.sp,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                  ),
+                                                  onTap: () {
+                                                    if (_isFromFieldFocused) {
+                                                      fromController.text =
+                                                          recent.address;
+                                                    } else {
+                                                      toController.text =
+                                                          recent.address;
+                                                    }
+                                                    setState(() {
+                                                      _showSuggestions = false;
+                                                    });
+                                                    if (fromController
+                                                                .text
+                                                                .length >=
+                                                            3 &&
+                                                        toController
+                                                                .text
+                                                                .length >=
+                                                            3) {
+                                                      _checkBothFields();
+                                                    }
+                                                  },
+                                                ),
+                                                Divider(
+                                                  thickness: 1,
+                                                  color: Colors.grey.shade300,
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                      }
+
+                                      return Column(children: allLocations);
+                                    },
+                                  ),
+                                ],
                               ],
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
-                  ],
+                    );
+                  },
                 ),
+            ],
+          ),
         ),
       ),
     );
@@ -4406,10 +3743,11 @@ class _HomeScreenState extends State<HomeScreen> {
               // SizedBox(height: 10.h),
               Divider(thickness: 1, color: Colors.grey.shade300),
               SizedBox(height: 20.h),
-              GestureDetector( onTap: () {
-                      Navigator.pop(context);
-                      _showVehicleSelection();
-                    },
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _showVehicleSelection();
+                },
                 child: Row(
                   children: [
                     Image.asset(
@@ -5027,19 +4365,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20.h),
-            _buildPaymentOption('Pay with wallet', onPaymentChanged: onPaymentChanged),
+            _buildPaymentOption(
+              'Pay with wallet',
+              onPaymentChanged: onPaymentChanged,
+            ),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('Pay with card', onPaymentChanged: onPaymentChanged),
+            _buildPaymentOption(
+              'Pay with card',
+              onPaymentChanged: onPaymentChanged,
+            ),
             Divider(thickness: 1, color: Colors.grey.shade300),
             _buildPaymentOption('pay4me', onPaymentChanged: onPaymentChanged),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('Pay in car', onPaymentChanged: onPaymentChanged),
+            _buildPaymentOption(
+              'Pay in car',
+              onPaymentChanged: onPaymentChanged,
+            ),
           ],
         ),
       ),
     );
   }
-
 
   String _getPaymentMethodIcon(String method) {
     switch (method) {
@@ -5069,12 +4415,12 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedPaymentMethod = method;
         });
         AppLogger.log('💳 New payment method set: $selectedPaymentMethod');
-        
+
         // Call the callback to update parent sheet
         if (onPaymentChanged != null) {
           onPaymentChanged();
         }
-        
+
         Navigator.pop(context);
       },
       child: Padding(
@@ -9005,7 +8351,7 @@ class _HomeScreenState extends State<HomeScreen> {
     toController.dispose();
     stopController.dispose();
     noteController.dispose();
-    
+
     // Dispose sheet controller
     _sheetController.removeListener(_onSheetChanged);
     _sheetController.dispose();

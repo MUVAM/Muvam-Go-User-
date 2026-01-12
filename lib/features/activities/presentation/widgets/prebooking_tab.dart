@@ -93,8 +93,7 @@ class PrebookingTab extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  width: 353.w,
-                  height: 200.h,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(5.r),
@@ -103,7 +102,7 @@ class PrebookingTab extends StatelessWidget {
                       width: 0.5,
                     ),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 15.w),
+                  padding: EdgeInsets.all(15.sp),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

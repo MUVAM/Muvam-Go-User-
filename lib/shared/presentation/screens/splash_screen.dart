@@ -5,7 +5,7 @@ import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
-import 'package:muvam/features/home/presentation/screens/home_screen.dart';
+import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -67,13 +67,16 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _circlePositionAnimation = Tween<Offset>(
-      begin: const Offset(0, 5), // Start from bottom
-      end: Offset.zero, // Move to center
-    ).animate(CurvedAnimation(
-      parent: _circlePositionController,
-      curve: Curves.easeInOut,
-    ));
+    _circlePositionAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, 5), // Start from bottom
+          end: Offset.zero, // Move to center
+        ).animate(
+          CurvedAnimation(
+            parent: _circlePositionController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
     // Circle expand animation controller (expands to fill screen)
     _circleExpandController = AnimationController(
@@ -81,13 +84,16 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _circleScaleAnimation = Tween<double>(
-      begin: 0.1, // Start small
-      end: 10.0, // Expand to fill screen
-    ).animate(CurvedAnimation(
-      parent: _circleExpandController,
-      curve: Curves.easeInOut,
-    ));
+    _circleScaleAnimation =
+        Tween<double>(
+          begin: 0.1, // Start small
+          end: 10.0, // Expand to fill screen
+        ).animate(
+          CurvedAnimation(
+            parent: _circleExpandController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
     // Text color animation controller (changes from green to white)
     _textColorController = AnimationController(
@@ -95,13 +101,13 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _textColorAnimation = ColorTween(
-      begin: Color(ConstColors.mainColor),
-      end: Colors.white,
-    ).animate(CurvedAnimation(
-      parent: _textColorController,
-      curve: Curves.easeIn,
-    ));
+    _textColorAnimation =
+        ColorTween(
+          begin: Color(ConstColors.mainColor),
+          end: Colors.white,
+        ).animate(
+          CurvedAnimation(parent: _textColorController, curve: Curves.easeIn),
+        );
 
     // Start car animation, then text animation, then circle animations
     _carController.forward().then((_) {
@@ -140,7 +146,9 @@ class _SplashScreenState extends State<SplashScreen>
         if (isTokenValid) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (context) => const MainNavigationScreen(),
+            ),
           );
         } else {
           Navigator.pushReplacement(
@@ -216,7 +224,9 @@ class _SplashScreenState extends State<SplashScreen>
                     return Text(
                       'MUVAM',
                       style: TextStyle(
-                        color: _textColorAnimation.value ?? Color(ConstColors.mainColor),
+                        color:
+                            _textColorAnimation.value ??
+                            Color(ConstColors.mainColor),
                         fontSize: 36.sp,
                         fontWeight: FontWeight.bold,
                       ),

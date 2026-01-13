@@ -8,10 +8,12 @@ class DeleteConfirmationSheet {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) => _DeleteConfirmationContent(
         onCancel: () => Navigator.pop(context),
         onDelete: () {
-          Navigator.pop(context);
+          Navigator.pop(context); // Close bottom sheet
           onDelete();
         },
       ),
@@ -59,7 +61,7 @@ class _DeleteConfirmationContent extends StatelessWidget {
           ),
           SizedBox(height: 20.h),
           Text(
-            'Are you sure you want to delete your account?',
+            'Are you sure you want to delete your account? This action cannot be undone.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Inter',
@@ -71,44 +73,54 @@ class _DeleteConfirmationContent extends StatelessWidget {
           SizedBox(height: 30.h),
           Row(
             children: [
-              Container(
-                width: 170.w,
-                height: 47.h,
-                decoration: BoxDecoration(
-                  color: Color(0xFFB1B1B1),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: onCancel,
-                  child: Center(
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+              Expanded(
+                child: Container(
+                  height: 47.h,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFB1B1B1),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8.r),
+                      onTap: onCancel,
+                      child: Center(
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
               SizedBox(width: 10.w),
-              Container(
-                width: 170.w,
-                height: 47.h,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: onDelete,
-                  child: Center(
-                    child: Text(
-                      'Delete account',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+              Expanded(
+                child: Container(
+                  height: 47.h,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8.r),
+                      onTap: onDelete,
+                      child: Center(
+                        child: Text(
+                          'Delete account',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),

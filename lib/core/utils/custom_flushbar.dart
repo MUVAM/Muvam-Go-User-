@@ -49,7 +49,7 @@ class CustomFlushbar {
       message: message,
       duration: duration,
       flushbarPosition: FlushbarPosition.TOP,
-      backgroundColor: Color(ConstColors.mainColor),
+      backgroundColor: Color(ConstColors.failureColor),
       icon: const Icon(Icons.info, color: Color(ConstColors.whiteColor)),
     ).show(context);
   }

@@ -11,6 +11,7 @@ import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:muvam/features/activities/data/providers/rides_provider.dart';
+import 'package:muvam/features/auth/data/providers/%20delete_account_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
@@ -293,6 +294,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ChangeNotifierProvider(create: (_) => ReferralProvider()),
             ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
             ChangeNotifierProvider(create: (_) => PromoCodeProvider()),
+            ChangeNotifierProvider(create: (_) => DeleteAccountProvider()),
           ],
           child: ConnectivityWrapper(
             child: MaterialApp(

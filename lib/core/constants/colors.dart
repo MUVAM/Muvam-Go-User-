@@ -9,4 +9,6 @@ class ConstColors {
   static const successColor = 0xFF4CAF50;
   static const failureColor = 0xFFF44336;
   static const whiteColor = 0xFFFFFFFF;
+  static const blackColor = 0xFF000000;
+  static const greyColor = 0xFFB1B1B1;
 }

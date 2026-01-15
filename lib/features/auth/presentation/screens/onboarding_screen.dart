@@ -42,19 +42,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8.r)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Container(
-              height: 500.h,
-              padding: EdgeInsets.symmetric(vertical: 16.h),
+              height: MediaQuery.of(context).size.height * 0.9,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+              ),
               child: Column(
                 children: [
-                  // Search field
+                  Container(
+                    margin: EdgeInsets.only(top: 12.h),
+                    width: 50.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
                     child: TextField(
@@ -84,17 +93,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
-                          borderSide: BorderSide(
-                            color: Colors.grey,
-                            width: 1,
-                          ),
+                          borderSide: BorderSide(color: Colors.grey, width: 1),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
-                          borderSide: BorderSide(
-                            color: Colors.grey,
-                            width: 1,
-                          ),
+                          borderSide: BorderSide(color: Colors.grey, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
@@ -114,11 +117,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             filteredCountries = allCountries;
                           } else {
                             filteredCountries = allCountries
-                                .where((country) =>
-                                    country.name
-                                        .toLowerCase()
-                                        .contains(value.toLowerCase()) ||
-                                    country.phoneCode.contains(value))
+                                .where(
+                                  (country) =>
+                                      country.name.toLowerCase().contains(
+                                        value.toLowerCase(),
+                                      ) ||
+                                      country.phoneCode.contains(value),
+                                )
                                 .toList();
                           }
                         });
@@ -126,12 +131,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  // Country list
                   Expanded(
-                    child: ListView.builder(
+                    child: ListView.separated(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
                       itemCount: filteredCountries.length,
+                      separatorBuilder: (context, index) => Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey[200],
+                      ),
                       itemBuilder: (context, index) {
                         final country = filteredCountries[index];
+                        final isSelected =
+                            countryCode == '+${country.phoneCode}';
+
                         return InkWell(
                           onTap: () {
                             setState(() {
@@ -140,57 +153,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             });
                             Navigator.pop(context);
                           },
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 16.w,
-                                  vertical: 12.h,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 16.h),
+                            child: Row(
+                              children: [
+                                // Flag
+                                Text(
+                                  country.flagEmoji,
+                                  style: TextStyle(fontSize: 28.sp),
                                 ),
-                                child: Row(
-                                  children: [
-                                    // Flag
-                                    Text(
-                                      country.flagEmoji,
-                                      style: TextStyle(fontSize: 24.sp),
+                                SizedBox(width: 16.w),
+                                // Country name
+                                Expanded(
+                                  child: Text(
+                                    country.name,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.black,
                                     ),
-                                    SizedBox(width: 12.w),
-                                    // Country name
-                                    Expanded(
-                                      child: Text(
-                                        country.name,
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    // Country code at the far right
-                                    Text(
-                                      '+${country.phoneCode}',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              // Divider below each country
-                              Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Colors.grey[200],
-                              ),
-                            ],
+                                Text(
+                                  '+${country.phoneCode}',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  SizedBox(width: 12.w),
+                                  Icon(
+                                    Icons.check,
+                                    color: Color(ConstColors.mainColor),
+                                    size: 20.sp,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         );
                       },
                     ),
                   ),
+                  SizedBox(height: 20.h),
                 ],
               ),
             );
@@ -311,7 +320,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 await prefs.setString('user_phone', fullPhone);
 
                                 // Small delay to ensure UI updates
-                                await Future.delayed(Duration(milliseconds: 100));
+                                await Future.delayed(
+                                  Duration(milliseconds: 100),
+                                );
 
                                 if (mounted) {
                                   Navigator.push(

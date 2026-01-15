@@ -2288,11 +2288,9 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_lastBackPress == null ||
               now.difference(_lastBackPress!) > Duration(seconds: 2)) {
             _lastBackPress = now;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Press back again to exit'),
-                duration: Duration(seconds: 2),
-              ),
+            CustomFlushbar.showInfo(
+              context: context,
+              message: 'Press back again to exit',
             );
           } else {
             Navigator.of(context).pop();
@@ -2945,8 +2943,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-
-                          // Everything below this point IS scrollable
                           Expanded(
                             child: ListView(
                               controller: scrollController,
@@ -2955,6 +2951,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (_showSuggestions &&
                                     _locationSuggestions.isNotEmpty)
                                   ListView.separated(
+                                    padding: EdgeInsets.zero,
                                     shrinkWrap: true,
                                     physics: NeverScrollableScrollPhysics(),
                                     itemCount: _locationSuggestions.length,
@@ -3024,132 +3021,140 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   SizedBox(height: 10.h),
-                                  Divider(
-                                    thickness: 1,
-                                    color: Colors.grey.shade300,
-                                  ),
-                                  ListTile(
-                                    leading: Image.asset(
-                                      ConstImages.add,
-                                      width: 24.w,
-                                      height: 24.h,
-                                    ),
-                                    title: Text(
-                                      'Add home location',
-                                      style: ConstTextStyles.locationItem,
-                                    ),
-                                    onTap: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AddHomeScreen(
-                                                locationType: 'home',
-                                              ),
-                                        ),
-                                      );
-                                      if (result == true) {
-                                        _loadFavouriteLocations();
-                                        CustomFlushbar.showSuccess(
-                                          context: context,
-                                          message:
-                                              'Home Location saved successfully!',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  Divider(
-                                    thickness: 1,
-                                    color: Colors.grey.shade300,
-                                  ),
-                                  ListTile(
-                                    leading: Image.asset(
-                                      ConstImages.add,
-                                      width: 24.w,
-                                      height: 24.h,
-                                    ),
-                                    title: Text(
-                                      'Add work location',
-                                      style: ConstTextStyles.locationItem,
-                                    ),
-                                    onTap: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AddHomeScreen(
-                                                locationType: 'work',
-                                              ),
-                                        ),
-                                      );
-                                      if (result == true) {
-                                        _loadFavouriteLocations();
-                                        CustomFlushbar.showSuccess(
-                                          context: context,
-                                          message:
-                                              'Work Location saved successfully!',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  Divider(
-                                    thickness: 1,
-                                    color: Colors.grey.shade300,
-                                  ),
-                                  ListTile(
-                                    leading: Image.asset(
-                                      ConstImages.add,
-                                      width: 24.w,
-                                      height: 24.h,
-                                    ),
-                                    title: Text(
-                                      'Add favourite location',
-                                      style: ConstTextStyles.locationItem,
-                                    ),
-                                    onTap: () async {
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AddHomeScreen(
-                                                locationType: 'favourite',
-                                              ),
-                                        ),
-                                      );
-                                      if (result == true) {
-                                        _loadFavouriteLocations();
-                                        CustomFlushbar.showSuccess(
-                                          context: context,
-                                          message:
-                                              'Favourite Location saved successfully!',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  SizedBox(height: 15.h),
                                   Padding(
                                     padding: EdgeInsets.symmetric(
                                       horizontal: 20.w,
                                     ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Recent locations',
-                                        style: ConstTextStyles.recentLocation
-                                            .copyWith(
-                                              color: Color(
-                                                ConstColors.recentLocationColor,
+                                    child: Column(
+                                      children: [
+                                        Divider(
+                                          thickness: 1,
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        ListTile(
+                                          contentPadding: EdgeInsets.all(3.sp),
+                                          leading: Image.asset(
+                                            ConstImages.add,
+                                            width: 24.w,
+                                            height: 24.h,
+                                          ),
+                                          title: Text(
+                                            'Add home location',
+                                            style: ConstTextStyles.locationItem,
+                                          ),
+                                          onTap: () async {
+                                            final result = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const AddHomeScreen(
+                                                      locationType: 'home',
+                                                    ),
                                               ),
-                                            ),
-                                      ),
+                                            );
+                                            if (result == true) {
+                                              _loadFavouriteLocations();
+                                              CustomFlushbar.showSuccess(
+                                                context: context,
+                                                message:
+                                                    'Home Location saved successfully!',
+                                              );
+                                            }
+                                          },
+                                        ),
+                                        Divider(
+                                          thickness: 1,
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        ListTile(
+                                          contentPadding: EdgeInsets.all(3.sp),
+                                          leading: Image.asset(
+                                            ConstImages.add,
+                                            width: 24.w,
+                                            height: 24.h,
+                                          ),
+                                          title: Text(
+                                            'Add work location',
+                                            style: ConstTextStyles.locationItem,
+                                          ),
+                                          onTap: () async {
+                                            final result = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const AddHomeScreen(
+                                                      locationType: 'work',
+                                                    ),
+                                              ),
+                                            );
+                                            if (result == true) {
+                                              _loadFavouriteLocations();
+                                              CustomFlushbar.showSuccess(
+                                                context: context,
+                                                message:
+                                                    'Work Location saved successfully!',
+                                              );
+                                            }
+                                          },
+                                        ),
+                                        Divider(
+                                          thickness: 1,
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        ListTile(
+                                          contentPadding: EdgeInsets.all(3.sp),
+                                          leading: Image.asset(
+                                            ConstImages.add,
+                                            width: 24.w,
+                                            height: 24.h,
+                                          ),
+                                          title: Text(
+                                            'Add favourite location',
+                                            style: ConstTextStyles.locationItem,
+                                          ),
+                                          onTap: () async {
+                                            final result = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const AddHomeScreen(
+                                                      locationType: 'favourite',
+                                                    ),
+                                              ),
+                                            );
+                                            if (result == true) {
+                                              _loadFavouriteLocations();
+                                              CustomFlushbar.showSuccess(
+                                                context: context,
+                                                message:
+                                                    'Favourite Location saved successfully!',
+                                              );
+                                            }
+                                          },
+                                        ),
+                                        SizedBox(height: 15.h),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Recent locations',
+                                            style: ConstTextStyles
+                                                .recentLocation
+                                                .copyWith(
+                                                  color: Color(
+                                                    ConstColors
+                                                        .recentLocationColor,
+                                                  ),
+                                                ),
+                                          ),
+                                        ),
+                                        SizedBox(height: 10.h),
+                                        Divider(
+                                          thickness: 1,
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  SizedBox(height: 10.h),
-                                  Divider(
-                                    thickness: 1,
-                                    color: Colors.grey.shade300,
-                                  ),
-
                                   Consumer<LocationProvider>(
                                     builder: (context, locationProvider, child) {
                                       final allLocations = <Widget>[];
@@ -3486,45 +3491,53 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: 600.h,
+          height: 700.h,
           padding: EdgeInsets.all(20.w),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
                   width: 69.w,
-                  height: 5.h,
+                  height: 4.h,
                   margin: EdgeInsets.only(bottom: 20.h),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2.5.r),
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Select your vehicle',
-                      style: ConstTextStyles.addHomeTitle,
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(Icons.close, size: 24.sp),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20.h),
-                Divider(thickness: 1, color: Colors.grey.shade300),
-                SizedBox(height: 20.h),
-                ..._buildVehicleOptions(setModalState),
-                SizedBox(height: 30.h),
-                Container(
-                  width: 353.w,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Select your vehicle',
+                    style: ConstTextStyles.addHomeTitle,
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close, size: 24.sp),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 20.h),
+              ..._buildVehicleOptions(setModalState),
+              Spacer(),
+              GestureDetector(
+                onTap: selectedVehicle != null
+                    ? () {
+                        Navigator.pop(context);
+                        _showBookingDetails();
+                      }
+                    : null,
+                child: Container(
+                  width: double.infinity,
                   height: 48.h,
                   decoration: BoxDecoration(
                     color: selectedVehicle != null
@@ -3532,27 +3545,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         : Color(ConstColors.fieldColor),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
-                  child: GestureDetector(
-                    onTap: selectedVehicle != null
-                        ? () {
-                            Navigator.pop(context);
-                            _showBookingDetails();
-                          }
-                        : null,
-                    child: Center(
-                      child: Text(
-                        'Select vehicle',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  child: Center(
+                    child: Text(
+                      'Select vehicle',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: 10.h),
+            ],
           ),
         ),
       ),
@@ -3593,7 +3599,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setModalState(() {});
           },
           child: Container(
-            width: 353.w,
+            width: double.infinity,
             height: 65.h,
             margin: EdgeInsets.only(bottom: 15.h),
             padding: EdgeInsets.symmetric(horizontal: 8.w),
@@ -3645,7 +3651,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-
     return options;
   }
 
@@ -4037,14 +4042,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       },
                                     );
                                   } else {
-                                    // Show generic error snackbar for other errors
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
+                                    CustomFlushbar.showError(
+                                      context: context,
+                                      message:
                                           'Failed to book ride. Please try again.',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
                                     );
                                   }
                                 }
@@ -4200,13 +4201,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     );
                                   } else {
                                     // Show generic error snackbar for other errors
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
+                                    CustomFlushbar.showError(
+                                      context: context,
+                                      message:
                                           'Failed to book ride. Please try again.',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
                                     );
                                   }
                                 }
@@ -4216,8 +4214,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         : null,
                     child: Container(
                       width: 170.w,
-                      height: isScheduledRide ? 55.h : 47.h,
-                      padding: EdgeInsets.all(10.w),
+                      height: 47.h,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10.w,
+                        vertical: 8.h,
+                      ),
                       decoration: BoxDecoration(
                         color: Color(ConstColors.mainColor),
                         borderRadius: BorderRadius.circular(8.r),
@@ -4235,27 +4236,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               )
                             : isScheduledRide
-                            ? Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Confirm Booking',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13.sp,
-                                      fontWeight: FontWeight.w600,
+                            ? FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Confirm Booking',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${selectedDate.day} ${_getMonth(selectedDate.month)} ${selectedTime.format(context)}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10.sp,
-                                      fontWeight: FontWeight.w400,
+                                    SizedBox(height: 2.h),
+                                    Text(
+                                      '${selectedDate.day} ${_getMonth(selectedDate.month)} ${selectedTime.format(context)}',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10.sp,
+                                        fontWeight: FontWeight.w400,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               )
                             : Text(
                                 'Book Now',
@@ -4552,16 +4557,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setPrebookState) => Container(
-          height: 450.h,
           padding: EdgeInsets.all(20.w),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Container(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
                   width: 69.w,
                   height: 5.h,
                   margin: EdgeInsets.only(bottom: 20.h),
@@ -4570,166 +4576,187 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(2.5.r),
                   ),
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Prebook a vehicle',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Prebook a vehicle',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
                   ),
                 ),
-                SizedBox(height: 20.h),
-                Text(
-                  'Select time and date',
+              ),
+              Text(
+                'Select time and date',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              ListTile(
+                leading: Image.asset(
+                  ConstImages.activities,
+                  width: 24.w,
+                  height: 24.h,
+                ),
+                title: Text(
+                  'Date',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w400,
-                    color: Colors.black,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Color(0xFFB1B1B1),
                   ),
                 ),
-                SizedBox(height: 20.h),
-                Divider(thickness: 1, color: Colors.grey.shade300),
-                ListTile(
-                  leading: Image.asset(
-                    ConstImages.activities,
-                    width: 24.w,
-                    height: 24.h,
+                subtitle: Text(
+                  '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
+                  style: ConstTextStyles.vehicleTitle,
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(Duration(days: 365)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: Color(ConstColors.mainColor),
+                            onPrimary: Colors.white,
+                            onSurface: Colors.black,
+                            surface: Colors.white,
+                          ),
+                          dialogBackgroundColor: Colors.white,
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null && picked != selectedDate) {
+                    setPrebookState(() {
+                      selectedDate = picked;
+                    });
+                  }
+                },
+              ),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              ListTile(
+                leading: Image.asset(
+                  'assets/images/time.png',
+                  width: 24.w,
+                  height: 24.h,
+                ),
+                title: Text(
+                  'Time',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Color(0xFFB1B1B1),
                   ),
-                  title: Text(
-                    'Date',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Color(0xFFB1B1B1),
+                ),
+                subtitle: Text(
+                  selectedTime.format(context),
+                  style: ConstTextStyles.vehicleTitle,
+                ),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
+                onTap: () async {
+                  final TimeOfDay? picked = await showTimePicker(
+                    context: context,
+                    initialTime: selectedTime,
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: Color(ConstColors.mainColor),
+                            onPrimary: Colors.white,
+                            onSurface: Colors.black,
+                            surface: Colors.white,
+                          ),
+                          dialogBackgroundColor: Colors.white,
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null && picked != selectedTime) {
+                    setPrebookState(() {
+                      selectedTime = picked;
+                    });
+                  }
+                },
+              ),
+              SizedBox(height: 20.h),
+              Container(
+                width: double.infinity,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Color(ConstColors.greyColor)),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    setPrebookState(() {
+                      selectedDate = DateTime.now();
+                      selectedTime = TimeOfDay.now();
+                    });
+                  },
+                  child: Center(
+                    child: Text(
+                      'Reset to now',
+                      style: TextStyle(
+                        color: Color(ConstColors.blackColor),
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  subtitle: Text(
-                    '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
-                    style: ConstTextStyles.vehicleTitle,
-                  ),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
-                  onTap: () async {
-                    final DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(Duration(days: 365)),
-                    );
-                    if (picked != null && picked != selectedDate) {
-                      setPrebookState(() {
-                        selectedDate = picked;
-                      });
-                    }
-                  },
                 ),
-                Divider(thickness: 1, color: Colors.grey.shade300),
-                ListTile(
-                  leading: Image.asset(
-                    'assets/images/time.png',
-                    width: 24.w,
-                    height: 24.h,
-                  ),
-                  title: Text(
-                    'Time',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Color(0xFFB1B1B1),
-                    ),
-                  ),
-                  subtitle: Text(
-                    selectedTime.format(context),
-                    style: ConstTextStyles.vehicleTitle,
-                  ),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
-                  onTap: () async {
-                    final TimeOfDay? picked = await showTimePicker(
-                      context: context,
-                      initialTime: selectedTime,
-                    );
-                    if (picked != null && picked != selectedTime) {
-                      setPrebookState(() {
-                        selectedTime = picked;
-                      });
-                    }
-                  },
+              ),
+              SizedBox(height: 10.h),
+              Container(
+                width: double.infinity,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
-                SizedBox(height: 30.h),
-                Column(
-                  children: [
-                    Container(
-                      width: 353.w,
-                      height: 48.h,
-                      decoration: BoxDecoration(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      isScheduledRide = true;
+                    });
+                    Navigator.pop(context);
+                    _showBookingDetails();
+                  },
+                  child: Center(
+                    child: Text(
+                      'Set pickup date and time',
+                      style: TextStyle(
                         color: Colors.white,
-                        border: Border.all(color: Color(ConstColors.mainColor)),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          setPrebookState(() {
-                            selectedDate = DateTime.now();
-                            selectedTime = TimeOfDay.now();
-                          });
-                        },
-                        child: Center(
-                          child: Text(
-                            'Reset to now',
-                            style: TextStyle(
-                              color: Color(ConstColors.mainColor),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 10.h),
-                    Container(
-                      width: 353.w,
-                      height: 48.h,
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          // Set the scheduled ride flag
-                          setState(() {
-                            isScheduledRide = true;
-                          });
-                          // Close prebook sheet
-                          Navigator.pop(context);
-                          // Show booking details sheet
-                          _showBookingDetails();
-                        },
-                        child: Center(
-                          child: Text(
-                            'Set pickup date and time',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: 10.h),
+            ],
           ),
         ),
       ),
@@ -5068,41 +5095,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                       // Show result
                                       if (result['success'] == true) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
+                                        CustomFlushbar.showSuccess(
+                                          context: context,
+                                          message:
                                               '🆘 SOS alert sent successfully!',
-                                            ),
-                                            backgroundColor: Colors.green,
-                                          ),
                                         );
                                       } else {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
+                                        CustomFlushbar.showError(
+                                          context: context,
+                                          message:
                                               'Failed to send SOS: ${result['message']}',
-                                            ),
-                                            backgroundColor: Colors.red,
-                                          ),
                                         );
                                       }
                                     } catch (e) {
                                       // Close loading dialog if still open
                                       Navigator.pop(context);
-
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Error sending SOS: $e',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
+                                      CustomFlushbar.showError(
+                                        context: context,
+                                        message: 'Error sending SOS: $e',
                                       );
                                       AppLogger.error(
                                         'SOS Error',
@@ -5223,13 +5233,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       error: e,
                                       tag: 'SHARE',
                                     );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Failed to share location: $e',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
+                                    CustomFlushbar.showError(
+                                      context: context,
+                                      message: 'Failed to share location: $e',
                                     );
                                   }
                                 } else {
@@ -5424,11 +5430,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 final reason = reasonController.text.trim();
 
                 if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Please provide a reason for cancellation'),
-                      backgroundColor: Colors.red,
-                    ),
+                  CustomFlushbar.showError(
+                    context: context,
+                    message: 'Please provide a reason for cancellation',
                   );
                   return;
                 }
@@ -5478,25 +5482,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       // Stop tracking
                       _stopDriverLocationTracking();
-
-                      // Show success message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Ride cancelled successfully'),
-                          backgroundColor: Colors.green,
-                        ),
+                      CustomFlushbar.showSuccess(
+                        context: context,
+                        message: 'Ride cancelled successfully',
                       );
                     }
                   } else {
                     if (mounted) {
-                      // Show error
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            result['message'] ?? 'Failed to cancel ride',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
+                      CustomFlushbar.showError(
+                        context: context,
+                        message: result['message'] ?? 'Failed to cancel ride',
                       );
                     }
                   }
@@ -5509,11 +5504,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   AppLogger.error('Cancel ride error', error: e, tag: 'CANCEL');
 
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error cancelling ride: $e'),
-                        backgroundColor: Colors.red,
-                      ),
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Error cancelling ride: $e',
                     );
                   }
                 }
@@ -5557,159 +5550,147 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Booking Request Successful',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
-              Text(
-                'Booking request successful',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
+            ),
+            SizedBox(height: 5.h),
+            Text(
+              'You\'ll receive a push notification when your \ndriver is assigned.',
+              textAlign: TextAlign.left,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                height: 1.4,
+                color: Colors.grey.shade600,
               ),
-              SizedBox(height: 10.h),
-              Text(
-                'You\'ll receive a push notification when your driver is assigned.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w400,
-                  height: 1.0,
-                  letterSpacing: -0.32,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Container(
-                padding: EdgeInsets.all(15.w),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Column(
+            ),
+            SizedBox(height: 10.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 10.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Pick Up',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          _currentRideResponse?.pickupAddress ??
-                              'Pickup Location',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
+                    Container(
+                      width: 8.w,
+                      height: 8.h,
+                      margin: EdgeInsets.only(top: 6.h),
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    SizedBox(height: 15.h),
-                    Divider(thickness: 1, color: Colors.grey.shade300),
-                    SizedBox(height: 15.h),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Destination',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          _currentRideResponse?.destAddress ?? 'Destination',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
+                    SizedBox(width: 8.h),
+                    Text(
+                      'Pick up',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Color(ConstColors.mainColor),
                       ),
                     ),
                   ],
                 ),
-              ),
-              SizedBox(height: 20.h),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: Color(ConstColors.mainColor),
-                  borderRadius: BorderRadius.circular(8.r),
+                SizedBox(height: 8.h),
+                Text(
+                  _currentRideResponse?.pickupAddress ??
+                      '4, Grove Street, Opposite Cj\'s house, Los Santos',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: GestureDetector(
+              ],
+            ),
+            SizedBox(height: 10.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 10.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 8.w,
+                      height: 8.h,
+                      margin: EdgeInsets.only(top: 6.h),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 8.h),
+                    Text(
+                      'Destination',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  _currentRideResponse?.destAddress ??
+                      '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            Spacer(),
+            Container(
+              width: double.infinity,
+              height: 50.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
                     _showBookSuccessfulSheet();
                   },
+                  borderRadius: BorderRadius.circular(12.r),
                   child: Center(
                     child: Text(
-                      'View Trip',
+                      'View trip',
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: Colors.white,
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
@@ -5718,8 +5699,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+            SizedBox(height: 16.h),
+          ],
         ),
       ),
     );
@@ -5844,150 +5826,262 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        height: 600.h,
+        height: 630.h,
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
+        child: Column(
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 20.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ID: #${_currentRideResponse?.id ?? '12345'}',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Icon(Icons.close, size: 24.sp, color: Colors.black),
+                ),
+              ],
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            Container(
+              padding: EdgeInsets.all(15.w),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Column(
                 children: [
-                  Text(
-                    'ID: #${_currentRideResponse?.id ?? '12345'}',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Text(
+                        'Pick Up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        pickupAddr,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.close, size: 24.sp, color: Colors.black),
+                  SizedBox(height: 15.h),
+                  Divider(thickness: 1, color: Colors.grey.shade300),
+                  SizedBox(height: 15.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Text(
+                        'Destination',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        destAddr,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Container(
-                padding: EdgeInsets.all(15.w),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8.r),
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            Row(
+              children: [
+                Text(
+                  'Date',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    height: 1.0,
+                    letterSpacing: -0.32,
+                    color: Colors.black,
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Pick Up',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          pickupAddr,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 15.h),
-                    Divider(thickness: 1, color: Colors.grey.shade300),
-                    SizedBox(height: 15.h),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Destination',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          destAddr,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              ],
+            ),
+            SizedBox(height: 5.h),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                currentDate,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.0,
+                  letterSpacing: -0.32,
+                  color: Colors.black,
                 ),
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Row(
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment Method',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 5.h),
+                      Text(
+                        paymentMethod,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1.w,
+                  height: 40.h,
+                  color: Colors.grey.shade300,
+                ),
+                SizedBox(width: 20.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Vehicle',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 5.h),
+                      Text(
+                        selectedOption,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 20.h),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Date',
+                    'Price',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12.sp,
@@ -5997,218 +6091,104 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.black,
                     ),
                   ),
+                  SizedBox(height: 5.h),
+                  Text(
+                    '₦${_currentRideResponse?.price.toStringAsFixed(0) ?? '12,000'}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
                 ],
               ),
-              SizedBox(height: 5.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  currentDate,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.0,
-                    letterSpacing: -0.32,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Row(
+            ),
+            Spacer(),
+            SizedBox(
+              width: 328.w,
+              height: 50.h,
+              child: Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Payment Method',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.edit, size: 16.sp, color: Colors.black),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Modify Trip',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w400,
+                              height: 22 / 16,
+                              letterSpacing: -0.41,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          paymentMethod,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   Container(
                     width: 1.w,
-                    height: 40.h,
+                    height: 30.h,
                     color: Colors.grey.shade300,
                   ),
-                  SizedBox(width: 20.w),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Vehicle',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_assignedDriver != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                driverId: _assignedDriver?.id ?? '0',
+                                rideId: _activeRide?['ID'] is int
+                                    ? _activeRide!['ID']
+                                    : int.parse(
+                                        _activeRide?['ID']?.toString() ?? '0',
+                                      ),
+                                driverName: _assignedDriver?.name ?? 'Driver',
+                                driverImage: _assignedDriver?.profilePicture,
+                                driverPhone: _assignedDriver?.phoneNumber,
+                              ),
+                            ),
+                          );
+                        } else {
+                          CustomFlushbar.showError(
+                            context: context,
+                            message: 'No driver assigned yet',
+                          );
+                        }
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat, size: 16.sp, color: Colors.black),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Chat Driver',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w400,
+                              height: 22 / 16,
+                              letterSpacing: -0.41,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          selectedOption,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Price',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.0,
-                        letterSpacing: -0.32,
-                        color: Colors.black,
-                      ),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      '₦${_currentRideResponse?.price.toStringAsFixed(0) ?? '12,000'}',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 20.h),
-              SizedBox(
-                width: 328.w,
-                height: 50.h,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {},
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.edit, size: 16.sp, color: Colors.black),
-                            SizedBox(width: 8.w),
-                            Text(
-                              'Modify Trip',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w400,
-                                height: 22 / 16,
-                                letterSpacing: -0.41,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 1.w,
-                      height: 30.h,
-                      color: Colors.grey.shade300,
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          if (_assignedDriver != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatScreen(
-                                  driverId: _assignedDriver?.id ?? '0',
-                                  rideId: _activeRide?['ID'] is int
-                                      ? _activeRide!['ID']
-                                      : int.parse(
-                                          _activeRide?['ID']?.toString() ?? '0',
-                                        ),
-                                  driverName: _assignedDriver?.name ?? 'Driver',
-                                  driverImage: _assignedDriver?.profilePicture,
-                                  driverPhone: _assignedDriver?.phoneNumber,
-                                  // rideId:
-                                  //     .toString() ??_currentRideResponse?.id
-                                  //     '12345',
-                                  // currentUserId:
-                                  //     'user_123', // This should come from auth service
-                                ),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('No driver assigned yet')),
-                            );
-                          }
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.chat, size: 16.sp, color: Colors.black),
-                            SizedBox(width: 8.w),
-                            Text(
-                              'Chat Driver',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w400,
-                                height: 22 / 16,
-                                letterSpacing: -0.41,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -6243,144 +6223,256 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        height: 500.h,
+        height: 580.h,
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
+        child: Column(
+          children: [
+            Container(
+              width: 69.w,
+              height: 5.h,
+              margin: EdgeInsets.only(bottom: 15.h),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5.r),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Trip scheduled',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
                 ),
               ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Trip scheduled',
+            ),
+            SizedBox(height: 15.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 15.h),
+            Container(
+              padding: EdgeInsets.all(15.w),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Text(
+                        'Pick Up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        pickupAddress ?? 'Current location',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Divider(thickness: 1, color: Colors.grey.shade300),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Text(
+                        'Destination',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        destAddress ?? 'Destination',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 15.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 15.h),
+            Row(
+              children: [
+                Text(
+                  'Date',
                   style: TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w500,
+                    height: 1.0,
+                    letterSpacing: -0.32,
                     color: Colors.black,
                   ),
                 ),
-              ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Container(
-                padding: EdgeInsets.all(15.w),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Pick Up',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          pickupAddress ?? 'Current location',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 15.h),
-                    Divider(thickness: 1, color: Colors.grey.shade300),
-                    SizedBox(height: 15.h),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6.w,
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Text(
-                          'Destination',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 5.h),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 16.w),
-                        child: Text(
-                          destAddress ?? 'Destination',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              ],
+            ),
+            SizedBox(height: 5.h),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formattedDate,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w600,
+                  height: 1.0,
+                  letterSpacing: -0.32,
+                  color: Colors.black,
                 ),
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Row(
+            ),
+            SizedBox(height: 15.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 15.h),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment Method',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 5.h),
+                      Text(
+                        selectedPaymentMethod,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1.w,
+                  height: 40.h,
+                  color: Colors.grey.shade300,
+                ),
+                SizedBox(width: 20.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Vehicle',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: 5.h),
+                      Text(
+                        selectedOption,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 15.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 15.h),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Date',
+                    'Price',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 12.sp,
@@ -6390,155 +6482,45 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.black,
                     ),
                   ),
-                ],
-              ),
-              SizedBox(height: 5.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  formattedDate,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.0,
-                    letterSpacing: -0.32,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Payment Method',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          selectedPaymentMethod,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 1.w,
-                    height: 40.h,
-                    color: Colors.grey.shade300,
-                  ),
-                  SizedBox(width: 20.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Vehicle',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          selectedOption,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
+                  SizedBox(height: 5.h),
+                  Text(
+                    price,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Price',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.0,
-                        letterSpacing: -0.32,
-                        color: Colors.black,
-                      ),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      price,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            Spacer(),
+            Container(
+              width: 353.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(8.r),
               ),
-              SizedBox(height: 30.h),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: Color(ConstColors.mainColor),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showEditPrebookingSheet();
-                  },
-                  child: Center(
-                    child: Text(
-                      'Edit pre booking',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditPrebookingSheet();
+                },
+                child: Center(
+                  child: Text(
+                    'Edit prebooking',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -7468,10 +7450,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   tag: 'RATING',
                                 );
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: No ride ID found'),
-                                    ),
+                                  CustomFlushbar.showError(
+                                    context: context,
+                                    message: 'Error: No ride ID found',
                                   );
                                 }
                                 return;
@@ -7522,15 +7503,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         _mapMarkers = {};
                                         _mapPolylines = {};
                                       });
-
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Thank you for your rating!',
-                                          ),
-                                        ),
+                                      CustomFlushbar.showInfo(
+                                        context: context,
+                                        message: 'Thank you for your rating!',
                                       );
                                     }
                                   });
@@ -7539,12 +7514,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setRatingState(() {
                                       isSubmitting = false;
                                     });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Failed to submit rating',
-                                        ),
-                                      ),
+                                    CustomFlushbar.showError(
+                                      context: context,
+                                      message: 'Failed to submit rating',
                                     );
                                   }
                                 }
@@ -7557,8 +7529,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   setRatingState(() {
                                     isSubmitting = false;
                                   });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')),
+                                  CustomFlushbar.showError(
+                                    context: context,
+                                    message: 'Error: $e',
                                   );
                                 }
                               }

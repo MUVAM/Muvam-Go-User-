@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
@@ -210,20 +211,27 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Container(
-                width: 353.w,
+                width: double.infinity,
                 height: 50.h,
                 decoration: BoxDecoration(
                   color: Color(ConstColors.fieldColor).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
+                alignment: Alignment.center,
                 child: TextField(
                   controller: _addressController,
                   decoration: InputDecoration(
                     hintText: 'Search an address',
-                    prefixIcon: Icon(Icons.search, size: 20.sp),
-                    suffixIcon: IconButton(
-                      icon: Icon(Icons.map, size: 20.sp),
-                      onPressed: _openMapPicker,
+                    prefixIcon: SvgPicture.asset(
+                      ConstImages.search,
+                      width: 20.w,
+                      height: 20.h,
+                      color: Colors.grey,
+                      fit: BoxFit.scaleDown,
+                    ),
+                    suffixIcon: InkWell(
+                      onTap: _openMapPicker,
+                      child: Icon(Icons.map, size: 20.sp),
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(

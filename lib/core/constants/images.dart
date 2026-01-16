@@ -45,4 +45,5 @@ class ConstImages {
   static const String walletStreamline = 'assets/svg/Wallet-streamline.svg';
   static const String bin = 'assets/svg/Bin.svg';
   static const String search = 'assets/svg/search.svg';
+  static const String dropDown = 'assets/svg/drop-down.svg';
 }

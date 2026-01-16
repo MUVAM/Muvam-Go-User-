@@ -3032,7 +3032,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           color: Colors.grey.shade300,
                                         ),
                                         ListTile(
-                                          contentPadding: EdgeInsets.all(3.sp),
+                                          contentPadding: EdgeInsets.all(1.sp),
                                           leading: Image.asset(
                                             ConstImages.add,
                                             width: 24.w,
@@ -3067,7 +3067,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           color: Colors.grey.shade300,
                                         ),
                                         ListTile(
-                                          contentPadding: EdgeInsets.all(3.sp),
+                                          contentPadding: EdgeInsets.all(1.sp),
                                           leading: Image.asset(
                                             ConstImages.add,
                                             width: 24.w,
@@ -3102,7 +3102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           color: Colors.grey.shade300,
                                         ),
                                         ListTile(
-                                          contentPadding: EdgeInsets.all(3.sp),
+                                          contentPadding: EdgeInsets.all(1.sp),
                                           leading: Image.asset(
                                             ConstImages.add,
                                             width: 24.w,

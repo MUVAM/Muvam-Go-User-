@@ -302,7 +302,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               debugShowCheckedModeBanner: false,
               title: 'Muvam',
               theme: ThemeData(useMaterial3: true),
-              home: const CreateAccountScreen(),
+              home: const SplashScreen(),
               navigatorKey: MyApp.navigatorKey,
             ),
           ),

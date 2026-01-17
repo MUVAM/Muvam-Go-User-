@@ -269,29 +269,10 @@ class _OtpScreenState extends State<OtpScreen> {
                                       response.user?['Role'] as String?;
                                   if (userRole != null &&
                                       userRole.toLowerCase() != 'passenger') {
-                                    showDialog(
+                                    CustomFlushbar.showOtpResent(
                                       context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: Text('Account Mismatch'),
-                                        content: Text(
+                                      message:
                                           'This phone number is registered on the driver app. Please use another number to log in to the passenger app.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              Navigator.of(context).pop();
-                                            },
-                                            child: Text(
-                                              'OK',
-                                              style: TextStyle(
-                                                color: Color(
-                                                  ConstColors.mainColor,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
                                     );
                                     return;
                                   }

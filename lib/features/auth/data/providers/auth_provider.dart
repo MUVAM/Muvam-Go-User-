@@ -66,7 +66,13 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _setError(e.toString());
+      String errorMessage = e.toString();
+
+      if (errorMessage.startsWith('Exception: ')) {
+        errorMessage = errorMessage.substring(11);
+      }
+
+      _setError(errorMessage);
       _setLoading(false);
       return false;
     }

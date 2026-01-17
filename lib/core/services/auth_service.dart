@@ -80,8 +80,20 @@ class AuthService {
 
       return result;
     } else {
-      AppLogger.log('Verify OTP Error: ${response.body}');
-      throw Exception('Failed to verify OTP: ${response.body}');
+      String errorMessage = 'Failed to verify OTP';
+
+      try {
+        final errorData = jsonDecode(response.body);
+        errorMessage =
+            errorData['error'] ??
+            errorData['message'] ??
+            'Failed to verify OTP';
+      } catch (e) {
+        errorMessage = 'Failed to verify OTP';
+      }
+
+      AppLogger.log('Verify OTP Error: $errorMessage');
+      throw Exception(errorMessage);
     }
   }
 

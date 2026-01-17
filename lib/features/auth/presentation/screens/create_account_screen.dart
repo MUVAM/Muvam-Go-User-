@@ -122,25 +122,25 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AccountTextField(
-                        label: 'First Name',
+                        label: 'First name',
                         controller: firstNameController,
                         backgroundColor: ConstColors.formFieldColor,
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
-                        label: 'Middle Name (Optional)',
+                        label: 'Middle name (Optional)',
                         controller: middleNameController,
                         backgroundColor: ConstColors.formFieldColor,
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
-                        label: 'Last Name',
+                        label: 'Last name',
                         controller: lastNameController,
                         backgroundColor: ConstColors.formFieldColor,
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
-                        label: 'Date of Birth',
+                        label: 'Date of birth',
                         controller: dobController,
                         backgroundColor: ConstColors.formFieldColor,
                         isDateField: true,
@@ -149,7 +149,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
-                        label: 'Email Address',
+                        label: 'Email address',
                         controller: emailController,
                         backgroundColor: ConstColors.formFieldColor,
                       ),
@@ -157,7 +157,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       _buildLocationField(),
                       SizedBox(height: 20.h),
                       AccountTextField(
-                        label: 'Referral Code (Optional)',
+                        label: 'Referral code (Optional)',
                         controller: referralController,
                         backgroundColor: ConstColors.formFieldColor,
                       ),

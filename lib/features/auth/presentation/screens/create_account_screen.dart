@@ -87,74 +87,89 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 25.h),
-                Center(
-                  child: Text(
-                    'Create Account',
-                    style: ConstTextStyles.createAccountTitle,
-                  ),
-                ),
-                SizedBox(height: 5.h),
-                Center(
-                  child: Text(
-                    'Please enter your correct details as it is \non your government issued document.',
-                    style: ConstTextStyles.fieldLabel.copyWith(
-                      color: Color(ConstColors.subtitleColor),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                children: [
+                  SizedBox(height: 25.h),
+                  Center(
+                    child: Text(
+                      'Create Account',
+                      style: ConstTextStyles.createAccountTitle,
                     ),
                   ),
-                ),
-                SizedBox(height: 35.h),
-                AccountTextField(
-                  label: 'First Name',
-                  controller: firstNameController,
-                  backgroundColor: ConstColors.formFieldColor,
-                ),
-                SizedBox(height: 20.h),
-                AccountTextField(
-                  label: 'Middle Name (Optional)',
-                  controller: middleNameController,
-                  backgroundColor: ConstColors.formFieldColor,
-                ),
-                SizedBox(height: 20.h),
-                AccountTextField(
-                  label: 'Last Name',
-                  controller: lastNameController,
-                  backgroundColor: ConstColors.formFieldColor,
-                ),
-                SizedBox(height: 20.h),
-                AccountTextField(
-                  label: 'Date of Birth',
-                  controller: dobController,
-                  backgroundColor: ConstColors.formFieldColor,
-                  isDateField: true,
-                  onDateSelected: () => _selectDate(context, dobController),
-                ),
-                SizedBox(height: 20.h),
-                AccountTextField(
-                  label: 'Email Address',
-                  controller: emailController,
-                  backgroundColor: ConstColors.formFieldColor,
-                ),
-                SizedBox(height: 20.h),
-                _buildLocationField(),
-                SizedBox(height: 20.h),
-                AccountTextField(
-                  label: 'Referral Code (Optional)',
-                  controller: referralController,
-                  backgroundColor: ConstColors.formFieldColor,
-                ),
-                SizedBox(height: 40.h),
-                _buildContinueButton(),
-                SizedBox(height: 20.h),
-              ],
+                  SizedBox(height: 5.h),
+                  Center(
+                    child: Text(
+                      'Please enter your correct details as it is \non your government issued document.',
+                      style: ConstTextStyles.fieldLabel.copyWith(
+                        color: Color(ConstColors.subtitleColor),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  SizedBox(height: 35.h),
+                ],
+              ),
             ),
-          ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AccountTextField(
+                        label: 'First Name',
+                        controller: firstNameController,
+                        backgroundColor: ConstColors.formFieldColor,
+                      ),
+                      SizedBox(height: 20.h),
+                      AccountTextField(
+                        label: 'Middle Name (Optional)',
+                        controller: middleNameController,
+                        backgroundColor: ConstColors.formFieldColor,
+                      ),
+                      SizedBox(height: 20.h),
+                      AccountTextField(
+                        label: 'Last Name',
+                        controller: lastNameController,
+                        backgroundColor: ConstColors.formFieldColor,
+                      ),
+                      SizedBox(height: 20.h),
+                      AccountTextField(
+                        label: 'Date of Birth',
+                        controller: dobController,
+                        backgroundColor: ConstColors.formFieldColor,
+                        isDateField: true,
+                        onDateSelected: () =>
+                            _selectDate(context, dobController),
+                      ),
+                      SizedBox(height: 20.h),
+                      AccountTextField(
+                        label: 'Email Address',
+                        controller: emailController,
+                        backgroundColor: ConstColors.formFieldColor,
+                      ),
+                      SizedBox(height: 20.h),
+                      _buildLocationField(),
+                      SizedBox(height: 20.h),
+                      AccountTextField(
+                        label: 'Referral Code (Optional)',
+                        controller: referralController,
+                        backgroundColor: ConstColors.formFieldColor,
+                      ),
+                      SizedBox(height: 40.h),
+                      _buildContinueButton(),
+                      SizedBox(height: 20.h),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -164,7 +179,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Location', style: ConstTextStyles.fieldLabel),
+        Text('Select Location', style: ConstTextStyles.fieldLabel),
         SizedBox(height: 8.h),
         GestureDetector(
           onTap: () async {
@@ -196,11 +211,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 children: [
                   Text(
                     locationController.text.isEmpty
-                        ? 'Select State'
+                        ? 'States'
                         : locationController.text,
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 16.sp,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w400,
                       color: locationController.text.isEmpty
                           ? Colors.grey

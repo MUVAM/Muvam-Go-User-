@@ -13,6 +13,7 @@ import 'package:muvam/features/activities/data/providers/activities_tabs_provide
 import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/auth/data/providers/%20delete_account_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
@@ -301,7 +302,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               debugShowCheckedModeBanner: false,
               title: 'Muvam',
               theme: ThemeData(useMaterial3: true),
-              home: const SplashScreen(),
+              home: const CreateAccountScreen(),
               navigatorKey: MyApp.navigatorKey,
             ),
           ),

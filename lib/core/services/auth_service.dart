@@ -113,7 +113,7 @@ class AuthService {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final result = RegisterUserResponse.fromJson(jsonDecode(response.body));
-      await _saveToken(result.token);
+      await _saveToken(result.token.accessToken);
       return result;
     } else {
       AppLogger.log('Register User Error: ${response.body}');
@@ -121,7 +121,6 @@ class AuthService {
     }
   }
 
-  // NEW METHOD: Register user with custom JSON
   Future<RegisterUserResponse> registerUserWithJson(
     Map<String, dynamic> requestBody,
   ) async {
@@ -140,7 +139,8 @@ class AuthService {
       final responseData = jsonDecode(response.body);
       final result = RegisterUserResponse.fromJson(responseData);
 
-      await _saveToken(result.token);
+      // Save the access token from the nested token object
+      await _saveToken(result.token.accessToken);
 
       // Store user data
       if (responseData['user'] != null) {
@@ -163,9 +163,14 @@ class AuthService {
     } else {
       AppLogger.log('Register User Error: ${response.body}');
       final errorBody = jsonDecode(response.body);
-      throw Exception(
-        errorBody['message'] ?? 'Failed to register user: ${response.body}',
-      );
+
+      // Extract clean error message
+      String errorMessage =
+          errorBody['error'] ??
+          errorBody['message'] ??
+          'Failed to register user';
+
+      throw Exception(errorMessage);
     }
   }
 

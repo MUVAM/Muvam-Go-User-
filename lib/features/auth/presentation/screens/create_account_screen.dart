@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
@@ -28,9 +30,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
+  final TextEditingController stateController = TextEditingController();
   final TextEditingController referralController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
+
   String? _selectedState;
+  String? _locationPoint;
 
   @override
   void initState() {
@@ -41,6 +46,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     lastNameController.addListener(_updateButtonState);
     dobController.addListener(_updateButtonState);
     emailController.addListener(_updateButtonState);
+    stateController.addListener(_updateButtonState);
   }
 
   void _updateButtonState() {
@@ -71,13 +77,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     lastNameController.removeListener(_updateButtonState);
     dobController.removeListener(_updateButtonState);
     emailController.removeListener(_updateButtonState);
+    stateController.removeListener(_updateButtonState);
 
     firstNameController.dispose();
     middleNameController.dispose();
     lastNameController.dispose();
     dobController.dispose();
     emailController.dispose();
-    locationController.dispose();
+    stateController.dispose();
     referralController.dispose();
     super.dispose();
   }
@@ -154,6 +161,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         backgroundColor: ConstColors.formFieldColor,
                       ),
                       SizedBox(height: 20.h),
+                      _buildStateField(),
+                      SizedBox(height: 20.h),
                       _buildLocationField(),
                       SizedBox(height: 20.h),
                       AccountTextField(
@@ -179,7 +188,56 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Select Location', style: ConstTextStyles.fieldLabel),
+        Text('Location', style: ConstTextStyles.fieldLabel),
+        SizedBox(height: 8.h),
+        Container(
+          width: 353.w,
+          height: 50.h,
+          decoration: BoxDecoration(
+            color: Color(ConstColors.locationFieldColor),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: locationController,
+                  style: ConstTextStyles.inputText,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Tap to get current location',
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 15.h,
+                    ),
+                  ),
+                  readOnly: true,
+                  onTap: _getCurrentLocation,
+                ),
+              ),
+              GestureDetector(
+                onTap: _getCurrentLocation,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 12.w),
+                  child: Icon(
+                    Icons.my_location,
+                    size: 20.sp,
+                    color: Color(ConstColors.mainColor),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStateField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Select State', style: ConstTextStyles.fieldLabel),
         SizedBox(height: 8.h),
         GestureDetector(
           onTap: () async {
@@ -193,7 +251,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             if (result != null) {
               setState(() {
                 _selectedState = result;
-                locationController.text = result;
+                stateController.text = result;
               });
             }
           },
@@ -210,14 +268,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    locationController.text.isEmpty
-                        ? 'States'
-                        : locationController.text,
+                    stateController.text.isEmpty
+                        ? 'Select State'
+                        : stateController.text,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w400,
-                      color: locationController.text.isEmpty
+                      color: stateController.text.isEmpty
                           ? Colors.grey
                           : Colors.black,
                     ),
@@ -237,6 +295,143 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
+  Future<void> _getCurrentLocation() async {
+    try {
+      setState(() {
+        locationController.text = 'Getting location...';
+      });
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            locationController.clear();
+          });
+          if (!mounted) return;
+          CustomFlushbar.showError(
+            context: context,
+            message: 'Location permission denied',
+          );
+          return;
+        }
+      }
+
+      Position position =
+          await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          ).timeout(
+            Duration(seconds: 15),
+            onTimeout: () {
+              throw TimeoutException('Location fetch timed out');
+            },
+          );
+
+      _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
+      AppLogger.log('Location Point (correct format): $_locationPoint');
+
+      String address = '';
+      bool geocodingSuccessful = false;
+
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          AppLogger.log('Geocoding attempt ${attempt + 1}...');
+
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          ).timeout(Duration(seconds: 15));
+
+          if (placemarks.isNotEmpty) {
+            Placemark place = placemarks[0];
+
+            // Extract city for API
+            _selectedState =
+                place.locality ??
+                place.subAdministrativeArea ??
+                place.administrativeArea ??
+                'Unknown';
+            AppLogger.log('Extracted city: $_selectedState');
+
+            // Build a readable address
+            List<String> addressParts = [];
+
+            if (place.street != null && place.street!.isNotEmpty) {
+              addressParts.add(place.street!);
+            }
+            if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+              addressParts.add(place.subLocality!);
+            }
+            if (place.locality != null && place.locality!.isNotEmpty) {
+              addressParts.add(place.locality!);
+            }
+            if (place.administrativeArea != null &&
+                place.administrativeArea!.isNotEmpty) {
+              addressParts.add(place.administrativeArea!);
+            }
+
+            address = addressParts.join(', ');
+
+            if (address.isEmpty) {
+              address = _selectedState ?? 'Your Location';
+            }
+
+            geocodingSuccessful = true;
+            AppLogger.log('Geocoded address: $address');
+            break;
+          }
+        } on TimeoutException catch (e) {
+          AppLogger.log('Geocoding attempt ${attempt + 1} timed out: $e');
+          if (attempt == 0) {
+            await Future.delayed(Duration(milliseconds: 500));
+          }
+        } catch (e) {
+          AppLogger.log('Geocoding attempt ${attempt + 1} failed: $e');
+          break;
+        }
+      }
+
+      if (geocodingSuccessful && address.isNotEmpty) {
+        setState(() {
+          locationController.text = address;
+        });
+
+        if (!mounted) return;
+        CustomFlushbar.showSuccess(
+          context: context,
+          message: 'Location captured successfully',
+        );
+      } else {
+        setState(() {
+          locationController.text =
+              'Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}';
+          _selectedState = 'Unknown';
+        });
+
+        if (!mounted) return;
+        CustomFlushbar.showInfo(
+          context: context,
+          message: 'Location saved (showing coordinates)',
+        );
+      }
+
+      AppLogger.log('Final location point to send to backend: $_locationPoint');
+    } catch (e) {
+      AppLogger.log('Error getting location: $e');
+      setState(() {
+        locationController.clear();
+        _locationPoint = null;
+      });
+
+      if (!mounted) return;
+
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Failed to get location. Please try again.',
+      );
+    }
+  }
+
   Widget _buildContinueButton() {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
@@ -245,6 +440,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         return GestureDetector(
           onTap: isEnabled
               ? () async {
+                  if (_locationPoint == null || _locationPoint!.isEmpty) {
+                    CustomFlushbar.showError(
+                      context: context,
+                      message: 'Please set your location first',
+                    );
+                    return;
+                  }
+
                   final prefs = await SharedPreferences.getInstance();
                   final phone =
                       prefs.getString('user_phone') ?? '+2341234567890';
@@ -252,26 +455,28 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   final request = RegisterUserRequest(
                     email: emailController.text.trim(),
                     firstName: firstNameController.text.trim(),
+                    middleName: middleNameController.text.trim().isEmpty
+                        ? null
+                        : middleNameController.text.trim(),
                     lastName: lastNameController.text.trim(),
                     phone: phone,
+                    dateOfBirth: dobController.text.trim(),
                     role: 'passenger',
-                    location: null,
+                    city: _selectedState!,
+                    location: _locationPoint!,
+                    referralCode: referralController.text.trim().isEmpty
+                        ? null
+                        : referralController.text.trim(),
+                    serviceType: 'taxi',
                   );
 
-                  final requestJson = request.toJson();
+                  // Convert to Map
+                  final requestMap = request.toJson();
+                  AppLogger.log('Registration request: $requestMap');
 
-                  requestJson['middle_name'] =
-                      middleNameController.text.trim().isEmpty
-                      ? ''
-                      : middleNameController.text.trim();
-                  requestJson['date_of_birth'] = dobController.text.trim();
-                  requestJson['city'] = _selectedState!;
-                  requestJson['service_type'] = 'taxi';
-
-                  AppLogger.log('Registration request: $requestJson');
-
+                  // Pass the Map directly to the provider
                   final success = await authProvider.registerUserWithJson(
-                    requestJson,
+                    requestMap,
                   );
 
                   if (success) {

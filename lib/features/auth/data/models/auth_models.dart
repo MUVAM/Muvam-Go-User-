@@ -18,32 +18,52 @@ class VerifyOtpRequest {
 class RegisterUserRequest {
   final String email;
   final String firstName;
+  final String? middleName;
   final String lastName;
   final String phone;
+  final String dateOfBirth;
   final String role;
-  final String? location;
+  final String location;
+  final String city;
+  final String? referralCode;
+  final String serviceType;
 
   RegisterUserRequest({
     required this.email,
     required this.firstName,
+    this.middleName,
     required this.lastName,
     required this.phone,
+    required this.dateOfBirth,
     required this.role,
-    this.location,
+    required this.location,
+    required this.city,
+    this.referralCode,
+    required this.serviceType,
   });
 
   Map<String, dynamic> toJson() {
-    final json = {
-      "email": email,
+    final json = <String, dynamic>{
       "first_name": firstName,
       "last_name": lastName,
+      "email": email,
       "phone": phone,
+      "date_of_birth": dateOfBirth,
+      "city": city.toLowerCase(),
       "role": role,
-      "service_type": "taxi",
+      "service_type": serviceType,
+      "location": location,
     };
-    if (location != null) {
-      json["location"] = location!;
+
+    // Only add optional fields if they have values
+    if (middleName != null && middleName!.isNotEmpty) {
+      json["middle_name"] = middleName!;
     }
+
+    if (referralCode != null && referralCode!.isNotEmpty) {
+      json["referral_code"] = referralCode!;
+    }
+
     return json;
   }
 }
@@ -97,9 +117,10 @@ class VerifyOtpResponse {
       );
 }
 
+// FIXED: RegisterUserResponse now expects nested token object like the API returns
 class RegisterUserResponse {
   final String message;
-  final String token;
+  final TokenData token; // Changed from String to TokenData
   final Map<String, dynamic> user;
 
   RegisterUserResponse({
@@ -108,12 +129,13 @@ class RegisterUserResponse {
     required this.user,
   });
 
-  factory RegisterUserResponse.fromJson(Map<String, dynamic> json) =>
-      RegisterUserResponse(
-        message: json['message'],
-        token: json['token'],
-        user: json['user'],
-      );
+  factory RegisterUserResponse.fromJson(Map<String, dynamic> json) {
+    return RegisterUserResponse(
+      message: json['message'],
+      token: TokenData.fromJson(json['token']), // Parse nested token object
+      user: json['user'],
+    );
+  }
 }
 
 class CompleteProfileRequest {

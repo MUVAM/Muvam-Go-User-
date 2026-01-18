@@ -115,8 +115,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Stack(
                             children: [
                               Container(
-                                width: 100.w,
-                                height: 100.h,
+                                width: 80.w,
+                                height: 80.h,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Color(0xFFE0E0E0),

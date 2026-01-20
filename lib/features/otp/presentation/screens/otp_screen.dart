@@ -63,7 +63,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Stack(
           children: [
@@ -81,167 +81,174 @@ class _OtpScreenState extends State<OtpScreen> {
             Column(
               children: [
                 Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Column(
-                      children: [
-                        SizedBox(height: 60.h),
-                        Image.asset(
-                          ConstImages.otp,
-                          width: 426.w,
-                          height: 426.h,
-                        ),
-                        Text(
-                          'Phone Verification',
-                          style: ConstTextStyles.boldTitle,
-                        ),
-                        SizedBox(height: 5.h),
-                        Text(
-                          'Enter the 6 digit code sent to you',
-                          style: ConstTextStyles.lightSubtitle,
-                          textAlign: TextAlign.center,
-                          selectionColor: Color(ConstColors.blackColor),
-                        ),
-                        SizedBox(height: 42.h),
-                        Pinput(
-                          controller: pinController,
-                          focusNode: focusNode,
-                          length: 6,
-                          defaultPinTheme: PinTheme(
-                            width: 45.w,
-                            height: 50.h,
-                            textStyle: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Color(ConstColors.blackColor),
-                                  width: 2,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: Column(
+                        children: [
+                          SizedBox(height: 60.h),
+                          Image.asset(
+                            ConstImages.otp,
+                            width: 426.w,
+                            height: 426.h,
+                          ),
+                          Text(
+                            'Phone Verification',
+                            style: ConstTextStyles.boldTitle,
+                          ),
+                          SizedBox(height: 5.h),
+                          Text(
+                            'Enter the 6 digit code sent to you',
+                            style: ConstTextStyles.lightSubtitle,
+                            textAlign: TextAlign.center,
+                            selectionColor: Color(ConstColors.blackColor),
+                          ),
+                          SizedBox(height: 42.h),
+                          Pinput(
+                            controller: pinController,
+                            focusNode: focusNode,
+                            length: 6,
+                            defaultPinTheme: PinTheme(
+                              width: 45.w,
+                              height: 50.h,
+                              textStyle: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(ConstColors.blackColor),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          focusedPinTheme: PinTheme(
-                            width: 45.w,
-                            height: 50.h,
-                            textStyle: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                            focusedPinTheme: PinTheme(
+                              width: 45.w,
+                              height: 50.h,
+                              textStyle: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(ConstColors.mainColor),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
                             ),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
+                            submittedPinTheme: PinTheme(
+                              width: 45.w,
+                              height: 50.h,
+                              textStyle: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(ConstColors.mainColor),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            hapticFeedbackType: HapticFeedbackType.lightImpact,
+                            onCompleted: (pin) {
+                              // Auto-submit when OTP is complete (optional)
+                            },
+                            cursor: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(
+                                  margin: EdgeInsets.only(bottom: 9.h),
+                                  width: 22.w,
+                                  height: 1,
                                   color: Color(ConstColors.mainColor),
-                                  width: 2,
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                          submittedPinTheme: PinTheme(
-                            width: 45.w,
-                            height: 50.h,
-                            textStyle: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Color(ConstColors.mainColor),
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          hapticFeedbackType: HapticFeedbackType.lightImpact,
-                          onCompleted: (pin) {
-                            // Auto-submit when OTP is complete (optional)
-                          },
-                          cursor: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Container(
-                                margin: EdgeInsets.only(bottom: 9.h),
-                                width: 22.w,
-                                height: 1,
-                                color: Color(ConstColors.mainColor),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 30.h),
-                        Consumer<AuthProvider>(
-                          builder: (context, authProvider, child) {
-                            return GestureDetector(
-                              onTap: _countdown == 0 && !authProvider.isLoading
-                                  ? () async {
-                                      final success = await authProvider
-                                          .resendOtp(widget.phoneNumber);
-                                      if (success) {
-                                        setState(() {
-                                          _countdown = 20;
-                                        });
-                                        startTimer();
+                          SizedBox(height: 30.h),
+                          Consumer<AuthProvider>(
+                            builder: (context, authProvider, child) {
+                              return GestureDetector(
+                                onTap:
+                                    _countdown == 0 && !authProvider.isLoading
+                                    ? () async {
+                                        final success = await authProvider
+                                            .resendOtp(widget.phoneNumber);
+                                        if (success) {
+                                          setState(() {
+                                            _countdown = 20;
+                                          });
+                                          startTimer();
+                                        }
                                       }
-                                    }
-                                  : null,
-                              child: RichText(
-                                text: TextSpan(
-                                  style: ConstTextStyles.lightSubtitle,
-                                  children: [
-                                    TextSpan(
-                                      text: 'Didn\'t receive code? ',
-                                      style: TextStyle(
-                                        color: Color(ConstColors.blackColor),
-                                        fontSize: 14.sp,
-                                      ),
-                                    ),
-                                    if (_countdown > 0)
+                                    : null,
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: ConstTextStyles.lightSubtitle,
+                                    children: [
                                       TextSpan(
-                                        text:
-                                            '0:${_countdown.toString().padLeft(2, '0')}',
+                                        text: 'Didn\'t receive code? ',
                                         style: TextStyle(
-                                          color: Color(ConstColors.mainColor),
+                                          color: Color(ConstColors.blackColor),
                                           fontSize: 14.sp,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      )
-                                    else
-                                      TextSpan(
-                                        text: 'Resend',
-                                        style: TextStyle(
-                                          color: Color(ConstColors.mainColor),
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                  ],
+                                      if (_countdown > 0)
+                                        TextSpan(
+                                          text:
+                                              '0:${_countdown.toString().padLeft(2, '0')}',
+                                          style: TextStyle(
+                                            color: Color(ConstColors.mainColor),
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        )
+                                      else
+                                        TextSpan(
+                                          text: 'Resend',
+                                          style: TextStyle(
+                                            color: Color(ConstColors.mainColor),
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
+                              );
+                            },
+                          ),
+                          SizedBox(height: 20.h),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Text(
+                              'Edit my number',
+                              style: TextStyle(
+                                color: Color(ConstColors.blackColor),
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
                               ),
-                            );
-                          },
-                        ),
-                        SizedBox(height: 20.h),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: Text(
-                            'Edit my number',
-                            style: TextStyle(
-                              color: Color(ConstColors.blackColor),
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 40.h),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -305,7 +312,7 @@ class _OtpScreenState extends State<OtpScreen> {
                               }
                             : null,
                         child: Container(
-                          width: 353.w,
+                          width: double.infinity,
                           height: 48.h,
                           decoration: BoxDecoration(
                             color: isOtpComplete && !authProvider.isLoading

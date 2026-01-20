@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/app_lock_settings_screen.dart';
 import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
@@ -287,6 +290,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               SizedBox(height: 24.h),
                               GestureDetector(
                                 onTap: () => _navigateToEditProfile(context),
+                                behavior: HitTestBehavior.opaque,
                                 child: Container(
                                   width: double.infinity,
                                   height: 47.h,
@@ -307,7 +311,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                               ),
-                              SizedBox(height: 20.h),
+                              SizedBox(height: 5.h),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          DeleteAccountScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 20.w,
+                                    vertical: 16.h,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SvgPicture.asset(
+                                        ConstImages.bin,
+                                        width: 24.w,
+                                        height: 24.h,
+                                        fit: BoxFit.contain,
+                                      ),
+                                      SizedBox(width: 16.w),
+                                      Text(
+                                        'Delete account',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 18.sp,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFFEF5350),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),

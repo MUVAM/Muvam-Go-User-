@@ -9,6 +9,7 @@ class AccountTextField extends StatelessWidget {
   final bool isDateField;
   final bool hasDropdown;
   final VoidCallback? onDateSelected;
+  final String? hintText;
 
   const AccountTextField({
     super.key,
@@ -18,6 +19,7 @@ class AccountTextField extends StatelessWidget {
     this.isDateField = false,
     this.hasDropdown = false,
     this.onDateSelected,
+    this.hintText,
   });
 
   @override
@@ -41,12 +43,22 @@ class AccountTextField extends StatelessWidget {
                   controller: controller,
                   readOnly: isDateField,
                   style: ConstTextStyles.inputText,
+                  textCapitalization: TextCapitalization.words,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: InputDecoration(
                     border: InputBorder.none,
+                    hintText: hintText,
+                    hintStyle: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.grey.shade400,
+                    ),
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 16.w,
                       vertical: 15.h,
                     ),
+                    isDense: true,
                   ),
                   onTap: isDateField ? onDateSelected : null,
                 ),

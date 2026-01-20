@@ -132,18 +132,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         label: 'First name',
                         controller: firstNameController,
                         backgroundColor: ConstColors.formFieldColor,
+                        hintText: 'Enter your first name',
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
                         label: 'Middle name (Optional)',
                         controller: middleNameController,
                         backgroundColor: ConstColors.formFieldColor,
+                        hintText: 'Enter your middle name',
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
                         label: 'Last name',
                         controller: lastNameController,
                         backgroundColor: ConstColors.formFieldColor,
+                        hintText: 'Enter your last name',
                       ),
                       SizedBox(height: 20.h),
                       AccountTextField(
@@ -151,6 +154,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         controller: dobController,
                         backgroundColor: ConstColors.formFieldColor,
                         isDateField: true,
+                        hintText: 'MM/DD/YYYY',
                         onDateSelected: () =>
                             _selectDate(context, dobController),
                       ),
@@ -159,6 +163,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         label: 'Email address',
                         controller: emailController,
                         backgroundColor: ConstColors.formFieldColor,
+                        hintText: 'Enter your email address',
                       ),
                       SizedBox(height: 20.h),
                       _buildStateField(),
@@ -169,6 +174,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         label: 'Referral code (Optional)',
                         controller: referralController,
                         backgroundColor: ConstColors.formFieldColor,
+                        hintText: 'Enter referral code if you have one',
                       ),
                       SizedBox(height: 40.h),
                       _buildContinueButton(),
@@ -301,7 +307,23 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         locationController.text = 'Getting location...';
       });
 
+      // Check if location services are enabled first
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          locationController.clear();
+        });
+        if (!mounted) return;
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Location services are disabled. Please enable GPS.',
+        );
+        return;
+      }
+
+      // Check permission status
       LocationPermission permission = await Geolocator.checkPermission();
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
@@ -317,80 +339,135 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         }
       }
 
-      Position position =
-          await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-          ).timeout(
-            Duration(seconds: 15),
-            onTimeout: () {
-              throw TimeoutException('Location fetch timed out');
-            },
-          );
+      // Check if permission was permanently denied
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          locationController.clear();
+        });
+        if (!mounted) return;
+        CustomFlushbar.showError(
+          context: context,
+          message:
+              'Location permission permanently denied. Please enable in settings.',
+        );
+        return;
+      }
 
+      // Get position with better error handling
+      Position? position;
+      try {
+        position =
+            await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high,
+            ).timeout(
+              Duration(seconds: 20), // Increased timeout
+              onTimeout: () {
+                throw TimeoutException(
+                  'Location fetch timed out after 20 seconds',
+                );
+              },
+            );
+      } on TimeoutException catch (e) {
+        AppLogger.log('Position timeout: $e');
+        setState(() {
+          locationController.clear();
+        });
+        if (!mounted) return;
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Location request timed out. Please try again.',
+        );
+        return;
+      }
+
+      // Store location point immediately (this is most important)
       _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
       AppLogger.log('Location Point (correct format): $_locationPoint');
+
+      // Set default state using coordinates as fallback
+      String fallbackCity =
+          'City_${position.latitude.toStringAsFixed(2)}_${position.longitude.toStringAsFixed(2)}';
+      _selectedState = fallbackCity;
 
       String address = '';
       bool geocodingSuccessful = false;
 
-      for (int attempt = 0; attempt < 2; attempt++) {
-        try {
-          AppLogger.log('Geocoding attempt ${attempt + 1}...');
+      // Try geocoding but don't fail if it doesn't work
+      try {
+        for (int attempt = 0; attempt < 3; attempt++) {
+          try {
+            AppLogger.log('Geocoding attempt ${attempt + 1}...');
 
-          List<Placemark> placemarks = await placemarkFromCoordinates(
-            position.latitude,
-            position.longitude,
-          ).timeout(Duration(seconds: 15));
+            List<Placemark> placemarks = await placemarkFromCoordinates(
+              position.latitude,
+              position.longitude,
+            ).timeout(Duration(seconds: 10));
 
-          if (placemarks.isNotEmpty) {
-            Placemark place = placemarks[0];
+            if (placemarks.isNotEmpty) {
+              Placemark place = placemarks[0];
 
-            // Extract city for API
-            _selectedState =
-                place.locality ??
-                place.subAdministrativeArea ??
-                place.administrativeArea ??
-                'Unknown';
-            AppLogger.log('Extracted city: $_selectedState');
+              // Extract city with multiple fallbacks
+              String? city =
+                  place.locality ??
+                  place.subAdministrativeArea ??
+                  place.administrativeArea ??
+                  place.subLocality;
 
-            // Build a readable address
-            List<String> addressParts = [];
+              if (city != null && city.isNotEmpty) {
+                _selectedState = city;
+                AppLogger.log('Extracted city: $_selectedState');
+              }
 
-            if (place.street != null && place.street!.isNotEmpty) {
-              addressParts.add(place.street!);
+              // Build a readable address
+              List<String> addressParts = [];
+
+              if (place.street != null && place.street!.isNotEmpty) {
+                addressParts.add(place.street!);
+              }
+              if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                addressParts.add(place.subLocality!);
+              }
+              if (place.locality != null && place.locality!.isNotEmpty) {
+                addressParts.add(place.locality!);
+              }
+              if (place.administrativeArea != null &&
+                  place.administrativeArea!.isNotEmpty) {
+                addressParts.add(place.administrativeArea!);
+              }
+              if (place.country != null && place.country!.isNotEmpty) {
+                addressParts.add(place.country!);
+              }
+
+              address = addressParts.join(', ');
+
+              if (address.isEmpty && city != null) {
+                address = city;
+              }
+
+              geocodingSuccessful = true;
+              AppLogger.log('Geocoded address: $address');
+              break;
             }
-            if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-              addressParts.add(place.subLocality!);
+          } on TimeoutException catch (e) {
+            AppLogger.log('Geocoding attempt ${attempt + 1} timed out: $e');
+            if (attempt < 2) {
+              await Future.delayed(Duration(seconds: 1));
             }
-            if (place.locality != null && place.locality!.isNotEmpty) {
-              addressParts.add(place.locality!);
+          } catch (e) {
+            AppLogger.log('Geocoding attempt ${attempt + 1} failed: $e');
+            if (attempt < 2) {
+              await Future.delayed(Duration(seconds: 1));
+            } else {
+              break;
             }
-            if (place.administrativeArea != null &&
-                place.administrativeArea!.isNotEmpty) {
-              addressParts.add(place.administrativeArea!);
-            }
-
-            address = addressParts.join(', ');
-
-            if (address.isEmpty) {
-              address = _selectedState ?? 'Your Location';
-            }
-
-            geocodingSuccessful = true;
-            AppLogger.log('Geocoded address: $address');
-            break;
           }
-        } on TimeoutException catch (e) {
-          AppLogger.log('Geocoding attempt ${attempt + 1} timed out: $e');
-          if (attempt == 0) {
-            await Future.delayed(Duration(milliseconds: 500));
-          }
-        } catch (e) {
-          AppLogger.log('Geocoding attempt ${attempt + 1} failed: $e');
-          break;
         }
+      } catch (e) {
+        AppLogger.log('Geocoding completely failed: $e');
+        // Don't return here - we still have coordinates
       }
 
+      // Update UI with whatever we have
       if (geocodingSuccessful && address.isNotEmpty) {
         setState(() {
           locationController.text = address;
@@ -402,32 +479,46 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           message: 'Location captured successfully',
         );
       } else {
+        // Use coordinates as display, but we still have _locationPoint and _selectedState
         setState(() {
           locationController.text =
-              'Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}';
-          _selectedState = 'Unknown';
+              'Lat: ${position!.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)}';
         });
 
         if (!mounted) return;
-        CustomFlushbar.showInfo(
+        CustomFlushbar.showSuccess(
           context: context,
-          message: 'Location saved (showing coordinates)',
+          message: 'Location saved (GPS coordinates)',
         );
       }
 
       AppLogger.log('Final location point to send to backend: $_locationPoint');
-    } catch (e) {
-      AppLogger.log('Error getting location: $e');
+      AppLogger.log('Final city to send to backend: $_selectedState');
+    } on LocationServiceDisabledException catch (e) {
+      AppLogger.log('Location services disabled: $e');
       setState(() {
         locationController.clear();
         _locationPoint = null;
       });
 
       if (!mounted) return;
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Location services are disabled. Please enable GPS.',
+      );
+    } catch (e) {
+      AppLogger.log('Error getting location: $e');
+      setState(() {
+        locationController.clear();
+        _locationPoint = null;
+        _selectedState = null;
+      });
+
+      if (!mounted) return;
 
       CustomFlushbar.showError(
         context: context,
-        message: 'Failed to get location. Please try again.',
+        message: 'Failed to get location: ${e.toString()}',
       );
     }
   }

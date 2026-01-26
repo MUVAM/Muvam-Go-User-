@@ -2327,18 +2327,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     Scaffold.of(context).openDrawer();
                   },
                   child: Container(
-                    width: 50.w,
-                    height: 50.h,
+                    width: 40.w,
+                    height: 40.h,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25.r),
                     ),
-                    padding: EdgeInsets.all(10.w),
-                    child: Icon(Icons.menu, size: 24.sp),
+                    alignment: Alignment.center,
+                    child: Icon(Icons.menu, size: 20.sp),
                   ),
                 ),
               ),
-              // Active ride indicator
               if (_activeRide != null)
                 Positioned(
                   top: 66.h,
@@ -2373,9 +2372,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-              // Bottom sheet
               if (_isBottomSheetVisible)
-                // Replace your existing DraggableScrollableSheet builder content with this:
                 DraggableScrollableSheet(
                   controller: _sheetController,
                   initialChildSize: 0.4,
@@ -3216,7 +3213,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         );
                                       }
-
                                       for (final recent
                                           in locationProvider.recentLocations) {
                                         if (!recent.isFavourite) {

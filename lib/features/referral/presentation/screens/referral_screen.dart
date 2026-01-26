@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
@@ -39,19 +40,19 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Container(
-                        width: 40.w,
-                        height: 40.h,
+                        width: 35.w,
+                        height: 35.h,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(100.r),
                         ),
-                        padding: EdgeInsets.all(10.w),
+                        padding: EdgeInsets.all(5.w),
                         child: GestureDetector(
                           onTap: () => Navigator.pop(context),
-                          child: Image.asset(
-                            ConstImages.back,
-                            width: 30.w,
-                            height: 30.h,
+                          child: SvgPicture.asset(
+                            ConstImages.arrowLeftAlt,
+                            fit: BoxFit.contain,
+                            color: Color(ConstColors.blackColor),
                           ),
                         ),
                       ),
@@ -59,7 +60,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                         'Referral',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 18.sp,
+                          fontSize: 24.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -77,7 +78,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                           'Rules',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 16.sp,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
                           ),
@@ -111,7 +112,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 24.h),
                   if (referralProvider.isLoading)
                     Container(
                       width: 350.w,
@@ -175,6 +176,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                         color: Colors.black.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(10.r),
                       ),
+                      alignment: Alignment.center,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -185,7 +187,6 @@ class _ReferralScreenState extends State<ReferralScreen> {
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w500,
-                              height: 1.0,
                               letterSpacing: 0,
                               color: Colors.white,
                             ),
@@ -212,7 +213,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontFamily: 'Inter',
-                                    fontSize: 40.sp,
+                                    fontSize: 37.sp,
                                     fontWeight: FontWeight.w600,
                                     height: 1.0,
                                     letterSpacing: 0,
@@ -220,18 +221,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                   ),
                                 ),
                                 SizedBox(width: 10.w),
-                                GestureDetector(
-                                  onTap: () {
-                                    _copyToClipboard(
-                                      context,
-                                      referralProvider.referralData?.code ?? '',
-                                    );
-                                  },
-                                  child: Icon(
-                                    Icons.copy,
-                                    color: Colors.white,
-                                    size: 24.sp,
-                                  ),
+                                SvgPicture.asset(
+                                  ConstImages.copyIcon,
+                                  fit: BoxFit.contain,
                                 ),
                               ],
                             ),
@@ -257,7 +249,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     width: 353.w,
                     height: 154.h,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.black.withOpacity(0.4),
                       borderRadius: BorderRadius.circular(10.r),
                     ),
                     child: Column(
@@ -270,7 +262,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Colors.white,
                           ),
                         ),
                         SizedBox(height: 10.h),
@@ -285,7 +277,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                             fontWeight: FontWeight.w700,
                             height: 1.0,
                             letterSpacing: -0.41,
-                            color: Colors.black,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -332,8 +324,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
     Clipboard.setData(ClipboardData(text: text));
     CustomFlushbar.showInfo(
-      context: context,
       message: 'Referral code copied to clipboard',
+      context: context,
     );
   }
 }

@@ -46,4 +46,6 @@ class ConstImages {
   static const String bin = 'assets/svg/Bin.svg';
   static const String search = 'assets/svg/search.svg';
   static const String dropDown = 'assets/svg/drop-down.svg';
+  static const String arrowLeftAlt = 'assets/svg/arrow_left_alt.svg';
+  static const String copyIcon = 'assets/svg/Copy-icon.svg';
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/profile/presentation/widgets/app_lock_radio_option.dart';
@@ -170,9 +171,12 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Icon(Icons.arrow_back, color: Colors.black, size: 24.sp),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 20),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Image.asset(ConstImages.back, width: 30.w, height: 30.h),
+          ),
         ),
         title: Text(
           'App Lock Settings',

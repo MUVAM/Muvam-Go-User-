@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -80,6 +81,18 @@ class ActiveTab extends StatelessWidget {
 
         return Column(
           children: activeRides.map((ride) {
+            // Parse the datetime string
+            final dateTime = DateTime.parse(
+              ride.scheduledAt ?? ride.createdAt,
+            ).toLocal();
+
+            // Format time: 8:30pm
+            final timeFormat = DateFormat('h:mma');
+            final formattedTime = timeFormat.format(dateTime).toLowerCase();
+
+            // Format date: Jan 26, 2026
+            final dateFormat = DateFormat('MMM d, yyyy');
+            final formattedDate = dateFormat.format(dateTime);
             return Padding(
               padding: EdgeInsets.only(bottom: 15.h),
               child: GestureDetector(
@@ -112,9 +125,7 @@ class ActiveTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _extractTime(
-                                  ride.scheduledAt ?? ride.createdAt,
-                                ),
+                                formattedTime,
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w500,
@@ -123,9 +134,7 @@ class ActiveTab extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _extractDate(
-                                  ride.scheduledAt ?? ride.createdAt,
-                                ),
+                                formattedDate,
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w600,
@@ -216,40 +225,5 @@ class ActiveTab extends StatelessWidget {
         );
       },
     );
-  }
-
-  String _extractTime(String dateTime) {
-    try {
-      final dt = DateTime.parse(dateTime);
-      final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-      final minute = dt.minute.toString().padLeft(2, '0');
-      final period = dt.hour >= 12 ? 'pm' : 'am';
-      return '$hour:$minute$period';
-    } catch (e) {
-      return '8:00pm';
-    }
-  }
-
-  String _extractDate(String dateTime) {
-    try {
-      final dt = DateTime.parse(dateTime);
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-    } catch (e) {
-      return 'Nov 28, 2025';
-    }
   }
 }

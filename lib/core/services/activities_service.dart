@@ -46,12 +46,13 @@ class ActivitiesService {
       );
 
       AppLogger.log('Response Status: ${response.statusCode}');
+      AppLogger.log('Response bodyy--++++--: ${response.body}');
       AppLogger.log('Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         AppLogger.log(
-          'Success: ${data.toString().substring(0, min(200, data.toString().length))}',
+          'Successssss: ${data.toString().substring(0, min(200, data.toString().length))}',
         );
         return {'success': true, 'data': data};
       } else {

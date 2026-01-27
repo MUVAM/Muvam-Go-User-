@@ -40,8 +40,8 @@ class _EditFullNameScreenState extends State<EditFullNameScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
                       ConstImages.back,
-                      width: 24.w,
-                      height: 24.h,
+                      width: 33.w,
+                      height: 33.h,
                     ),
                   ),
                   GestureDetector(

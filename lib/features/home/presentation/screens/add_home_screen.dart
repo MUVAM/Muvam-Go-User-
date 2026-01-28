@@ -198,8 +198,8 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                     onTap: () => Navigator.pop(context),
                     child: Image.asset(
                       ConstImages.back,
-                      width: 30.w,
-                      height: 30.h,
+                      width: 33.w,
+                      height: 33.h,
                     ),
                   ),
                 ],

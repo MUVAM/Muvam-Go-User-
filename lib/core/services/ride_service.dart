@@ -152,7 +152,7 @@ class RideService {
     final token = await _getToken();
 
     final response = await http.get(
-      Uri.parse('${UrlConstants.baseUrl}/api/v1/rides/$rideId'),
+      Uri.parse('${UrlConstants.baseUrl}/rides/$rideId'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

@@ -44,7 +44,7 @@ class _TipScreenState extends State<TipScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
       // Using the IP address as seen in other parts of the app
-      final url = 'http://44.222.121.219/api/v1/rides/${widget.rideId}/tip';
+      final url = 'https://api.muvam.app/api/v1/rides/${widget.rideId}/tip';
 
       AppLogger.log(
         'Sending tip: $selectedTip to ride ${widget.rideId}',

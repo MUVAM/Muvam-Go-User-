@@ -13,13 +13,11 @@ import 'package:muvam/features/activities/data/providers/activities_tabs_provide
 import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/auth/data/providers/%20delete_account_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
-import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
 import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/biometric_lock_screen.dart';
-import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
 import 'package:muvam/features/promo/data/providers/promo_code_provider.dart';
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';

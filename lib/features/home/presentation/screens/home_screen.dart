@@ -7095,7 +7095,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final token = prefs.getString('auth_token');
 
       await http.post(
-        Uri.parse('http://44.222.121.219/api/v1/calls/$sessionId/reject'),
+        Uri.parse('https://api.muvam.app/api/v1/calls/$sessionId/reject'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

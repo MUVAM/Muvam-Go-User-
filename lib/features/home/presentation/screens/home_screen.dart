@@ -4281,83 +4281,37 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showPaymentMethods({VoidCallback? onPaymentChanged}) {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
+      backgroundColor: Color(0xFF2C9BE0),
+
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PromoCodeScreen(),
+                ),
+              );
+            },
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
+                color: Color(0xFF2C9BE0),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Choose payment method',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Icon(Icons.close, size: 24.sp),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-            // Promo code container
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PromoCodeScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 12.h),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Apply 20% off promo code',
+                      'Apply 20% off promo code>>',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 14.sp,
+                        fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      '>>>',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
@@ -4365,25 +4319,69 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 20.h),
-            _buildPaymentOption(
-              'Pay with wallet',
-              onPaymentChanged: onPaymentChanged,
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+            child: DecoratedBox(
+              decoration: BoxDecoration(color: Colors.white),
+              child: Padding(
+                padding: EdgeInsets.all(20.w),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 69.w,
+                      height: 5.h,
+                      margin: EdgeInsets.only(bottom: 20.h),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2.5.r),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Choose payment method',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Icon(Icons.close, size: 24.sp),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20.h),
+                    _buildPaymentOption(
+                      'Pay with wallet',
+                      onPaymentChanged: onPaymentChanged,
+                    ),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    _buildPaymentOption(
+                      'Pay with card',
+                      onPaymentChanged: onPaymentChanged,
+                    ),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    _buildPaymentOption(
+                      'pay4me',
+                      onPaymentChanged: onPaymentChanged,
+                    ),
+                    Divider(thickness: 1, color: Colors.grey.shade300),
+                    _buildPaymentOption(
+                      'Pay in car',
+                      onPaymentChanged: onPaymentChanged,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption(
-              'Pay with card',
-              onPaymentChanged: onPaymentChanged,
-            ),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption('pay4me', onPaymentChanged: onPaymentChanged),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            _buildPaymentOption(
-              'Pay in car',
-              onPaymentChanged: onPaymentChanged,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -4435,7 +4433,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(width: 15.w),
             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
-            if (isSelected) Icon(Icons.check, color: Colors.green, size: 20.sp),
+            if (isSelected)
+              Icon(Icons.check_circle, color: Colors.green, size: 20.sp),
           ],
         ),
       ),

@@ -32,6 +32,7 @@ class UrlConstants {
   static const String rideRequest = "/rides/request";
   static const String nearbyRides = "/rides/nearby";
   static const String activeRides = "/rides";
+  static const String nearbyDrivers = "/drivers/nearby";
   static const String sos = "/sos";
 
   // Payment

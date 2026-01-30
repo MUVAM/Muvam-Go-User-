@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:geocoding/geocoding.dart';
@@ -13,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/directions_service.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
@@ -113,6 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<FavouriteLocation> _favouriteLocations = [];
   Map<String, dynamic>? _activeRide;
   Timer? _activeRideCheckTimer;
+  Timer? _nearbyDriversTimer;
+  bool _hasNearbyDriver = false;
   bool _isActiveRideSheetVisible = false;
   bool _hasUserDismissedSheet = false;
   int? _lastCompletedRideId;
@@ -173,6 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _checkActiveRides();
       _startActiveRideChecking();
+      _startNearbyDriverChecking();
     });
   }
 
@@ -465,16 +471,16 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 50.w,
             height: 50.h,
             decoration: BoxDecoration(
-              color: _isDriverAssigned
+              color: (_isDriverAssigned || _hasNearbyDriver)
                   ? Color(ConstColors.mainColor)
                   : Colors.white,
               shape: BoxShape.circle,
-              border: _isDriverAssigned
+              border: (_isDriverAssigned || _hasNearbyDriver)
                   ? null
                   : Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Center(
-              child: _isDriverAssigned
+              child: (_isDriverAssigned || _hasNearbyDriver)
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -889,6 +895,81 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('❌ Error handling global chat message: $e');
       AppLogger.log('Stack: $stack');
     }
+  }
+
+  void _startNearbyDriverChecking() {
+    _checkNearbyDrivers();
+    // Check for nearby drivers every 2 minutes
+    _nearbyDriversTimer = Timer.periodic(Duration(minutes: 2), (timer) {
+      _checkNearbyDrivers();
+    });
+  }
+
+  Future<void> _checkNearbyDrivers() async {
+    // Only check if no active ride
+    if (_activeRide != null || _isDriverAssigned) return;
+
+    AppLogger.log('=== CHECKING NEARBY DRIVERS ===');
+    try {
+      final driverData = await _rideService.getNearbyDrivers(
+        latitude: _currentLocation.latitude,
+        longitude: _currentLocation.longitude,
+      );
+
+      if (driverData != null) {
+        AppLogger.log('Nearby driver found: $driverData');
+        
+        final locationData = driverData['location'];
+        final latitude = locationData['latitude'] is double 
+            ? locationData['latitude'] 
+            : double.tryParse(locationData['latitude'].toString()) ?? 0.0;
+        final longitude = locationData['longitude'] is double 
+            ? locationData['longitude'] 
+            : double.tryParse(locationData['longitude'].toString()) ?? 0.0;
+            
+        final eta = driverData['eta_minutes']?.toString() ?? '1';
+        
+        setState(() {
+          _driverArrivalTime = eta;
+          _hasNearbyDriver = true;
+        });
+
+        _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
+      } else {
+        setState(() {
+          _hasNearbyDriver = false;
+        });
+        // Optionally remove marker
+        // _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+      }
+    } catch (e) {
+      AppLogger.log('Error checking nearby drivers: $e');
+    }
+  }
+
+  void _updateNearbyDriverMarker(LatLng driverLocation, String eta) {
+    if (_carIcon == null) return;
+    
+    // Check if we already have this driver marker to avoid unnecessary rebuilds
+    // Or just update it.
+    
+    setState(() {
+      // Remove old driver marker
+      _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+      
+      _mapMarkers.add(
+        Marker(
+          markerId: MarkerId('nearby_driver'),
+          position: driverLocation,
+          icon: _carIcon!,
+          anchor: Offset(0.5, 0.5),
+           infoWindow: InfoWindow(
+            title: 'Nearby Driver',
+            snippet: '$eta min away',
+          ),
+        ),
+      );
+    });
   }
 
   Future<void> _checkActiveRides() async {
@@ -1926,15 +2007,38 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         try {
-          final routePoints = await _directionsService.getRoutePolyline(
-            origin: pickupCoords,
-            destination: _driverLocation!,
+          // Get route using flutter_polyline_points
+          PolylinePoints polylinePoints = PolylinePoints();
+          PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+            googleApiKey: UrlConstants.googleMapsApiKey,
+            request: PolylineRequest(
+              origin: PointLatLng(pickupCoords.latitude, pickupCoords.longitude),
+              destination: PointLatLng(_driverLocation!.latitude, _driverLocation!.longitude),
+              mode: TravelMode.driving,
+              optimizeWaypoints: true,
+            ),
           );
 
-          AppLogger.log(
-            '✅ Got ${routePoints.length} route points (pickup to driver)',
-            tag: 'MARKERS',
-          );
+          List<LatLng> routePoints = [];
+          if (result.points.isNotEmpty) {
+            for (var point in result.points) {
+              routePoints.add(LatLng(point.latitude, point.longitude));
+            }
+            AppLogger.log(
+              '✅ Got ${routePoints.length} route points (pickup to driver)',
+              tag: 'MARKERS',
+            );
+          } else {
+            AppLogger.log(
+              '⚠️ Directions API returned empty. Error: ${result.errorMessage}',
+              tag: 'MARKERS',
+            );
+            routePoints = _generateCurvedPath(pickupCoords, _driverLocation!);
+            AppLogger.log(
+              '📍 Using curved path fallback with ${routePoints.length} points',
+              tag: 'MARKERS',
+            );
+          }
 
           polylines.add(
             Polyline(
@@ -1978,16 +2082,38 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         try {
-          final routePoints = await _directionsService.getRoutePolyline(
-            origin: pickupCoords,
-            destination: destCoords,
-            waypoints: stopCoords != null ? [stopCoords] : null,
+          // Get route using flutter_polyline_points
+          PolylinePoints polylinePoints = PolylinePoints();
+          PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+            googleApiKey: UrlConstants.googleMapsApiKey,
+            request: PolylineRequest(
+              origin: PointLatLng(pickupCoords.latitude, pickupCoords.longitude),
+              destination: PointLatLng(destCoords.latitude, destCoords.longitude),
+              mode: TravelMode.driving,
+              optimizeWaypoints: true,
+            ),
           );
 
-          AppLogger.log(
-            '✅ Got ${routePoints.length} route points (pickup to destination)',
-            tag: 'MARKERS',
-          );
+          List<LatLng> routePoints = [];
+          if (result.points.isNotEmpty) {
+            for (var point in result.points) {
+              routePoints.add(LatLng(point.latitude, point.longitude));
+            }
+            AppLogger.log(
+              '✅ Got ${routePoints.length} route points (pickup to destination)',
+              tag: 'MARKERS',
+            );
+          } else {
+            AppLogger.log(
+              '⚠️ Directions API returned empty. Error: ${result.errorMessage}',
+              tag: 'MARKERS',
+            );
+            routePoints = _generateCurvedPath(pickupCoords, destCoords);
+            AppLogger.log(
+              '📍 Using curved path fallback with ${routePoints.length} points',
+              tag: 'MARKERS',
+            );
+          }
 
           polylines.add(
             Polyline(
@@ -3357,13 +3483,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
     AppLogger.log('🗺️ Getting real route path...');
 
-    // Get the actual route polyline from Google Directions API
-    final routePoints = await _directionsService.getRoutePolyline(
-      origin: _pickupCoordinates!,
-      destination: _destinationCoordinates!,
-    );
+    List<LatLng> routePoints = [];
+    
+    try {
+      // Get the actual route polyline using flutter_polyline_points
+      PolylinePoints polylinePoints = PolylinePoints();
+      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        googleApiKey: UrlConstants.googleMapsApiKey,
+        request: PolylineRequest(
+          origin: PointLatLng(_pickupCoordinates!.latitude, _pickupCoordinates!.longitude),
+          destination: PointLatLng(_destinationCoordinates!.latitude, _destinationCoordinates!.longitude),
+          mode: TravelMode.driving,
+          optimizeWaypoints: true,
+        ),
+      );
 
-    AppLogger.log('✅ Got ${routePoints.length} route points');
+      if (result.points.isNotEmpty) {
+        for (var point in result.points) {
+          routePoints.add(LatLng(point.latitude, point.longitude));
+        }
+        AppLogger.log('✅ Got ${routePoints.length} route points from Directions API');
+      } else {
+        AppLogger.log('⚠️ Directions API returned empty points. Error: ${result.errorMessage}');
+        // Fallback to curved path
+        routePoints = _generateCurvedPath(_pickupCoordinates!, _destinationCoordinates!);
+        AppLogger.log('📍 Using curved path fallback with ${routePoints.length} points');
+      }
+    } catch (e) {
+      AppLogger.log('❌ Error fetching route from Directions API: $e');
+      // Fallback to curved path
+      routePoints = _generateCurvedPath(_pickupCoordinates!, _destinationCoordinates!);
+      AppLogger.log('📍 Using curved path fallback with ${routePoints.length} points');
+    }
+
+    AppLogger.log('✅ Final route has ${routePoints.length} points');
 
     // Create custom marker icons from widgets
     final pickupIcon = await _createBitmapDescriptorFromWidget(
@@ -3859,11 +4012,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: !_isBookingRide
                         ? () async {
-                            // Reset scheduled ride state when booking now
-                            setState(() {
-                              isScheduledRide = false;
-                            });
-
+                            // Don't reset isScheduledRide here - it should persist until after booking
                             if (selectedPaymentMethod == 'Pay with card') {
                               setBookingState(() {
                                 _isBookingRide = true;
@@ -5545,158 +5694,160 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Booking Request Successful',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 5.h),
-            Text(
-              'You\'ll receive a push notification when your \ndriver is assigned.',
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                height: 1.4,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 10.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 10.h),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 8.w,
-                      height: 8.h,
-                      margin: EdgeInsets.only(top: 6.h),
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 8.h),
-                    Text(
-                      'Pick up',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Color(ConstColors.mainColor),
-                      ),
-                    ),
-                  ],
+        child: Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Booking Request Successful',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
-                SizedBox(height: 8.h),
-                Text(
-                  _currentRideResponse?.pickupAddress ??
-                      '4, Grove Street, Opposite Cj\'s house, Los Santos',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    color: Colors.black,
+              ),
+              SizedBox(height: 5.h),
+              Text(
+                'You\'ll receive a push notification when your \ndriver is assigned.',
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w400,
+                  height: 1.4,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 10.h),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 8.w,
+                        height: 8.h,
+                        margin: EdgeInsets.only(top: 6.h),
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8.h),
+                      Text(
+                        'Pick up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(ConstColors.mainColor),
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-            SizedBox(height: 10.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 10.h),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 8.w,
-                      height: 8.h,
-                      margin: EdgeInsets.only(top: 6.h),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    _currentRideResponse?.pickupAddress ??
+                        '4, Grove Street, Opposite Cj\'s house, Los Santos',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: Colors.black,
                     ),
-                    SizedBox(width: 8.h),
-                    Text(
-                      'Destination',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  _currentRideResponse?.destAddress ??
-                      '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    color: Colors.black,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-            Spacer(),
-            Container(
-              width: double.infinity,
-              height: 50.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(12.r),
+                ],
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showBookSuccessfulSheet();
-                  },
+              SizedBox(height: 10.h),
+              Divider(thickness: 1, color: Colors.grey.shade300),
+              SizedBox(height: 10.h),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 8.w,
+                        height: 8.h,
+                        margin: EdgeInsets.only(top: 6.h),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8.h),
+                      Text(
+                        'Destination',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    _currentRideResponse?.destAddress ??
+                        '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: Colors.black,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              Spacer(),
+              Container(
+                width: double.infinity,
+                height: 50.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
                   borderRadius: BorderRadius.circular(12.r),
-                  child: Center(
-                    child: Text(
-                      'View trip',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showBookSuccessfulSheet();
+                    },
+                    borderRadius: BorderRadius.circular(12.r),
+                    child: Center(
+                      child: Text(
+                        'View trip',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: 16.h),
-          ],
+              SizedBox(height: 16.h),
+            ],
+          ),
         ),
       ),
     );
@@ -7911,23 +8062,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
+    AppLogger.log('🕐 isScheduled parameter: $isScheduled');
+    AppLogger.log('🕐 scheduledDateTime parameter: $scheduledDateTime');
 
     String? formattedScheduledAt;
     if (isScheduled && scheduledDateTime != null) {
-      final utcDateTime = scheduledDateTime.toUtc();
-      formattedScheduledAt =
-          '${utcDateTime.year.toString().padLeft(4, '0')}-'
-          '${utcDateTime.month.toString().padLeft(2, '0')}-'
-          '${utcDateTime.day.toString().padLeft(2, '0')} '
-          '${utcDateTime.hour.toString().padLeft(2, '0')}:'
-          '${utcDateTime.minute.toString().padLeft(2, '0')}:'
-          '${utcDateTime.second.toString().padLeft(2, '0')}.'
-          '${utcDateTime.microsecond.toString().padLeft(6, '0')}+00';
+      formattedScheduledAt = scheduledDateTime.toUtc().toIso8601String();
 
-      AppLogger.log('Scheduled Ride: true');
-      AppLogger.log('Scheduled At (formatted): $formattedScheduledAt');
-      AppLogger.log('Original DateTime: $scheduledDateTime');
-      AppLogger.log('UTC DateTime: $utcDateTime');
+      AppLogger.log('✅ Scheduled Ride: true');
+      AppLogger.log('✅ Scheduled At (formatted): $formattedScheduledAt');
+      AppLogger.log('✅ Original DateTime: $scheduledDateTime');
+    } else {
+      AppLogger.log('❌ NOT a scheduled ride - isScheduled: $isScheduled, scheduledDateTime: $scheduledDateTime');
     }
 
     String destAddress = toController.text;
@@ -7963,11 +8109,14 @@ class _HomeScreenState extends State<HomeScreen> {
       vehicleType: vehicleType,
       paymentMethod: convertedPaymentMethod,
       scheduled: isScheduled ? true : null,
-      scheduledAt: formattedScheduledAt,
+      // scheduledAt: formattedScheduledAt,
       stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
       note: noteController.text.isNotEmpty ? noteController.text : null,
     );
 
+    AppLogger.log('📋 === RIDE REQUEST OBJECT CREATED ===');
+    AppLogger.log('📋 request.scheduled: ${request.scheduled}');
+    AppLogger.log('📋 request.scheduledAt: ${request.scheduledAt}');
     AppLogger.log('📋 Final Ride Request Object:');
     AppLogger.log('  - Pickup: ${request.pickup}');
     AppLogger.log('  - Destination: ${request.dest}');
@@ -7980,6 +8129,21 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('  - Scheduled: ${request.scheduled}');
       AppLogger.log('  - Scheduled At======: ${request.scheduledAt}');
     }
+
+    AppLogger.log('\n📦 ===================================================');
+    AppLogger.log('📦 FINAL DATA BEING SENT TO BACKEND');
+    AppLogger.log('📦 ===================================================');
+    AppLogger.log('Method: POST');
+    AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
+    AppLogger.log('Headers: {Content-Type: application/json, Authorization: Bearer <TOKEN>}');
+    AppLogger.log('Body (JSON):');
+    try {
+      AppLogger.log(jsonEncode(request.toJson()));
+    } catch (e) {
+      AppLogger.log('Error encoding JSON: $e');
+      AppLogger.log('Raw Map: ${request.toJson()}');
+    }
+    AppLogger.log('📦 ===================================================\n');
 
     return await _rideService.requestRide(request);
   }
@@ -8318,6 +8482,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
     _activeRideCheckTimer?.cancel();
+    _nearbyDriversTimer?.cancel();
     _webSocketService.disconnect();
     _activeRideCheckTimer?.cancel();
 

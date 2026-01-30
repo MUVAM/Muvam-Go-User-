@@ -121,6 +121,40 @@ class RideService {
     }
   }
 
+  Future<Map<String, dynamic>?> getNearbyDrivers({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final token = await _getToken();
+    final url =
+        '${UrlConstants.baseUrl}${UrlConstants.nearbyDrivers}?longitude=$longitude&latitude=$latitude';
+
+    AppLogger.log('Getting nearby drivers: $url');
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      AppLogger.log('Nearby drivers response: ${response.statusCode}');
+      AppLogger.log('Nearby drivers body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['drivers'] != null && (data['drivers'] as List).isNotEmpty) {
+          return data['drivers'][0];
+        }
+      }
+    } catch (e) {
+      AppLogger.log('Failed to fetch nearby drivers: $e');
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>> getActiveRides() async {
     final token = await _getToken();
     AppLogger.log('=== CHECKING ACTIVE RIDES ===');

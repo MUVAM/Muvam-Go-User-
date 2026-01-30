@@ -118,6 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _activeRideCheckTimer;
   Timer? _nearbyDriversTimer;
   bool _hasNearbyDriver = false;
+  Map<String, dynamic>? _nearbyDriverData;
+  LatLng? _nearbyDriverLocation;
   bool _isActiveRideSheetVisible = false;
   bool _hasUserDismissedSheet = false;
   int? _lastCompletedRideId;
@@ -899,17 +901,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _startNearbyDriverChecking() {
     _checkNearbyDrivers();
-    // Check for nearby drivers every 2 minutes
-    _nearbyDriversTimer = Timer.periodic(Duration(minutes: 2), (timer) {
+    // Check for nearby drivers every 30 seconds
+    _nearbyDriversTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       _checkNearbyDrivers();
     });
   }
 
   Future<void> _checkNearbyDrivers() async {
     // Only check if no active ride
-    if (_activeRide != null || _isDriverAssigned) return;
+    if (_activeRide != null || _isDriverAssigned) {
+      setState(() {
+        _hasNearbyDriver = false;
+        _nearbyDriverData = null;
+        _nearbyDriverLocation = null;
+      });
+      return;
+    }
 
-    AppLogger.log('=== CHECKING NEARBY DRIVERS ===');
+    AppLogger.log('=== CHECKING NEARBY DRIVERS ===', tag: 'NEARBY_DRIVER');
     try {
       final driverData = await _rideService.getNearbyDrivers(
         latitude: _currentLocation.latitude,
@@ -917,7 +926,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (driverData != null) {
-        AppLogger.log('Nearby driver found: $driverData');
+        AppLogger.log('Nearby driver found: $driverData', tag: 'NEARBY_DRIVER');
         
         final locationData = driverData['location'];
         final latitude = locationData['latitude'] is double 
@@ -932,18 +941,31 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _driverArrivalTime = eta;
           _hasNearbyDriver = true;
+          _nearbyDriverData = driverData;
+          _nearbyDriverLocation = LatLng(latitude, longitude);
         });
 
+        // Add driver marker on map
         _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
       } else {
+        AppLogger.log('No nearby drivers found', tag: 'NEARBY_DRIVER');
         setState(() {
           _hasNearbyDriver = false;
+          _nearbyDriverData = null;
+          _nearbyDriverLocation = null;
         });
-        // Optionally remove marker
-        // _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+        // Remove marker if no driver nearby
+        setState(() {
+          _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+        });
       }
     } catch (e) {
-      AppLogger.log('Error checking nearby drivers: $e');
+      AppLogger.log('Error checking nearby drivers: $e', tag: 'NEARBY_DRIVER');
+      setState(() {
+        _hasNearbyDriver = false;
+        _nearbyDriverData = null;
+        _nearbyDriverLocation = null;
+      });
     }
   }
 
@@ -1607,6 +1629,9 @@ class _HomeScreenState extends State<HomeScreen> {
         AppLogger.log(
           '📍 Current user location: ${position.latitude}, ${position.longitude}',
         );
+        
+        // Check for nearby drivers immediately after getting location
+        _checkNearbyDrivers();
       }
     } catch (e) {
       AppLogger.log('Error getting location: $e');
@@ -2495,6 +2520,102 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 24.sp,
                         color: Colors.white,
                       ),
+                    ),
+                  ),
+                ),
+              // Nearby driver widget - displayed when driver is nearby and no active ride
+              if (_hasNearbyDriver && _activeRide == null && !_isDriverAssigned)
+                Positioned(
+                  top: 120.h,
+                  left: 20.w,
+                  right: 20.w,
+                  child: Container(
+                    width: 247.w,
+                    height: 50.h,
+                    padding: EdgeInsets.only(right: 12.w, top: 4.h, bottom: 4.h),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(color: Colors.grey.shade300, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50.w,
+                          height: 50.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _driverArrivalTime,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                                Text(
+                                  "MIN",
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 10.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Pick Up',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: -0.41,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                fromController.text.isNotEmpty 
+                                    ? fromController.text 
+                                    : 'Current location',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.41,
+                                  color: Colors.black,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

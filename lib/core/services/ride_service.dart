@@ -50,6 +50,7 @@ class RideService {
     final requestBody = request.toJson();
 
     AppLogger.log('=== RIDE REQUEST DEBUG ===');
+    AppLogger.log('=== RIDE REQUEST BODY $requestBody ===');
     AppLogger.log(
       'Request URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}',
     );

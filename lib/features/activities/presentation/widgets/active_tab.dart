@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -81,18 +80,6 @@ class ActiveTab extends StatelessWidget {
 
         return Column(
           children: activeRides.map((ride) {
-            // Parse the datetime string
-            final dateTime = DateTime.parse(
-              ride.scheduledAt ?? ride.createdAt,
-            ).toLocal();
-
-            // Format time: 8:30pm
-            final timeFormat = DateFormat('h:mma');
-            final formattedTime = timeFormat.format(dateTime).toLowerCase();
-
-            // Format date: Jan 26, 2026
-            final dateFormat = DateFormat('MMM d, yyyy');
-            final formattedDate = dateFormat.format(dateTime);
             return Padding(
               padding: EdgeInsets.only(bottom: 15.h),
               child: GestureDetector(
@@ -125,7 +112,7 @@ class ActiveTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                formattedTime,
+                                ride.formattedTime,
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w500,
@@ -134,7 +121,7 @@ class ActiveTab extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                formattedDate,
+                                ride.formattedDate,
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w600,

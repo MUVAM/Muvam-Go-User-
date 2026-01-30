@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class RideData {
   final int id;
   final String createdAt;
@@ -48,6 +50,20 @@ class RideData {
     this.passenger,
     this.driver,
   });
+
+  // Format time: 8:30pm
+  String get formattedTime {
+    final dateStr = scheduledAt ?? createdAt;
+    final dateTime = DateTime.parse(dateStr).toLocal();
+    return DateFormat('h:mma').format(dateTime).toLowerCase();
+  }
+
+  // Format date: Jan 26, 2026
+  String get formattedDate {
+    final dateStr = scheduledAt ?? createdAt;
+    final dateTime = DateTime.parse(dateStr).toLocal();
+    return DateFormat('MMM d, yyyy').format(dateTime);
+  }
 
   bool _hasValidScheduledTime() {
     if (scheduledAt == null || scheduledAt!.isEmpty) return false;

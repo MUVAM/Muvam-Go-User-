@@ -7912,13 +7912,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
     AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
 
-    // Log scheduled ride information
+    String? formattedScheduledAt;
     if (isScheduled && scheduledDateTime != null) {
-      AppLogger.log('📅 Scheduled Ride: true');
-      AppLogger.log('⏰ Scheduled At: ${scheduledDateTime.toIso8601String()}');
+      final utcDateTime = scheduledDateTime.toUtc();
+      formattedScheduledAt =
+          '${utcDateTime.year.toString().padLeft(4, '0')}-'
+          '${utcDateTime.month.toString().padLeft(2, '0')}-'
+          '${utcDateTime.day.toString().padLeft(2, '0')} '
+          '${utcDateTime.hour.toString().padLeft(2, '0')}:'
+          '${utcDateTime.minute.toString().padLeft(2, '0')}:'
+          '${utcDateTime.second.toString().padLeft(2, '0')}.'
+          '${utcDateTime.microsecond.toString().padLeft(6, '0')}+00';
+
+      AppLogger.log('Scheduled Ride: true');
+      AppLogger.log('Scheduled At (formatted): $formattedScheduledAt');
+      AppLogger.log('Original DateTime: $scheduledDateTime');
+      AppLogger.log('UTC DateTime: $utcDateTime');
     }
 
-    // Get destination address - use toController text or reverse geocode
     String destAddress = toController.text;
     if (destAddress.isEmpty && _destinationCoordinates != null) {
       try {
@@ -7934,11 +7945,11 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } catch (e) {
         AppLogger.log('⚠️ Failed to reverse geocode destination: $e');
-        destAddress = "Destination"; // Fallback only if reverse geocoding fails
+        destAddress = "Destination";
       }
     }
     if (destAddress.isEmpty) {
-      destAddress = "Destination"; // Final fallback
+      destAddress = "Destination";
     }
 
     final request = RideRequest(
@@ -7952,9 +7963,7 @@ class _HomeScreenState extends State<HomeScreen> {
       vehicleType: vehicleType,
       paymentMethod: convertedPaymentMethod,
       scheduled: isScheduled ? true : null,
-      scheduledAt: isScheduled && scheduledDateTime != null
-          ? scheduledDateTime.toUtc().toIso8601String()
-          : null,
+      scheduledAt: formattedScheduledAt,
       stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
       note: noteController.text.isNotEmpty ? noteController.text : null,
     );
@@ -7969,7 +7978,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AppLogger.log('  - Payment Method: ${request.paymentMethod}');
     if (request.scheduled == true) {
       AppLogger.log('  - Scheduled: ${request.scheduled}');
-      AppLogger.log('  - Scheduled At: ${request.scheduledAt}');
+      AppLogger.log('  - Scheduled At======: ${request.scheduledAt}');
     }
 
     return await _rideService.requestRide(request);

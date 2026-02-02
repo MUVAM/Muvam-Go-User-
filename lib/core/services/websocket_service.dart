@@ -53,6 +53,7 @@ class WebSocketService {
   Function(Map<String, dynamic>)?
   onRideCompleted; // Callback for ride completion
   Function(Map<String, dynamic>)? onRideRequest;
+  Function(Map<String, dynamic>)? onDriverAvailability; // Callback for driver availability
 
   bool get isConnected => _isConnected;
 
@@ -278,6 +279,14 @@ class WebSocketService {
       case 'new_ride':
         AppLogger.log('ride_request handler');
         if (onRideRequest != null) onRideRequest!(data);
+        break;
+      case 'driver_availability':
+        AppLogger.log('driver_availability handler');
+        if (onDriverAvailability != null) {
+          onDriverAvailability!(data);
+        } else {
+          AppLogger.log('No driver availability handler registered!');
+        }
         break;
       default:
         AppLogger.log('Unknown message type: $type');

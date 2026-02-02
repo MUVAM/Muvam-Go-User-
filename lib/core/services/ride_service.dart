@@ -470,4 +470,58 @@ class RideService {
       };
     }
   }
+
+  Future<Map<String, dynamic>> updatePrebookedRide({
+    required int rideId,
+    required String dest,
+    required String destAddress,
+    required String pickup,
+    required String pickupAddress,
+    required String scheduledAt,
+    String? stopAddress,
+    required String vehicleType,
+  }) async {
+    final token = await _getToken();
+    final url = '${UrlConstants.baseUrl}/rides/update/$rideId';
+    
+    final requestBody = {
+      'dest': dest,
+      'dest_address': destAddress,
+      'pickup': pickup,
+      'pickup_address': pickupAddress,
+      'scheduled_at': scheduledAt,
+      'vehicle_type': vehicleType,
+    };
+
+    // Only add stop_address if it's not null or empty
+    if (stopAddress != null && stopAddress.isNotEmpty) {
+      requestBody['stop_address'] = stopAddress;
+    }
+
+    AppLogger.log('=== UPDATE PREBOOKED RIDE REQUEST ===', tag: 'PREBOOKED');
+    AppLogger.log('URL: $url', tag: 'PREBOOKED');
+    AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'PREBOOKED');
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    AppLogger.log('Response Status: ${response.statusCode}', tag: 'PREBOOKED');
+    AppLogger.log('Response Body: ${response.body}', tag: 'PREBOOKED');
+    AppLogger.log('=== END UPDATE PREBOOKED RIDE ===', tag: 'PREBOOKED');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {'success': true, 'data': jsonDecode(response.body)};
+    } else {
+      return {
+        'success': false,
+        'message': 'Failed to update prebooked ride: ${response.body}',
+      };
+    }
+  }
 }

@@ -121,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _nearbyDriverData;
   LatLng? _nearbyDriverLocation;
   bool _isActiveRideSheetVisible = false;
+  bool _isDriverFoundSheetVisible = false;
   bool _hasUserDismissedSheet = false;
   int? _lastCompletedRideId;
   final Set<int> _dismissedRatingRides = {};
@@ -230,6 +231,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // Ride accepted
     _webSocketService.onRideAccepted = (data) {
       AppLogger.log('🎉 Ride accepted callback triggered!');
+
+      // Close the driver found sheet if it's open
+      if (_isDriverFoundSheetVisible && mounted) {
+        Navigator.pop(context);
+        _isDriverFoundSheetVisible = false;
+      }
 
       // Extract driver information from WebSocket data
       final driverData = data['driver'] ?? {};

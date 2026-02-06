@@ -1698,7 +1698,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _userCurrentLocation = position;
-          fromController.text = currentAddress;
           _currentLocationAddress = currentAddress; // Store the address
           _isLocationLoaded = true;
         });
@@ -2648,6 +2647,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
+                        fromController.text = _currentLocationAddress;
                         _showDestinationField = true;
                         _isFromFieldFocused = false;
                       });

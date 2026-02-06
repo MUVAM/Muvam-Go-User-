@@ -43,14 +43,14 @@ class ReferralRulesScreen extends StatelessWidget {
               ),
               SizedBox(height: 40.h),
               Container(
-                width: 353.w,
-                height: 186.h,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10.r),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
                 padding: EdgeInsets.all(20.w),
+                alignment: Alignment.center,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

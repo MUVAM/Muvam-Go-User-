@@ -143,6 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _sheetController = DraggableScrollableController();
     _sheetController.addListener(_onSheetChanged);
 
+    fromController.addListener(_onTextFieldChanged);
+    toController.addListener(_onTextFieldChanged);
+    stopController.addListener(_onTextFieldChanged);
+
     _getCurrentLocation();
     _forceUpdateLocation();
     _createDriverIcon();
@@ -252,11 +256,15 @@ class _HomeScreenState extends State<HomeScreen> {
         plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
       );
 
+      // Round the driver arrival time
+      final rawEta = data['estimated_arrival']?.toString() ?? '5';
+      double etaValue = double.tryParse(rawEta) ?? 5.0;
+      int roundedEta = etaValue.round();
+
       setState(() {
         _isDriverAssigned = true;
         _isRideAccepted = true;
-        _driverArrivalTime =
-            data['estimated_arrival']?.toStringAsFixed(0) ?? '5';
+        _driverArrivalTime = roundedEta.toString();
         _pickupLocation =
             _currentRideResponse?.pickupAddress ?? "Your current location";
         _dropoffLocation = _currentRideResponse?.destAddress ?? "Destination";
@@ -509,6 +517,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Widget for pickup marker
   Widget _buildPickupMarkerWidget() {
+    String roundedArrivalTime = _driverArrivalTime;
+    if (_isDriverAssigned || _hasNearbyDriver) {
+      try {
+        double time = double.parse(_driverArrivalTime);
+        roundedArrivalTime = time.round().toString();
+      } catch (e) {
+        roundedArrivalTime = _driverArrivalTime;
+      }
+    }
     return Container(
       width: 247.w,
       height: 50.h,
@@ -541,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _driverArrivalTime,
+                          roundedArrivalTime,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
@@ -992,8 +1009,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final eta = driverData['eta_minutes']?.toString() ?? '1';
 
+        // Round the ETA before setting it
+        double etaValue = double.tryParse(eta) ?? 1.0;
+        int roundedEta = etaValue.round();
+
         setState(() {
-          _driverArrivalTime = eta;
+          _driverArrivalTime = roundedEta.toString();
           _hasNearbyDriver = true;
           _nearbyDriverData = driverData;
           _nearbyDriverLocation = LatLng(latitude, longitude);
@@ -2492,6 +2513,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _onTextFieldChanged() {
+    if (_sheetController.isAttached) {
+      final currentSize = _sheetController.size;
+
+      if (currentSize < 0.6) {
+        final hasContent =
+            // fromController.text.isNotEmpty ||
+            toController.text.isNotEmpty || stopController.text.isNotEmpty;
+
+        if (hasContent) {
+          _sheetController.animateTo(
+            0.9,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+
+          // Also show destination field if typing in 'from' field
+          if (fromController.text.isNotEmpty && !_showDestinationField) {
+            setState(() {
+              _showDestinationField = true;
+            });
+          }
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -2592,19 +2640,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-              // Nearby driver widget - displayed when driver is nearby and no active ride
-              if (_hasNearbyDriver && _activeRide == null && !_isDriverAssigned)
+              if (_activeRide == null && !_isDriverAssigned)
                 Positioned(
                   top: 120.h,
-                  left: 20.w,
-                  right: 20.w,
+                  left: 35.w,
+                  right: 35.w,
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
                         _showDestinationField = true;
                         _isFromFieldFocused = false;
                       });
-                      // Expand the sheet to show destination field
                       _sheetController.animateTo(
                         0.5,
                         duration: Duration(milliseconds: 300),
@@ -2622,7 +2668,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: Colors.grey.shade300, width: 1),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black26,
@@ -2639,33 +2688,46 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               color: Color(ConstColors.mainColor),
                               shape: BoxShape.circle,
+                              border: _hasNearbyDriver
+                                  ? null
+                                  : Border.all(
+                                      color: Colors.grey.shade300,
+                                      width: 1,
+                                    ),
                             ),
                             child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _driverArrivalTime,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      height: 1.0,
+                              child: _hasNearbyDriver
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _driverArrivalTime,
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 16.sp,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                            height: 1.0,
+                                          ),
+                                        ),
+                                        Text(
+                                          "MIN",
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 10.sp,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                            height: 1.0,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Icon(
+                                      Icons.location_on,
+                                      color: Color(ConstColors.whiteColor),
+                                      size: 24.sp,
                                     ),
-                                  ),
-                                  Text(
-                                    "MIN",
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 10.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
                           SizedBox(width: 6.w),
@@ -2700,6 +2762,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Color(ConstColors.blackColor),
+                            size: 24.sp,
                           ),
                         ],
                       ),
@@ -9439,6 +9506,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _activeRideCheckTimer?.cancel();
 
     _callService.dispose(); // Add this line
+
+    fromController.removeListener(_onTextFieldChanged);
+    toController.removeListener(_onTextFieldChanged);
+    stopController.removeListener(_onTextFieldChanged);
 
     // Dispose controllers
     fromController.dispose();

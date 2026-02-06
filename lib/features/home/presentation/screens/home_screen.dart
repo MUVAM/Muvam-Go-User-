@@ -41,6 +41,7 @@ import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'add_home_screen.dart';
 import 'map_selection_screen.dart';
 
@@ -91,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final String _driverDistance = "5 min";
   String _pickupLocation = "Your current location";
   String _dropoffLocation = "Destination";
+  String _currentLocationAddress = "Current location"; // Store actual address
   LatLng? _driverLocation;
   Timer? _driverLocationTimer;
   BitmapDescriptor? _carIcon;
@@ -253,7 +255,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isDriverAssigned = true;
         _isRideAccepted = true;
-        _driverArrivalTime = data['estimated_arrival']?.toString() ?? '5';
+        _driverArrivalTime =
+            data['estimated_arrival']?.toStringAsFixed(0) ?? '5';
         _pickupLocation =
             _currentRideResponse?.pickupAddress ?? "Your current location";
         _dropoffLocation = _currentRideResponse?.destAddress ?? "Destination";
@@ -332,11 +335,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       try {
         final availabilityData = data['data'] as Map<String, dynamic>?;
-        
+
         if (availabilityData != null) {
           final hasDrivers = availabilityData['has_drivers'] as bool? ?? false;
           final driversFound = availabilityData['drivers_found'] as int? ?? 0;
-          final driversNotified = availabilityData['drivers_notified'] as int? ?? 0;
+          final driversNotified =
+              availabilityData['drivers_notified'] as int? ?? 0;
           final message = availabilityData['message'] as String? ?? '';
 
           AppLogger.log(
@@ -585,7 +589,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _activeRide?['PickupAddress']?.toString() ??
                       (fromController.text.isNotEmpty
                           ? fromController.text
-                          : 'Current location'),
+                          : _currentLocationAddress),
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12.sp,
@@ -977,17 +981,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (driverData != null) {
         AppLogger.log('Nearby driver found: $driverData', tag: 'NEARBY_DRIVER');
-        
+
         final locationData = driverData['location'];
-        final latitude = locationData['latitude'] is double 
-            ? locationData['latitude'] 
+        final latitude = locationData['latitude'] is double
+            ? locationData['latitude']
             : double.tryParse(locationData['latitude'].toString()) ?? 0.0;
-        final longitude = locationData['longitude'] is double 
-            ? locationData['longitude'] 
+        final longitude = locationData['longitude'] is double
+            ? locationData['longitude']
             : double.tryParse(locationData['longitude'].toString()) ?? 0.0;
-            
+
         final eta = driverData['eta_minutes']?.toString() ?? '1';
-        
+
         setState(() {
           _driverArrivalTime = eta;
           _hasNearbyDriver = true;
@@ -1021,21 +1025,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _updateNearbyDriverMarker(LatLng driverLocation, String eta) {
     if (_carIcon == null) return;
-    
+
     // Check if we already have this driver marker to avoid unnecessary rebuilds
     // Or just update it.
-    
+
     setState(() {
       // Remove old driver marker
       _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
-      
+
       _mapMarkers.add(
         Marker(
           markerId: MarkerId('nearby_driver'),
           position: driverLocation,
           icon: _carIcon!,
           anchor: Offset(0.5, 0.5),
-           infoWindow: InfoWindow(
+          infoWindow: InfoWindow(
             title: 'Nearby Driver',
             snippet: '$eta min away',
           ),
@@ -1674,12 +1678,13 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _userCurrentLocation = position;
           fromController.text = currentAddress;
+          _currentLocationAddress = currentAddress; // Store the address
           _isLocationLoaded = true;
         });
         AppLogger.log(
           '📍 Current user location: ${position.latitude}, ${position.longitude}',
         );
-        
+
         // Check for nearby drivers immediately after getting location
         _checkNearbyDrivers();
       }
@@ -2084,15 +2089,22 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           // Get route using flutter_polyline_points
           PolylinePoints polylinePoints = PolylinePoints();
-          PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-            googleApiKey: UrlConstants.googleMapsApiKey,
-            request: PolylineRequest(
-              origin: PointLatLng(pickupCoords.latitude, pickupCoords.longitude),
-              destination: PointLatLng(_driverLocation!.latitude, _driverLocation!.longitude),
-              mode: TravelMode.driving,
-              optimizeWaypoints: true,
-            ),
-          );
+          PolylineResult result = await polylinePoints
+              .getRouteBetweenCoordinates(
+                googleApiKey: UrlConstants.googleMapsApiKey,
+                request: PolylineRequest(
+                  origin: PointLatLng(
+                    pickupCoords.latitude,
+                    pickupCoords.longitude,
+                  ),
+                  destination: PointLatLng(
+                    _driverLocation!.latitude,
+                    _driverLocation!.longitude,
+                  ),
+                  mode: TravelMode.driving,
+                  optimizeWaypoints: true,
+                ),
+              );
 
           List<LatLng> routePoints = [];
           if (result.points.isNotEmpty) {
@@ -2159,15 +2171,22 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           // Get route using flutter_polyline_points
           PolylinePoints polylinePoints = PolylinePoints();
-          PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-            googleApiKey: UrlConstants.googleMapsApiKey,
-            request: PolylineRequest(
-              origin: PointLatLng(pickupCoords.latitude, pickupCoords.longitude),
-              destination: PointLatLng(destCoords.latitude, destCoords.longitude),
-              mode: TravelMode.driving,
-              optimizeWaypoints: true,
-            ),
-          );
+          PolylineResult result = await polylinePoints
+              .getRouteBetweenCoordinates(
+                googleApiKey: UrlConstants.googleMapsApiKey,
+                request: PolylineRequest(
+                  origin: PointLatLng(
+                    pickupCoords.latitude,
+                    pickupCoords.longitude,
+                  ),
+                  destination: PointLatLng(
+                    destCoords.latitude,
+                    destCoords.longitude,
+                  ),
+                  mode: TravelMode.driving,
+                  optimizeWaypoints: true,
+                ),
+              );
 
           List<LatLng> routePoints = [];
           if (result.points.isNotEmpty) {
@@ -2579,93 +2598,111 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: 120.h,
                   left: 20.w,
                   right: 20.w,
-                  child: Container(
-                    width: 247.w,
-                    height: 50.h,
-                    padding: EdgeInsets.only(right: 12.w, top: 4.h, bottom: 4.h),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8.r),
-                      border: Border.all(color: Colors.grey.shade300, width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 50.w,
-                          height: 50.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showDestinationField = true;
+                        _isFromFieldFocused = false;
+                      });
+                      // Expand the sheet to show destination field
+                      _sheetController.animateTo(
+                        0.5,
+                        duration: Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: Container(
+                      width: 247.w,
+                      height: 50.h,
+                      padding: EdgeInsets.only(
+                        right: 12.w,
+                        top: 4.h,
+                        bottom: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(color: Colors.grey.shade300, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
                           ),
-                          child: Center(
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50.w,
+                            height: 50.h,
+                            decoration: BoxDecoration(
+                              color: Color(ConstColors.mainColor),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _driverArrivalTime,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                  Text(
+                                    "MIN",
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 10.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 6.w),
+                          Expanded(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  _driverArrivalTime,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                    height: 1.0,
-                                  ),
-                                ),
-                                Text(
-                                  "MIN",
+                                  'Pick Up',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 10.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                    height: 1.0,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.41,
+                                    color: Colors.black,
                                   ),
+                                ),
+                                Text(
+                                  fromController.text.isNotEmpty
+                                      ? fromController.text
+                                      : _currentLocationAddress,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.41,
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        SizedBox(width: 6.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Pick Up',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 10.sp,
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              Text(
-                                fromController.text.isNotEmpty 
-                                    ? fromController.text 
-                                    : 'Current location',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -3655,15 +3692,21 @@ class _HomeScreenState extends State<HomeScreen> {
     AppLogger.log('🗺️ Getting real route path...');
 
     List<LatLng> routePoints = [];
-    
+
     try {
       // Get the actual route polyline using flutter_polyline_points
       PolylinePoints polylinePoints = PolylinePoints();
       PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
         googleApiKey: UrlConstants.googleMapsApiKey,
         request: PolylineRequest(
-          origin: PointLatLng(_pickupCoordinates!.latitude, _pickupCoordinates!.longitude),
-          destination: PointLatLng(_destinationCoordinates!.latitude, _destinationCoordinates!.longitude),
+          origin: PointLatLng(
+            _pickupCoordinates!.latitude,
+            _pickupCoordinates!.longitude,
+          ),
+          destination: PointLatLng(
+            _destinationCoordinates!.latitude,
+            _destinationCoordinates!.longitude,
+          ),
           mode: TravelMode.driving,
           optimizeWaypoints: true,
         ),
@@ -3673,18 +3716,32 @@ class _HomeScreenState extends State<HomeScreen> {
         for (var point in result.points) {
           routePoints.add(LatLng(point.latitude, point.longitude));
         }
-        AppLogger.log('✅ Got ${routePoints.length} route points from Directions API');
+        AppLogger.log(
+          '✅ Got ${routePoints.length} route points from Directions API',
+        );
       } else {
-        AppLogger.log('⚠️ Directions API returned empty points. Error: ${result.errorMessage}');
+        AppLogger.log(
+          '⚠️ Directions API returned empty points. Error: ${result.errorMessage}',
+        );
         // Fallback to curved path
-        routePoints = _generateCurvedPath(_pickupCoordinates!, _destinationCoordinates!);
-        AppLogger.log('📍 Using curved path fallback with ${routePoints.length} points');
+        routePoints = _generateCurvedPath(
+          _pickupCoordinates!,
+          _destinationCoordinates!,
+        );
+        AppLogger.log(
+          '📍 Using curved path fallback with ${routePoints.length} points',
+        );
       }
     } catch (e) {
       AppLogger.log('❌ Error fetching route from Directions API: $e');
       // Fallback to curved path
-      routePoints = _generateCurvedPath(_pickupCoordinates!, _destinationCoordinates!);
-      AppLogger.log('📍 Using curved path fallback with ${routePoints.length} points');
+      routePoints = _generateCurvedPath(
+        _pickupCoordinates!,
+        _destinationCoordinates!,
+      );
+      AppLogger.log(
+        '📍 Using curved path fallback with ${routePoints.length} points',
+      );
     }
 
     AppLogger.log('✅ Final route has ${routePoints.length} points');
@@ -4267,7 +4324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           final pickupAddress =
                                               fromController.text.isNotEmpty
                                               ? fromController.text
-                                              : 'Current location';
+                                              : _currentLocationAddress;
                                           final destAddress =
                                               toController.text.isNotEmpty
                                               ? toController.text
@@ -4425,7 +4482,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     final pickupAddress =
                                         fromController.text.isNotEmpty
                                         ? fromController.text
-                                        : 'Current location';
+                                        : _currentLocationAddress;
                                     final destAddress =
                                         toController.text.isNotEmpty
                                         ? toController.text
@@ -5109,6 +5166,57 @@ class _HomeScreenState extends State<HomeScreen> {
     return months[month - 1];
   }
 
+  Future<void> _openGoogleMaps() async {
+    try {
+      if (_activeRide == null) {
+        CustomFlushbar.showError(context: context, message: 'No active ride');
+        return;
+      }
+
+      // Determine which location to navigate to based on ride status
+      String? destinationAddress;
+      final rideStatus = _activeRide!['Status'] ?? 'accepted';
+
+      if (rideStatus == 'started') {
+        // If ride has started, navigate to destination
+        destinationAddress = _activeRide!['DestAddress'];
+      } else {
+        // If ride not started (accepted or arrived), navigate to pickup
+        destinationAddress = _activeRide!['PickupAddress'];
+      }
+
+      if (destinationAddress == null || destinationAddress.isEmpty) {
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Location address not available',
+        );
+        return;
+      }
+
+      // Create Google Maps URL with the destination address
+      final encodedAddress = Uri.encodeComponent(destinationAddress);
+      final url =
+          'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
+
+      final uri = Uri.parse(url);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Could not open Google Maps',
+        );
+      }
+    } catch (e) {
+      AppLogger.log('Error opening Google Maps: $e');
+      CustomFlushbar.showError(
+        context: context,
+        message: 'Failed to open Google Maps',
+      );
+    }
+  }
+
   void _showDriverAcceptedSheet() {
     if (_isActiveRideSheetVisible) return;
     _isActiveRideSheetVisible = true;
@@ -5126,135 +5234,180 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 10.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
+      builder: (context) => Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
             ),
-            // Header with title and cancel button
-            Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Only show timer when driver is on the way (not arrived, not started)
-                if (!hasStarted && !hasArrived) ...[
-                  Stack(
-                    children: [
-                      Container(
-                        width: 60.w,
-                        height: 60.h,
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            _driverArrivalTime,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // White line decoration at top right
-                      Positioned(
-                        top: 0,
-                        left: 11.w,
-                        child: Image.asset(
-                          'assets/images/whiteline.png',
-                          width: 20.w,
-                          height: 20.h,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 15.w),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        hasStarted
-                            ? 'Enjoy your trip'
-                            : hasArrived
-                            ? 'Your driver has arrived'
-                            : 'Driver is on the way',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      Divider(thickness: 1, color: Colors.grey.shade300),
-                    ],
+                Container(
+                  width: 69.w,
+                  height: 5.h,
+                  margin: EdgeInsets.only(bottom: 10.h),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2.5.r),
                   ),
                 ),
-                if (hasArrived)
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(
-                      Icons.close,
-                      size: 24.sp,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-              ],
-            ),
-            // Driver Details
-            Column(
-              children: [
-                if (_assignedDriver != null) ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail(
-                      'Driver name:',
-                      _assignedDriver!.name,
-                    ),
-                  ),
-                  SizedBox(height: 10.h),
-                  if (!hasStarted) ...[
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      child: Row(
+                // Header with title and cancel button
+                Row(
+                  children: [
+                    // Only show timer when driver is on the way (not arrived, not started)
+                    if (!hasStarted && !hasArrived) ...[
+                      Stack(
+                        children: [
+                          Container(
+                            width: 60.w,
+                            height: 60.h,
+                            decoration: BoxDecoration(
+                              color: Color(ConstColors.mainColor),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                _driverArrivalTime,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // White line decoration at top right
+                          Positioned(
+                            top: 0,
+                            left: 11.w,
+                            child: Image.asset(
+                              'assets/images/whiteline.png',
+                              width: 20.w,
+                              height: 20.h,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(width: 15.w),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Driver rating:',
+                            hasStarted
+                                ? 'Enjoy your trip'
+                                : hasArrived
+                                ? 'Your driver has arrived'
+                                : 'Driver is on the way',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
-                              fontWeight: FontWeight.w500,
-                              height: 1.0,
-                              letterSpacing: -0.32,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
                             ),
                           ),
-                          Spacer(),
-                          Row(
+                          Divider(thickness: 1, color: Colors.grey.shade300),
+                        ],
+                      ),
+                    ),
+                    // Navigation widget - show when ride has started
+                    if (hasStarted)
+                      GestureDetector(
+                        onTap: _openGoogleMaps,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 8.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Color(
+                              ConstColors.mainColor,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8.r),
+                            border: Border.all(
+                              color: Color(ConstColors.mainColor),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.star,
-                                size: 16.sp,
-                                color: Colors.amber,
+                                Icons.navigation,
+                                color: Color(ConstColors.mainColor),
+                                size: 20.sp,
+                              ),
+                              SizedBox(width: 8.w),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Navigation',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.sp,
+                                      color: Color(ConstColors.mainColor),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Open in map',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 10.sp,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
                               ),
                               SizedBox(width: 4.w),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: Color(ConstColors.mainColor),
+                                size: 12.sp,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (hasArrived)
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Icon(
+                          Icons.close,
+                          size: 24.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                  ],
+                ),
+                // Driver Details
+                Column(
+                  children: [
+                    if (_assignedDriver != null) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: _buildDriverDetail(
+                          'Driver name:',
+                          _assignedDriver!.name,
+                        ),
+                      ),
+                      SizedBox(height: 10.h),
+                      if (!hasStarted) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          child: Row(
+                            children: [
                               Text(
-                                _assignedDriver!.rating.toStringAsFixed(1),
+                                'Driver rating:',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 16.sp,
@@ -5263,354 +5416,385 @@ class _HomeScreenState extends State<HomeScreen> {
                                   letterSpacing: -0.32,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 10.h),
-                  ],
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail(
-                      'Plate number:',
-                      _assignedDriver!.plateNumber,
-                    ),
-                  ),
-                  SizedBox(height: 10.h),
-                  if (!hasStarted) ...[
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      child: _buildDriverDetail(
-                        'Car:',
-                        _assignedDriver!.vehicleModel,
-                      ),
-                    ),
-                    SizedBox(height: 10.h),
-                  ],
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: _buildDriverDetail(
-                      'Trip ID:',
-                      _activeRide?['ID']?.toString() ?? 'N/A',
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
-                  // Payment Method
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Container(
-                      width: double.infinity,
-                      height: 42.h,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 5.w,
-                        vertical: 6.h,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4.r),
-                        border: Border.all(
-                          width: 0.6,
-                          color: Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.payment, size: 20.sp),
-                              SizedBox(width: 8.w),
-                              Text(
-                                selectedPaymentMethod,
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20.h),
-                  // Action Buttons
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () async {
-                                if (hasStarted) {
-                                  // SOS functionality
-                                  if (_activeRide != null) {
-                                    try {
-                                      // Show loading indicator
-                                      showDialog(
-                                        context: context,
-                                        barrierDismissible: false,
-                                        builder: (context) => Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      );
-
-                                      // Get current location
-                                      final position =
-                                          await Geolocator.getCurrentPosition(
-                                            desiredAccuracy:
-                                                LocationAccuracy.high,
-                                          );
-
-                                      // Get address from coordinates
-                                      String locationAddress =
-                                          'Unknown location';
-                                      try {
-                                        final placemarks =
-                                            await placemarkFromCoordinates(
-                                              position.latitude,
-                                              position.longitude,
-                                            );
-                                        if (placemarks.isNotEmpty) {
-                                          final placemark = placemarks.first;
-                                          locationAddress =
-                                              '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
-                                        }
-                                      } catch (e) {
-                                        AppLogger.log(
-                                          'Failed to get address: $e',
-                                          tag: 'SOS',
-                                        );
-                                      }
-
-                                      // Format location as POINT
-                                      final location =
-                                          'POINT(${position.longitude} ${position.latitude})';
-
-                                      // Get ride ID
-                                      final rideId = _activeRide?['ID'] is int
-                                          ? _activeRide!['ID']
-                                          : int.parse(
-                                              _activeRide?['ID']?.toString() ??
-                                                  '0',
-                                            );
-
-                                      // Send SOS
-                                      final result = await _rideService.sendSOS(
-                                        location: location,
-                                        locationAddress: locationAddress,
-                                        rideId: rideId,
-                                      );
-
-                                      // Close loading dialog
-                                      Navigator.pop(context);
-
-                                      // Show result
-                                      if (result['success'] == true) {
-                                        CustomFlushbar.showSuccess(
-                                          context: context,
-                                          message:
-                                              '🆘 SOS alert sent successfully!',
-                                        );
-                                      } else {
-                                        CustomFlushbar.showError(
-                                          context: context,
-                                          message:
-                                              'Failed to send SOS: ${result['message']}',
-                                        );
-                                      }
-                                    } catch (e) {
-                                      // Close loading dialog if still open
-                                      Navigator.pop(context);
-                                      CustomFlushbar.showError(
-                                        context: context,
-                                        message: 'Error sending SOS: $e',
-                                      );
-                                      AppLogger.error(
-                                        'SOS Error',
-                                        error: e,
-                                        tag: 'SOS',
-                                      );
-                                    }
-                                  }
-                                } else if (hasArrived) {
-                                  // Cancel functionality - show dialog
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CallScreen(
-                                        driverName: _assignedDriver!.name,
-                                        rideId: _activeRide?['ID'] is int
-                                            ? _activeRide!['ID']
-                                            : int.parse(
-                                                _activeRide?['ID']
-                                                        ?.toString() ??
-                                                    '0',
-                                              ),
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  // Call Driver functionality
-                                  if (_assignedDriver != null &&
-                                      _activeRide != null) {
-                                    _showCancelRideDialog();
-                                  }
-                                }
-                              },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Spacer(),
+                              Row(
                                 children: [
                                   Icon(
-                                    hasStarted
-                                        ? Icons.sos
-                                        : hasArrived
-                                        ? Icons.call
-                                        : Icons.cancel,
+                                    Icons.star,
                                     size: 16.sp,
-                                    color: Colors.black,
+                                    color: Colors.amber,
                                   ),
-                                  SizedBox(width: 8.w),
+                                  SizedBox(width: 4.w),
                                   Text(
-                                    hasStarted
-                                        ? 'SOS'
-                                        : hasArrived
-                                        ? 'Call Driver'
-                                        : 'Cancel',
+                                    _assignedDriver!.rating.toStringAsFixed(1),
                                     style: TextStyle(
-                                      color: !hasArrived
-                                          ? Colors.black
-                                          : Colors.red,
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
-                                      fontWeight: FontWeight.w400,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.0,
+                                      letterSpacing: -0.32,
                                     ),
                                   ),
                                 ],
                               ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
+                      ],
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: _buildDriverDetail(
+                          'Plate number:',
+                          _assignedDriver!.plateNumber,
+                        ),
+                      ),
+                      SizedBox(height: 10.h),
+                      if (!hasStarted) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          child: _buildDriverDetail(
+                            'Car:',
+                            _assignedDriver!.vehicleModel,
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
+                      ],
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: _buildDriverDetail(
+                          'Trip ID:',
+                          _activeRide?['ID']?.toString() ?? 'N/A',
+                        ),
+                      ),
+                      SizedBox(height: 20.h),
+                      // Payment Method
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: Container(
+                          width: double.infinity,
+                          height: 42.h,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5.w,
+                            vertical: 6.h,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4.r),
+                            border: Border.all(
+                              width: 0.6,
+                              color: Colors.grey.shade300,
                             ),
                           ),
-                          Container(
-                            width: 1.w,
-                            height: 30.h,
-                            color: Colors.grey.shade300,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.payment, size: 20.sp),
+                                  SizedBox(width: 8.w),
+                                  Text(
+                                    selectedPaymentMethod,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () async {
-                                if (hasStarted) {
-                                  // Share location functionality
-                                  try {
-                                    // Get current location
-                                    final position =
-                                        await Geolocator.getCurrentPosition(
-                                          desiredAccuracy:
-                                              LocationAccuracy.high,
-                                        );
-
-                                    // Create Google Maps link
-                                    final lat = position.latitude;
-                                    final lng = position.longitude;
-                                    final mapsUrl =
-                                        'https://www.google.com/maps?q=$lat,$lng';
-
-                                    // Get address if possible
-                                    String locationInfo = 'My current location';
-                                    try {
-                                      final placemarks =
-                                          await placemarkFromCoordinates(
-                                            lat,
-                                            lng,
+                        ),
+                      ),
+                      SizedBox(height: 20.h),
+                      // Action Buttons
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    if (hasStarted) {
+                                      // SOS functionality
+                                      if (_activeRide != null) {
+                                        try {
+                                          // Show loading indicator
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (context) => Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
                                           );
-                                      if (placemarks.isNotEmpty) {
-                                        final placemark = placemarks.first;
-                                        locationInfo =
-                                            '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
-                                      }
-                                    } catch (e) {
-                                      AppLogger.log(
-                                        'Failed to get address: $e',
-                                        tag: 'SHARE',
-                                      );
-                                    }
 
-                                    // Share the location
-                                    await Share.share(
-                                      '📍 I\'m currently here:\n$locationInfo\n\n🗺️ View on map: $mapsUrl',
-                                      subject: 'My Location',
-                                    );
-                                  } catch (e) {
-                                    AppLogger.error(
-                                      'Share location error',
-                                      error: e,
-                                      tag: 'SHARE',
-                                    );
-                                    CustomFlushbar.showError(
-                                      context: context,
-                                      message: 'Failed to share location: $e',
-                                    );
-                                  }
-                                } else {
-                                  // Chat functionality
-                                  if (_assignedDriver != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ChatScreen(
-                                          rideId: _activeRide?['ID'] is int
+                                          // Get current location
+                                          final position =
+                                              await Geolocator.getCurrentPosition(
+                                                desiredAccuracy:
+                                                    LocationAccuracy.high,
+                                              );
+
+                                          // Get address from coordinates
+                                          String locationAddress =
+                                              'Unknown location';
+                                          try {
+                                            final placemarks =
+                                                await placemarkFromCoordinates(
+                                                  position.latitude,
+                                                  position.longitude,
+                                                );
+                                            if (placemarks.isNotEmpty) {
+                                              final placemark =
+                                                  placemarks.first;
+                                              locationAddress =
+                                                  '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
+                                            }
+                                          } catch (e) {
+                                            AppLogger.log(
+                                              'Failed to get address: $e',
+                                              tag: 'SOS',
+                                            );
+                                          }
+
+                                          // Format location as POINT
+                                          final location =
+                                              'POINT(${position.longitude} ${position.latitude})';
+
+                                          // Get ride ID
+                                          final rideId =
+                                              _activeRide?['ID'] is int
                                               ? _activeRide!['ID']
                                               : int.parse(
                                                   _activeRide?['ID']
                                                           ?.toString() ??
                                                       '0',
-                                                ),
-                                          driverId: _assignedDriver?.id ?? '0',
+                                                );
 
-                                          driverName:
-                                              _assignedDriver?.name ?? 'Driver',
-                                          driverImage:
-                                              _assignedDriver?.profilePicture,
-                                          driverPhone:
-                                              _assignedDriver?.phoneNumber,
+                                          // Send SOS
+                                          final result = await _rideService
+                                              .sendSOS(
+                                                location: location,
+                                                locationAddress:
+                                                    locationAddress,
+                                                rideId: rideId,
+                                              );
+
+                                          // Close loading dialog
+                                          Navigator.pop(context);
+
+                                          // Show result
+                                          if (result['success'] == true) {
+                                            CustomFlushbar.showSuccess(
+                                              context: context,
+                                              message:
+                                                  '🆘 SOS alert sent successfully!',
+                                            );
+                                          } else {
+                                            CustomFlushbar.showError(
+                                              context: context,
+                                              message:
+                                                  'Failed to send SOS: ${result['message']}',
+                                            );
+                                          }
+                                        } catch (e) {
+                                          // Close loading dialog if still open
+                                          Navigator.pop(context);
+                                          CustomFlushbar.showError(
+                                            context: context,
+                                            message: 'Error sending SOS: $e',
+                                          );
+                                          AppLogger.error(
+                                            'SOS Error',
+                                            error: e,
+                                            tag: 'SOS',
+                                          );
+                                        }
+                                      }
+                                    } else if (hasArrived) {
+                                      // Cancel functionality - show dialog
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => CallScreen(
+                                            driverName: _assignedDriver!.name,
+                                            rideId: _activeRide?['ID'] is int
+                                                ? _activeRide!['ID']
+                                                : int.parse(
+                                                    _activeRide?['ID']
+                                                            ?.toString() ??
+                                                        '0',
+                                                  ),
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      // Call Driver functionality
+                                      if (_assignedDriver != null &&
+                                          _activeRide != null) {
+                                        _showCancelRideDialog();
+                                      }
+                                    }
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        hasStarted
+                                            ? Icons.sos
+                                            : hasArrived
+                                            ? Icons.call
+                                            : Icons.cancel,
+                                        size: 16.sp,
+                                        color: Colors.black,
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      Text(
+                                        hasStarted
+                                            ? 'SOS'
+                                            : hasArrived
+                                            ? 'Call Driver'
+                                            : 'Cancel',
+                                        style: TextStyle(
+                                          color: !hasArrived
+                                              ? Colors.black
+                                              : Colors.red,
+                                          fontFamily: 'Inter',
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w400,
                                         ),
                                       ),
-                                    );
-                                  }
-                                }
-                              },
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    hasStarted ? Icons.share : Icons.chat,
-                                    size: 16.sp,
-                                    color: Colors.black,
+                                    ],
                                   ),
-                                  SizedBox(width: 8.w),
-                                  Text(
-                                    hasStarted ? 'Share' : 'Chat Driver',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
+                              Container(
+                                width: 1.w,
+                                height: 30.h,
+                                color: Colors.grey.shade300,
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    if (hasStarted) {
+                                      // Share location functionality
+                                      try {
+                                        // Get current location
+                                        final position =
+                                            await Geolocator.getCurrentPosition(
+                                              desiredAccuracy:
+                                                  LocationAccuracy.high,
+                                            );
+
+                                        // Create Google Maps link
+                                        final lat = position.latitude;
+                                        final lng = position.longitude;
+                                        final mapsUrl =
+                                            'https://www.google.com/maps?q=$lat,$lng';
+
+                                        // Get address if possible
+                                        String locationInfo =
+                                            'My current location';
+                                        try {
+                                          final placemarks =
+                                              await placemarkFromCoordinates(
+                                                lat,
+                                                lng,
+                                              );
+                                          if (placemarks.isNotEmpty) {
+                                            final placemark = placemarks.first;
+                                            locationInfo =
+                                                '${placemark.street}, ${placemark.locality}, ${placemark.administrativeArea}';
+                                          }
+                                        } catch (e) {
+                                          AppLogger.log(
+                                            'Failed to get address: $e',
+                                            tag: 'SHARE',
+                                          );
+                                        }
+
+                                        // Share the location
+                                        await Share.share(
+                                          '📍 I\'m currently here:\n$locationInfo\n\n🗺️ View on map: $mapsUrl',
+                                          subject: 'My Location',
+                                        );
+                                      } catch (e) {
+                                        AppLogger.error(
+                                          'Share location error',
+                                          error: e,
+                                          tag: 'SHARE',
+                                        );
+                                        CustomFlushbar.showError(
+                                          context: context,
+                                          message:
+                                              'Failed to share location: $e',
+                                        );
+                                      }
+                                    } else {
+                                      // Chat functionality
+                                      if (_assignedDriver != null) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ChatScreen(
+                                              rideId: _activeRide?['ID'] is int
+                                                  ? _activeRide!['ID']
+                                                  : int.parse(
+                                                      _activeRide?['ID']
+                                                              ?.toString() ??
+                                                          '0',
+                                                    ),
+                                              driverId:
+                                                  _assignedDriver?.id ?? '0',
+
+                                              driverName:
+                                                  _assignedDriver?.name ??
+                                                  'Driver',
+                                              driverImage: _assignedDriver
+                                                  ?.profilePicture,
+                                              driverPhone:
+                                                  _assignedDriver?.phoneNumber,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        hasStarted ? Icons.share : Icons.chat,
+                                        size: 16.sp,
+                                        color: Colors.black,
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      Text(
+                                        hasStarted ? 'Share' : 'Chat Driver',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ).whenComplete(() {
       _isActiveRideSheetVisible = false;
@@ -5863,9 +6047,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
-            borderRadius: BorderRadius.all(
-              Radius.circular(24.r),
-            ),
+            borderRadius: BorderRadius.all(Radius.circular(24.r)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -5880,31 +6062,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 16.h),
-              Image.asset(
-                "assets/images/faill.png",
-                width: 92.w,
-                height: 92.h,
-              ),
+              Image.asset("assets/images/faill.png", width: 92.w, height: 92.h),
               SizedBox(height: 16.h),
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       onTap: () async {
-                        // Close the sheet
-                        Navigator.pop(context);
+                        // Store the BuildContext before any async operations
+                        final parentContext = context;
+
+                        // Close the sheet first
+                        Navigator.pop(parentContext);
 
                         // Get ride ID
-                        final rideId = _currentRideResponse?.id ??
+                        final rideId =
+                            _currentRideResponse?.id ??
                             (_activeRide?['ID'] is int
                                 ? _activeRide!['ID']
-                                : int.parse(_activeRide?['ID']?.toString() ?? '0'));
+                                : int.parse(
+                                    _activeRide?['ID']?.toString() ?? '0',
+                                  ));
 
-                        // Show loading
+                        // Show loading using root navigator
                         showDialog(
-                          context: context,
+                          context: this.context,
                           barrierDismissible: false,
-                          builder: (context) => Center(
+                          builder: (dialogContext) => Center(
                             child: CircularProgressIndicator(
                               color: Color(ConstColors.mainColor),
                             ),
@@ -5918,9 +6102,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             reason: 'No drivers available',
                           );
 
-                          // Close loading dialog
+                          // Close loading dialog using root navigator
                           if (mounted) {
-                            Navigator.of(context, rootNavigator: true).pop();
+                            Navigator.of(this.context).pop();
                           }
 
                           if (result['success'] == true) {
@@ -5940,22 +6124,24 @@ class _HomeScreenState extends State<HomeScreen> {
                               // Stop tracking
                               _stopDriverLocationTracking();
                               CustomFlushbar.showSuccess(
-                                context: context,
+                                context: this.context,
                                 message: 'Ride cancelled successfully',
                               );
                             }
                           } else {
                             if (mounted) {
                               CustomFlushbar.showError(
-                                context: context,
-                                message: result['message'] ?? 'Failed to cancel ride',
+                                context: this.context,
+                                message:
+                                    result['message'] ??
+                                    'Failed to cancel ride',
                               );
                             }
                           }
                         } catch (e) {
-                          // Close loading dialog
+                          // Close loading dialog using root navigator
                           if (mounted) {
-                            Navigator.of(context, rootNavigator: true).pop();
+                            Navigator.of(this.context).pop();
                           }
 
                           AppLogger.error(
@@ -5966,19 +6152,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           if (mounted) {
                             CustomFlushbar.showError(
-                              context: context,
+                              context: this.context,
                               message: 'Error cancelling ride: $e',
                             );
                           }
                         }
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 12.h,
+                        ),
                         decoration: BoxDecoration(
                           color: Color(0xffB1B1B1),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(8.r),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(8.r)),
                         ),
                         child: Center(
                           child: Text(
@@ -5999,7 +6186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         // Just close the sheet and keep waiting
                         Navigator.pop(context);
-                        
+
                         // Show a message that we're still searching
                         CustomFlushbar.showInfo(
                           context: context,
@@ -6007,12 +6194,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 12.h,
+                        ),
                         decoration: BoxDecoration(
                           color: Color(ConstColors.mainColor),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(8.r),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(8.r)),
                         ),
                         child: Center(
                           child: Text(
@@ -6028,12 +6216,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  String _getRoundedTime() {
+    try {
+      // Parse the string to double, round it, and convert to int
+      double time = double.tryParse(_driverArrivalTime) ?? 0.0;
+      return time.round().toString(); // Rounds to nearest whole number
+    } catch (e) {
+      return _driverArrivalTime; // Fallback to original if parsing fails
+    }
   }
 
   void _showBookingRequestSheet() {
@@ -6044,60 +6242,59 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        height: 380.h,
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Booking Request Successful',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Booking Request Successful',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
-              SizedBox(height: 5.h),
-              Text(
-                'You\'ll receive a push notification when your \ndriver is assigned.',
-                textAlign: TextAlign.left,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  height: 1.4,
-                  color: Colors.grey.shade600,
-                ),
+            ),
+            SizedBox(height: 5.h),
+            Text(
+              'You\'ll receive a push notification when your \ndriver is assigned.',
+              textAlign: TextAlign.left,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                height: 1.4,
+                color: Colors.grey.shade600,
               ),
-              SizedBox(height: 10.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 10.h),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8.w,
-                        height: 8.h,
-                        margin: EdgeInsets.only(top: 6.h),
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
-                          shape: BoxShape.circle,
-                        ),
+            ),
+            SizedBox(height: 10.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 10.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 8.w,
+                      height: 8.h,
+                      margin: EdgeInsets.only(top: 6.h),
+                      decoration: BoxDecoration(
+                        color: Color(ConstColors.mainColor),
+                        shape: BoxShape.circle,
                       ),
-                      SizedBox(width: 8.h),
-                      Text(
+                    ),
+                    SizedBox(width: 8.h),
+                    Expanded(
+                      child: Text(
                         'Pick up',
                         style: TextStyle(
                           fontFamily: 'Inter',
@@ -6106,45 +6303,47 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Color(ConstColors.mainColor),
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    _currentRideResponse?.pickupAddress ??
-                        '4, Grove Street, Opposite Cj\'s house, Los Santos',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  ],
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  _currentRideResponse?.pickupAddress ??
+                      '4, Grove Street, Opposite Cj\'s house, Los Santos',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: Colors.black,
                   ),
-                ],
-              ),
-              SizedBox(height: 10.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 10.h),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8.w,
-                        height: 8.h,
-                        margin: EdgeInsets.only(top: 6.h),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            SizedBox(height: 10.h),
+            Divider(thickness: 1, color: Colors.grey.shade300),
+            SizedBox(height: 10.h),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 8.w,
+                      height: 8.h,
+                      margin: EdgeInsets.only(top: 6.h),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
-                      SizedBox(width: 8.h),
-                      Text(
+                    ),
+                    SizedBox(width: 8.h),
+                    Expanded(
+                      child: Text(
                         'Destination',
                         style: TextStyle(
                           fontFamily: 'Inter',
@@ -6153,57 +6352,57 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.red,
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    _currentRideResponse?.destAddress ??
-                        '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              Spacer(),
-              Container(
-                width: double.infinity,
-                height: 50.h,
-                decoration: BoxDecoration(
-                  color: Color(ConstColors.mainColor),
-                  borderRadius: BorderRadius.circular(12.r),
+                  ],
                 ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showBookSuccessfulSheet();
-                    },
-                    borderRadius: BorderRadius.circular(12.r),
-                    child: Center(
-                      child: Text(
-                        'View trip',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
+                SizedBox(height: 8.h),
+                Text(
+                  _currentRideResponse?.destAddress ??
+                      '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            SizedBox(height: 16.h),
+            Container(
+              width: double.infinity,
+              height: 50.h,
+              decoration: BoxDecoration(
+                color: Color(ConstColors.mainColor),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showBookSuccessfulSheet();
+                  },
+                  borderRadius: BorderRadius.circular(12.r),
+                  child: Center(
+                    child: Text(
+                      'View trip',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
               ),
-              SizedBox(height: 16.h),
-            ],
-          ),
+            ),
+            SizedBox(height: 16.h),
+          ],
         ),
       ),
     );
@@ -7025,16 +7224,17 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_currentRideResponse != null) {
         pickupAddr = _currentRideResponse!.pickupAddress;
         destAddr = _currentRideResponse!.destAddress;
-        // _currentRideResponse might not have raw coordinates easily accessible as WKT string in the model 
-        // usually, but let's check. 
+        // _currentRideResponse might not have raw coordinates easily accessible as WKT string in the model
+        // usually, but let's check.
         // RideResponse model usually has address. Coordinates might be in _activeRide map if available.
-      } 
-      
+      }
+
       // Fallback or primary source: _activeRide map usually has all details
       if (_activeRide != null) {
         pickupAddr ??= _activeRide!['PickupAddress'];
         destAddr ??= _activeRide!['DestAddress'];
-        pickupLoc = _activeRide!['PickupLocation']; // Expecting "POINT(lng lat)"
+        pickupLoc =
+            _activeRide!['PickupLocation']; // Expecting "POINT(lng lat)"
         destLoc = _activeRide!['DestLocation'];
       }
 
@@ -7048,20 +7248,32 @@ class _HomeScreenState extends State<HomeScreen> {
       // Parse coordinates if they are not set
       if (_pickupCoordinates == null && pickupLoc != null) {
         try {
-          final content = pickupLoc.replaceAll('POINT(', '').replaceAll(')', '').trim();
+          final content = pickupLoc
+              .replaceAll('POINT(', '')
+              .replaceAll(')', '')
+              .trim();
           final parts = content.split(RegExp(r'\s+'));
           if (parts.length >= 2) {
-             _pickupCoordinates = LatLng(double.parse(parts[1]), double.parse(parts[0]));
+            _pickupCoordinates = LatLng(
+              double.parse(parts[1]),
+              double.parse(parts[0]),
+            );
           }
         } catch (_) {}
       }
-      
+
       if (_destinationCoordinates == null && destLoc != null) {
         try {
-          final content = destLoc.replaceAll('POINT(', '').replaceAll(')', '').trim();
+          final content = destLoc
+              .replaceAll('POINT(', '')
+              .replaceAll(')', '')
+              .trim();
           final parts = content.split(RegExp(r'\s+'));
           if (parts.length >= 2) {
-             _destinationCoordinates = LatLng(double.parse(parts[1]), double.parse(parts[0]));
+            _destinationCoordinates = LatLng(
+              double.parse(parts[1]),
+              double.parse(parts[0]),
+            );
           }
         } catch (_) {}
       }
@@ -7136,7 +7348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   );
-                  
+
                   if (result != null && result is Map<String, dynamic>) {
                     setState(() {
                       _pickupCoordinates = result['location'] as LatLng;
@@ -7149,7 +7361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   'PICK UP',
                   fromController.text.isNotEmpty
                       ? fromController.text
-                      : 'Current location',
+                      : _currentLocationAddress,
                 ),
               ),
               SizedBox(height: 15.h),
@@ -7166,7 +7378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   );
-                  
+
                   if (result != null && result is Map<String, dynamic>) {
                     setState(() {
                       _destinationCoordinates = result['location'] as LatLng;
@@ -7363,15 +7575,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: GestureDetector(
                       onTap: () async {
                         // Get ride ID
-                        final rideId = _currentRideResponse?.id ??
+                        final rideId =
+                            _currentRideResponse?.id ??
                             (_activeRide?['ID'] is int
                                 ? _activeRide!['ID']
-                                : int.parse(_activeRide?['ID']?.toString() ?? '0'));
+                                : int.parse(
+                                    _activeRide?['ID']?.toString() ?? '0',
+                                  ));
                         print('DEBUG: rideId found: $rideId'); // DEBUG
 
                         // Get pickup coordinates
-                        final pickupCoords = _pickupCoordinates ?? _currentLocation;
-                        final pickup = 'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
+                        final pickupCoords =
+                            _pickupCoordinates ?? _currentLocation;
+                        final pickup =
+                            'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
 
                         // Get destination coordinates
                         final destCoords = _destinationCoordinates;
@@ -7382,7 +7599,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                           return;
                         }
-                        final dest = 'POINT(${destCoords.longitude} ${destCoords.latitude})';
+                        final dest =
+                            'POINT(${destCoords.longitude} ${destCoords.latitude})';
 
                         // Get pickup address
                         final pickupAddress = fromController.text.isNotEmpty
@@ -7407,7 +7625,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           selectedTime.hour,
                           selectedTime.minute,
                         );
-                        final scheduledAt = scheduledDateTime.toUtc().toIso8601String();
+                        final scheduledAt = scheduledDateTime
+                            .toUtc()
+                            .toIso8601String();
 
                         // Get stop address if available
                         final stopAddress = stopController.text.isNotEmpty
@@ -7421,7 +7641,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Fancy vehicle',
                                 'VIP',
                               ][selectedVehicle!]
-                            : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
+                            : [
+                                'Bicycle',
+                                'Vehicle',
+                                'Motor bike',
+                              ][selectedDelivery!];
 
                         // Close the sheet
                         Navigator.pop(context);
@@ -7452,7 +7676,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           // Close loading dialog
                           if (mounted) {
-                            Navigator.of(this.context, rootNavigator: true).pop();
+                            Navigator.of(
+                              this.context,
+                              rootNavigator: true,
+                            ).pop();
                           }
 
                           if (result['success'] == true) {
@@ -7461,7 +7688,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context: this.context,
                                 message: 'Ride updated successfully',
                               );
-                              
+
                               // Optionally refresh the ride details
                               AppLogger.log(
                                 'Updated ride data: ${result['data']}',
@@ -7472,14 +7699,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (mounted) {
                               CustomFlushbar.showError(
                                 context: this.context,
-                                message: result['message'] ?? 'Failed to update ride',
+                                message:
+                                    result['message'] ??
+                                    'Failed to update ride',
                               );
                             }
                           }
                         } catch (e) {
                           // Close loading dialog
                           if (mounted) {
-                            Navigator.of(this.context, rootNavigator: true).pop();
+                            Navigator.of(
+                              this.context,
+                              rootNavigator: true,
+                            ).pop();
                           }
 
                           AppLogger.error(
@@ -7567,7 +7799,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
 
   void _showTripCanceledSheet() {
     showModalBottomSheet(
@@ -8472,9 +8703,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _driverArrivalTime,
+                    _getRoundedTime(), // Call a helper function
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 18.sp,
@@ -8482,7 +8714,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.white,
                     ),
                   ),
-
                   Text(
                     "MIN",
                     style: TextStyle(
@@ -8643,7 +8874,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   fromController.text.isNotEmpty
                       ? fromController.text
-                      : 'Current location',
+                      : _currentLocationAddress,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
@@ -8790,7 +9021,9 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('✅ Scheduled At (formatted): $formattedScheduledAt');
       AppLogger.log('✅ Original DateTime: $scheduledDateTime');
     } else {
-      AppLogger.log('❌ NOT a scheduled ride - isScheduled: $isScheduled, scheduledDateTime: $scheduledDateTime');
+      AppLogger.log(
+        '❌ NOT a scheduled ride - isScheduled: $isScheduled, scheduledDateTime: $scheduledDateTime',
+      );
     }
 
     String destAddress = toController.text;
@@ -8852,7 +9085,9 @@ class _HomeScreenState extends State<HomeScreen> {
     AppLogger.log('📦 ===================================================');
     AppLogger.log('Method: POST');
     AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
-    AppLogger.log('Headers: {Content-Type: application/json, Authorization: Bearer <TOKEN>}');
+    AppLogger.log(
+      'Headers: {Content-Type: application/json, Authorization: Bearer <TOKEN>}',
+    );
     AppLogger.log('Body (JSON):');
     try {
       AppLogger.log(jsonEncode(request.toJson()));

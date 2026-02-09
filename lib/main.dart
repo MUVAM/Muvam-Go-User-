@@ -302,7 +302,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               title: 'Muvam',
               theme: ThemeData(useMaterial3: true),
               home: const SplashScreen(),
+
               navigatorKey: MyApp.navigatorKey,
+              routes: {
+                '/home': (context) =>
+                    SplashScreen(), // Replace with your actual home screen
+              },
             ),
           ),
         );

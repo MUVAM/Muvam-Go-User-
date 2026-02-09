@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:muvam/core/services/fcm_token_service.dart';
 import 'package:muvam/core/services/firebase_config_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
@@ -814,21 +815,55 @@ class EnhancedNotificationService {
         );
       }
     });
-
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+      AppLogger.log('Notification tapped - app was in background');
       await triggerVibration();
-      // Handle notification tap when app is opened from background
+
+      // Navigate to home screen
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/home',
+        (route) => false,
+      );
+
       if (message.data['postId'] != null) {
         await _handleNotificationTap('postId:${message.data['postId']}');
       }
     });
 
+    // FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) async {
+    //   await triggerVibration();
+    //   // Handle notification tap when app is opened from background
+    //   if (message.data['postId'] != null) {
+    //     await _handleNotificationTap('postId:${message.data['postId']}');
+    //   }
+    // });
+
     // Handle notification tap when app is launched from terminated state
+    // FirebaseMessaging.instance.getInitialMessage().then((
+    //   RemoteMessage? message,
+    // ) {
+    //   if (message != null && message.data['postId'] != null) {
+    //     _handleNotificationTap('postId:${message.data['postId']}');
+    //   }
+    // });
+
     FirebaseMessaging.instance.getInitialMessage().then((
       RemoteMessage? message,
-    ) {
-      if (message != null && message.data['postId'] != null) {
-        _handleNotificationTap('postId:${message.data['postId']}');
+    ) async {
+      if (message != null) {
+        AppLogger.log('Notification tapped - app was terminated');
+
+        // Delay navigation to ensure app is fully initialized
+        await Future.delayed(Duration(seconds: 1));
+
+        MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/home',
+          (route) => false,
+        );
+
+        if (message.data['postId'] != null) {
+          await _handleNotificationTap('postId:${message.data['postId']}');
+        }
       }
     });
   }

@@ -2652,7 +2652,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _isFromFieldFocused = false;
                       });
                       _sheetController.animateTo(
-                        0.5,
+                        0.9,
                         duration: Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                       );
@@ -3604,6 +3604,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           3) {
                                                     _checkBothFields();
                                                   }
+                                                },
+                                                onLongPress: () {
+                                                  // ADD THIS
+                                                  _showDeleteLocationDialog(
+                                                    fav.name,
+                                                    fav.id,
+                                                  ); // You'll need the ID
                                                 },
                                               ),
                                               Divider(
@@ -8299,6 +8306,119 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showDeleteLocationDialog(String locationType, int locationId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(24.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16.r),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Remove from $locationType?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  'This location will be removed from your $locationType You can add it again anytime.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                SizedBox(height: 24.h),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          height: 48.h,
+                          decoration: BoxDecoration(
+                            color: Color(0xffB1B1B1),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          Navigator.pop(context);
+                          // Delete the location
+                          try {
+                            await _favouriteService.deleteFavouriteLocation(
+                              locationId,
+                            );
+                            await _loadFavouriteLocations();
+                            CustomFlushbar.showSuccess(
+                              context: context,
+                              message: '$locationType deleted successfully',
+                            );
+                          } catch (e) {
+                            CustomFlushbar.showError(
+                              context: context,
+                              message: 'Failed to delete location',
+                            );
+                          }
+                        },
+                        child: Container(
+                          height: 48.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Remove',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTripCompleteSheet(int rideId, String price) {
     AppLogger.log(
       '📊 Opening Trip Complete sheet for ride ID: $rideId',
@@ -8462,10 +8582,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () async {
                         try {
                           Navigator.pop(context); // Close trip sheet
-
-                          // We can check if dismiss is needed or just proceed to rate
-                          // Assuming dismiss marks it as 'Driver Reviewed' in backend logic or something
-                          // But typically user dismisses the completion sheet to see rating.
 
                           // Call dismiss API
                           await _rideService.dismissRide(rideId);

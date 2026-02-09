@@ -2774,6 +2774,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               if (_isBottomSheetVisible)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: _currentSheetSize <= 0.4,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_sheetController.isAttached) {
+                          _sheetController.animateTo(
+                            0.4,
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                        _dismissSuggestions();
+                      },
+                      child: AnimatedContainer(
+                        duration: Duration(milliseconds: 300),
+                        color: Colors.black.withOpacity(
+                          ((_currentSheetSize - 0.4) / 0.5).clamp(0.0, 1.0) *
+                              0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_isBottomSheetVisible)
                 DraggableScrollableSheet(
                   controller: _sheetController,
                   initialChildSize: 0.4,
@@ -2797,7 +2822,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Drag handle - NOT scrollable
                           Padding(
                             padding: EdgeInsets.only(top: 10.h),
                             child: Center(
@@ -3363,17 +3387,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                           _locationSuggestions[index];
                                       return ListTile(
                                         dense: true,
-                                        leading: Icon(
-                                          Icons.location_on,
-                                          size: 20.sp,
-                                          color: Color(ConstColors.mainColor),
+                                        leading: SvgPicture.asset(
+                                          ConstImages.location,
+                                          width: 20.w,
+                                          height: 20.h,
+                                          color: Colors.grey,
+                                          fit: BoxFit.scaleDown,
                                         ),
                                         title: Text(
                                           prediction.mainText,
                                           style: TextStyle(
+                                            fontFamily: 'Inter',
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w600,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
+                                          maxLines: 1,
                                         ),
                                         subtitle:
                                             prediction.secondaryText.isNotEmpty
@@ -3390,6 +3419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 prediction.distance!,
                                                 style: TextStyle(
                                                   fontSize: 12.sp,
+                                                  fontFamily: 'Inter',
                                                   color: Colors.grey[600],
                                                   fontWeight: FontWeight.w500,
                                                 ),
@@ -3676,7 +3706,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           );
                                         }
                                       }
-
                                       return Column(children: allLocations);
                                     },
                                   ),
@@ -3930,6 +3959,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -4126,594 +4156,698 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
+      barrierColor: Colors.black.withOpacity(0.2),
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setBookingState) => Container(
-          height: 351.h,
-          padding: EdgeInsets.all(20.w),
+          height: 400.h,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
           ),
           child: Column(
             children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
+              // Drag handle
+              SizedBox(height: 12.h),
+              Center(
+                child: Container(
+                  width: 36.w,
+                  height: 5.h,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFD1D1D6),
+                    borderRadius: BorderRadius.circular(2.5.r),
+                  ),
                 ),
               ),
+              SizedBox(height: 20.h),
+
+              // Add note section
               GestureDetector(
                 onTap: () => _showAddNoteSheet(
                   onNoteChanged: () {
                     setBookingState(() {});
                   },
                 ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Column(
-                      children: [
-                        Icon(Icons.message, size: 25.67.w),
-                        // SizedBox(height: 4.67.h),
-                        Text(
-                          'Add note',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w400,
-                            height: 22 / 16,
-                            letterSpacing: -0.41,
-                            color: Colors.black,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.message, size: 28.sp, color: Colors.black),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Add note',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (noteController.text.isNotEmpty)
+                        Positioned(
+                          top: -4.h,
+                          right: -4.w,
+                          child: Container(
+                            width: 24.w,
+                            height: 24.h,
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 16.sp,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                    // Check icon indicator when note is added
-                    if (noteController.text.isNotEmpty)
-                      Positioned(
-                        top: -5.h,
-                        right: -5.w,
-                        child: Image.asset(
-                          'assets/images/check.png',
-                          width: 20.w,
-                          height: 20.h,
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              // SizedBox(height: 10.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
+
               SizedBox(height: 20.h),
+
+              // Divider
+              Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+
+              SizedBox(height: 16.h),
+
+              // Vehicle selection row
               GestureDetector(
                 onTap: () {
                   Navigator.pop(context);
                   _showVehicleSelection();
                 },
-                child: Row(
-                  children: [
-                    Image.asset(
-                      selectedVehicle != null
-                          ? ConstImages.car
-                          : ConstImages.bike,
-                      width: 55.w,
-                      height: 26.h,
-                    ),
-                    SizedBox(width: 15.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Row(
+                    children: [
+                      // Car image
+                      Image.asset(
+                        selectedVehicle != null
+                            ? ConstImages.car
+                            : ConstImages.bike,
+                        width: 80.w,
+                        height: 40.h,
+                        fit: BoxFit.contain,
+                      ),
+                      SizedBox(width: 16.w),
+
+                      // Vehicle info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              selectedOption,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              '4 passengers',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w400,
+                                color: Color(0xFF8E8E93),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Price info
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            selectedOption,
-                            style: ConstTextStyles.vehicleTitle,
+                            _currentEstimate != null && selectedVehicle != null
+                                ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
+                                : '#45,000',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
                           ),
+                          SizedBox(height: 4.h),
                           Text(
-                            '4 passengers',
-                            style: ConstTextStyles.vehicleSubtitle,
+                            _currentEstimate != null
+                                ? '${_currentEstimate!.durationMin.round()} min'
+                                : 'Fixed',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF8E8E93),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _currentEstimate != null && selectedVehicle != null
-                              ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
-                              : '₦12,000',
-                          style: ConstTextStyles.vehicleTitle,
-                        ),
-                        Text(
-                          _currentEstimate != null
-                              ? '${_currentEstimate!.durationMin.round()} min'
-                              : 'Fixed',
-                          style: ConstTextStyles.fixedPrice.copyWith(
-                            color: Color(ConstColors.recentLocationColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(width: 10.w),
-                    Icon(Icons.arrow_forward_ios, size: 16.sp),
-                  ],
+
+                      SizedBox(width: 12.w),
+
+                      // Arrow icon
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18.sp,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              SizedBox(height: 20.h),
-              Divider(thickness: 1, color: Colors.grey.shade300),
-              SizedBox(height: 20.h),
+
+              SizedBox(height: 16.h),
+
+              // Divider
+              Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+
+              SizedBox(height: 16.h),
+
+              // Payment method row
               GestureDetector(
                 onTap: () => _showPaymentMethods(
                   onPaymentChanged: () {
                     setBookingState(() {});
                   },
                 ),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      _getPaymentMethodIcon(selectedPaymentMethod),
-                      width: 55.w,
-                      height: 30.h,
-                    ),
-                    SizedBox(width: 15.w),
-                    Expanded(
-                      child: Text(
-                        selectedPaymentMethod,
-                        style: ConstTextStyles.vehicleTitle,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                  child: Row(
+                    children: [
+                      // Payment icon container
+                      Container(
+                        width: 60.w,
+                        height: 60.h,
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: Color(0xFFF2F2F7),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Image.asset(
+                          _getPaymentMethodIcon(selectedPaymentMethod),
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, size: 16.sp),
-                  ],
-                ),
-              ),
-              SizedBox(height: 30.h),
-              // Spacer(),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showPrebookSheet();
-                    },
-                    child: Container(
-                      width: 170.w,
-                      height: 47.h,
-                      padding: EdgeInsets.all(10.w),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Color(ConstColors.mainColor)),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Center(
+                      SizedBox(width: 16.w),
+
+                      // Payment method text
+                      Expanded(
                         child: Text(
-                          'Book Later',
+                          selectedPaymentMethod,
                           style: TextStyle(
-                            color: Color(ConstColors.mainColor),
+                            fontFamily: 'Inter',
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+
+                      // Arrow icon
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18.sp,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              Spacer(),
+
+              // Bottom buttons
+              Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 30.h),
+                child: Row(
+                  children: [
+                    // Book Later button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showPrebookSheet();
+                        },
+                        child: Container(
+                          height: 56.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                              color: Color(0xFFD1D1D6),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Later',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 10.w),
-                  GestureDetector(
-                    onTap: !_isBookingRide
-                        ? () async {
-                            // Don't reset isScheduledRide here - it should persist until after booking
-                            if (selectedPaymentMethod == 'Pay with card') {
-                              setBookingState(() {
-                                _isBookingRide = true;
-                              });
 
-                              try {
-                                AppLogger.log(
-                                  '💳 BOOK NOW - CARD PAYMENT: Starting ride request...',
-                                );
-                                AppLogger.log(
-                                  '💳 Selected Payment Method: $selectedPaymentMethod',
-                                );
-                                // Combine selected date and time into DateTime for scheduled rides
-                                final scheduledDateTime = isScheduledRide
-                                    ? DateTime(
-                                        selectedDate.year,
-                                        selectedDate.month,
-                                        selectedDate.day,
-                                        selectedTime.hour,
-                                        selectedTime.minute,
-                                      )
-                                    : null;
-                                _currentRideResponse = await _requestRide(
-                                  isScheduled: isScheduledRide,
-                                  scheduledDateTime: scheduledDateTime,
-                                );
+                    SizedBox(width: 16.w),
 
-                                if (_currentRideResponse != null) {
-                                  AppLogger.log(
-                                    '✅ Ride request successful for card payment',
-                                  );
-                                  AppLogger.log(
-                                    '🎫 Ride ID: ${_currentRideResponse!.id}',
-                                  );
-                                  AppLogger.log(
-                                    '💰 Ride Price: ${_currentRideResponse!.price}',
-                                  );
+                    // Book Now button
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: !_isBookingRide
+                            ? () async {
+                                // Don't reset isScheduledRide here - it should persist until after booking
+                                if (selectedPaymentMethod == 'Pay with card') {
+                                  setBookingState(() {
+                                    _isBookingRide = true;
+                                  });
 
-                                  final paymentData = await _paymentService
-                                      .initializePayment(
-                                        rideId: _currentRideResponse!.id,
-                                        amount: _currentRideResponse!.price,
+                                  try {
+                                    AppLogger.log(
+                                      '💳 BOOK NOW - CARD PAYMENT: Starting ride request...',
+                                    );
+                                    AppLogger.log(
+                                      '💳 Selected Payment Method: $selectedPaymentMethod',
+                                    );
+                                    // Combine selected date and time into DateTime for scheduled rides
+                                    final scheduledDateTime = isScheduledRide
+                                        ? DateTime(
+                                            selectedDate.year,
+                                            selectedDate.month,
+                                            selectedDate.day,
+                                            selectedTime.hour,
+                                            selectedTime.minute,
+                                          )
+                                        : null;
+                                    _currentRideResponse = await _requestRide(
+                                      isScheduled: isScheduledRide,
+                                      scheduledDateTime: scheduledDateTime,
+                                    );
+
+                                    if (_currentRideResponse != null) {
+                                      AppLogger.log(
+                                        '✅ Ride request successful for card payment',
+                                      );
+                                      AppLogger.log(
+                                        '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                      );
+                                      AppLogger.log(
+                                        '💰 Ride Price: ${_currentRideResponse!.price}',
                                       );
 
-                                  if (paymentData['authorization_url'] !=
-                                      null) {
-                                    AppLogger.log(
-                                      '🌐 Opening payment webview',
+                                      final paymentData = await _paymentService
+                                          .initializePayment(
+                                            rideId: _currentRideResponse!.id,
+                                            amount: _currentRideResponse!.price,
+                                          );
+
+                                      if (paymentData['authorization_url'] !=
+                                          null) {
+                                        AppLogger.log(
+                                          '🌐 Opening payment webview',
+                                          tag: 'BOOK_NOW',
+                                        );
+
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                PaymentWebViewScreen(
+                                                  authorizationUrl:
+                                                      paymentData['authorization_url'],
+                                                  reference:
+                                                      paymentData['reference'],
+                                                  onPaymentSuccess: () {},
+                                                ),
+                                          ),
+                                        );
+
+                                        // Handle payment result
+                                        if (result == true) {
+                                          if (mounted) {
+                                            // Clear form fields
+                                            fromController.clear();
+                                            toController.clear();
+                                            setState(() {
+                                              _showDestinationField = false;
+                                            });
+
+                                            // Close booking details sheet
+                                            Navigator.pop(context);
+
+                                            // Show booking request sheet
+                                            // Show appropriate sheet based on ride type
+                                            if (isScheduledRide) {
+                                              // Store addresses before clearing
+                                              final pickupAddress =
+                                                  fromController.text.isNotEmpty
+                                                  ? fromController.text
+                                                  : _currentLocationAddress;
+                                              final destAddress =
+                                                  toController.text.isNotEmpty
+                                                  ? toController.text
+                                                  : 'Destination';
+                                              _showTripScheduledSheet(
+                                                pickupAddress: pickupAddress,
+                                                destAddress: destAddress,
+                                              );
+                                              // Reset scheduled ride flag
+                                              setState(() {
+                                                isScheduledRide = false;
+                                              });
+                                            } else {
+                                              _showBookingRequestSheet();
+                                            }
+                                          }
+                                        } else {}
+                                      }
+                                    }
+                                  } catch (e) {
+                                    AppLogger.error(
+                                      '❌ Card payment failed',
+                                      error: e,
                                       tag: 'BOOK_NOW',
                                     );
 
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => PaymentWebViewScreen(
-                                          authorizationUrl:
-                                              paymentData['authorization_url'],
-                                          reference: paymentData['reference'],
-                                          onPaymentSuccess: () {},
+                                    if (mounted) {
+                                      // Check if error is about active ride
+                                      final errorMessage = e.toString();
+                                      if (errorMessage.contains(
+                                            'active ride',
+                                          ) ||
+                                          errorMessage.contains(
+                                            'complete it before',
+                                          )) {
+                                        // Show alert dialog for active ride error
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(15.r),
+                                              ),
+                                              title: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.orange,
+                                                    size: 28.sp,
+                                                  ),
+                                                  SizedBox(width: 10.w),
+                                                  Text(
+                                                    'Active Ride',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: 18.sp,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: Text(
+                                                'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 14.sp,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: Text(
+                                                    'OK',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: 16.sp,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Color(
+                                                        ConstColors.mainColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      } else {
+                                        CustomFlushbar.showError(
+                                          context: context,
+                                          message:
+                                              'Failed to book ride. Please try again.',
+                                        );
+                                      }
+                                    }
+                                  }
+
+                                  if (mounted) {
+                                    setBookingState(() {
+                                      _isBookingRide = false;
+                                    });
+                                  }
+                                } else {
+                                  AppLogger.log(
+                                    '🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod',
+                                    tag: 'BOOK_NOW',
+                                  );
+
+                                  setBookingState(() {
+                                    _isBookingRide = true;
+                                  });
+                                  try {
+                                    AppLogger.log(
+                                      '🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...',
+                                    );
+                                    AppLogger.log(
+                                      '💳 Selected Payment Method: $selectedPaymentMethod',
+                                    );
+                                    // Combine selected date and time into DateTime for scheduled rides
+                                    final scheduledDateTime = isScheduledRide
+                                        ? DateTime(
+                                            selectedDate.year,
+                                            selectedDate.month,
+                                            selectedDate.day,
+                                            selectedTime.hour,
+                                            selectedTime.minute,
+                                          )
+                                        : null;
+                                    _currentRideResponse = await _requestRide(
+                                      isScheduled: isScheduledRide,
+                                      scheduledDateTime: scheduledDateTime,
+                                    );
+
+                                    if (mounted) {
+                                      AppLogger.log(
+                                        '✅ Ride request successful for other payment method',
+                                      );
+                                      AppLogger.log(
+                                        '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                      );
+                                      AppLogger.log(
+                                        '💰 Ride Price: ${_currentRideResponse!.price}',
+                                      );
+                                      fromController.clear();
+                                      toController.clear();
+                                      setState(() {
+                                        _showDestinationField = false;
+                                      });
+                                      Navigator.pop(context);
+                                      // Show appropriate sheet based on ride type
+                                      if (isScheduledRide) {
+                                        // Store addresses before clearing
+                                        final pickupAddress =
+                                            fromController.text.isNotEmpty
+                                            ? fromController.text
+                                            : _currentLocationAddress;
+                                        final destAddress =
+                                            toController.text.isNotEmpty
+                                            ? toController.text
+                                            : 'Destination';
+                                        _showTripScheduledSheet(
+                                          pickupAddress: pickupAddress,
+                                          destAddress: destAddress,
+                                        );
+                                        // Reset scheduled ride flag
+                                        setState(() {
+                                          isScheduledRide = false;
+                                        });
+                                      } else {
+                                        _showBookingRequestSheet();
+                                      }
+                                    }
+                                  } catch (e) {
+                                    AppLogger.error(
+                                      '❌ OTHER PAYMENT - Ride request failed',
+                                      error: e,
+                                      tag: 'BOOK_NOW',
+                                    );
+                                    if (mounted) {
+                                      setBookingState(() {
+                                        _isBookingRide = false;
+                                      });
+
+                                      // Check if error is about active ride
+                                      final errorMessage = e.toString();
+                                      if (errorMessage.contains(
+                                            'active ride',
+                                          ) ||
+                                          errorMessage.contains(
+                                            'complete it before',
+                                          )) {
+                                        // Show alert dialog for active ride error
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(15.r),
+                                              ),
+                                              title: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.orange,
+                                                    size: 28.sp,
+                                                  ),
+                                                  SizedBox(width: 10.w),
+                                                  Text(
+                                                    'Active Ride',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: 18.sp,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              content: Text(
+                                                'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 14.sp,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: Text(
+                                                    'OK',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: 16.sp,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Color(
+                                                        ConstColors.mainColor,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      } else {
+                                        // Show generic error snackbar for other errors
+                                        CustomFlushbar.showError(
+                                          context: context,
+                                          message:
+                                              'Failed to book ride. Please try again.',
+                                        );
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            : null,
+                        child: Container(
+                          height: 56.h,
+                          decoration: BoxDecoration(
+                            color: _isBookingRide
+                                ? Color(ConstColors.mainColor).withOpacity(0.7)
+                                : Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Center(
+                            child: _isBookingRide
+                                ? SizedBox(
+                                    width: 24.w,
+                                    height: 24.h,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : isScheduledRide
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Confirm Booking',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
                                         ),
                                       ),
-                                    );
-
-                                    // Handle payment result
-                                    if (result == true) {
-                                      if (mounted) {
-                                        // Clear form fields
-                                        fromController.clear();
-                                        toController.clear();
-                                        setState(() {
-                                          _showDestinationField = false;
-                                        });
-
-                                        // Close booking details sheet
-                                        Navigator.pop(context);
-
-                                        // Show booking request sheet
-                                        // Show appropriate sheet based on ride type
-                                        if (isScheduledRide) {
-                                          // Store addresses before clearing
-                                          final pickupAddress =
-                                              fromController.text.isNotEmpty
-                                              ? fromController.text
-                                              : _currentLocationAddress;
-                                          final destAddress =
-                                              toController.text.isNotEmpty
-                                              ? toController.text
-                                              : 'Destination';
-                                          _showTripScheduledSheet(
-                                            pickupAddress: pickupAddress,
-                                            destAddress: destAddress,
-                                          );
-                                          // Reset scheduled ride flag
-                                          setState(() {
-                                            isScheduledRide = false;
-                                          });
-                                        } else {
-                                          _showBookingRequestSheet();
-                                        }
-                                      }
-                                    } else {}
-                                  }
-                                }
-                              } catch (e) {
-                                AppLogger.error(
-                                  '❌ Card payment failed',
-                                  error: e,
-                                  tag: 'BOOK_NOW',
-                                );
-
-                                if (mounted) {
-                                  // Check if error is about active ride
-                                  final errorMessage = e.toString();
-                                  if (errorMessage.contains('active ride') ||
-                                      errorMessage.contains(
-                                        'complete it before',
-                                      )) {
-                                    // Show alert dialog for active ride error
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15.r,
-                                            ),
-                                          ),
-                                          title: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.warning_amber_rounded,
-                                                color: Colors.orange,
-                                                size: 28.sp,
-                                              ),
-                                              SizedBox(width: 10.w),
-                                              Text(
-                                                'Active Ride',
-                                                style: TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 18.sp,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          content: Text(
-                                            'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
-                                            style: TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 14.sp,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: Text(
-                                                'OK',
-                                                style: TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 16.sp,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(
-                                                    ConstColors.mainColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    CustomFlushbar.showError(
-                                      context: context,
-                                      message:
-                                          'Failed to book ride. Please try again.',
-                                    );
-                                  }
-                                }
-                              }
-
-                              if (mounted) {
-                                setBookingState(() {
-                                  _isBookingRide = false;
-                                });
-                              }
-                            } else {
-                              AppLogger.log(
-                                '🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod',
-                                tag: 'BOOK_NOW',
-                              );
-
-                              setBookingState(() {
-                                _isBookingRide = true;
-                              });
-                              try {
-                                AppLogger.log(
-                                  '🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...',
-                                );
-                                AppLogger.log(
-                                  '💳 Selected Payment Method: $selectedPaymentMethod',
-                                );
-                                // Combine selected date and time into DateTime for scheduled rides
-                                final scheduledDateTime = isScheduledRide
-                                    ? DateTime(
-                                        selectedDate.year,
-                                        selectedDate.month,
-                                        selectedDate.day,
-                                        selectedTime.hour,
-                                        selectedTime.minute,
-                                      )
-                                    : null;
-                                _currentRideResponse = await _requestRide(
-                                  isScheduled: isScheduledRide,
-                                  scheduledDateTime: scheduledDateTime,
-                                );
-
-                                if (mounted) {
-                                  AppLogger.log(
-                                    '✅ Ride request successful for other payment method',
-                                  );
-                                  AppLogger.log(
-                                    '🎫 Ride ID: ${_currentRideResponse!.id}',
-                                  );
-                                  AppLogger.log(
-                                    '💰 Ride Price: ${_currentRideResponse!.price}',
-                                  );
-                                  fromController.clear();
-                                  toController.clear();
-                                  setState(() {
-                                    _showDestinationField = false;
-                                  });
-                                  Navigator.pop(context);
-                                  // Show appropriate sheet based on ride type
-                                  if (isScheduledRide) {
-                                    // Store addresses before clearing
-                                    final pickupAddress =
-                                        fromController.text.isNotEmpty
-                                        ? fromController.text
-                                        : _currentLocationAddress;
-                                    final destAddress =
-                                        toController.text.isNotEmpty
-                                        ? toController.text
-                                        : 'Destination';
-                                    _showTripScheduledSheet(
-                                      pickupAddress: pickupAddress,
-                                      destAddress: destAddress,
-                                    );
-                                    // Reset scheduled ride flag
-                                    setState(() {
-                                      isScheduledRide = false;
-                                    });
-                                  } else {
-                                    _showBookingRequestSheet();
-                                  }
-                                }
-                              } catch (e) {
-                                AppLogger.error(
-                                  '❌ OTHER PAYMENT - Ride request failed',
-                                  error: e,
-                                  tag: 'BOOK_NOW',
-                                );
-                                if (mounted) {
-                                  setBookingState(() {
-                                    _isBookingRide = false;
-                                  });
-
-                                  // Check if error is about active ride
-                                  final errorMessage = e.toString();
-                                  if (errorMessage.contains('active ride') ||
-                                      errorMessage.contains(
-                                        'complete it before',
-                                      )) {
-                                    // Show alert dialog for active ride error
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15.r,
-                                            ),
-                                          ),
-                                          title: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.warning_amber_rounded,
-                                                color: Colors.orange,
-                                                size: 28.sp,
-                                              ),
-                                              SizedBox(width: 10.w),
-                                              Text(
-                                                'Active Ride',
-                                                style: TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 18.sp,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          content: Text(
-                                            'You already have an active ride. Please complete or cancel your current ride before requesting a new one.',
-                                            style: TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 14.sp,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: Text(
-                                                'OK',
-                                                style: TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 16.sp,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(
-                                                    ConstColors.mainColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  } else {
-                                    // Show generic error snackbar for other errors
-                                    CustomFlushbar.showError(
-                                      context: context,
-                                      message:
-                                          'Failed to book ride. Please try again.',
-                                    );
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        : null,
-                    child: Container(
-                      width: 170.w,
-                      height: 47.h,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 10.w,
-                        vertical: 8.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: Center(
-                        child: _isBookingRide
-                            ? SizedBox(
-                                width: 20.w,
-                                height: 20.h,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                                      SizedBox(height: 2.h),
+                                      Text(
+                                        '${selectedDate.day} ${_getMonth(selectedDate.month)} ${selectedTime.format(context)}',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    'Book now',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 18.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                              )
-                            : isScheduledRide
-                            ? FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Confirm Booking',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13.sp,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2.h),
-                                    Text(
-                                      '${selectedDate.day} ${_getMonth(selectedDate.month)} ${selectedTime.format(context)}',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10.sp,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Text(
-                                'Book Now',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -4726,7 +4860,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Color(0xFF2C9BE0),
-
+      barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -4889,6 +5023,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -4991,6 +5126,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -5297,6 +5433,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       isDismissible: true,
       enableDrag: true,
       shape: RoundedRectangleBorder(
@@ -6135,6 +6272,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       isDismissible: false,
       enableDrag: false,
+      barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) {
         return Container(
           margin: EdgeInsets.only(left: 16.w, right: 16.w, bottom: 24.h),
@@ -6332,6 +6470,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -6506,6 +6645,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -6617,261 +6757,247 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
+      barrierColor: Colors.black.withOpacity(0.2),
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: 630.h,
-        padding: EdgeInsets.all(20.w),
+        height: 600.h,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
         child: Column(
           children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
+            SizedBox(height: 12.h),
+            Center(
+              child: Container(
+                width: 36.w,
+                height: 5.h,
+                decoration: BoxDecoration(
+                  color: Color(0xFFD1D1D6),
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'ID: #${_currentRideResponse?.id ?? '12345'}',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
+            SizedBox(height: 16.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_currentRideResponse?.id ?? '10923444'}',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 24.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Icon(Icons.close, size: 24.sp, color: Colors.black),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 20.h),
-            Container(
-              padding: EdgeInsets.all(15.w),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8.r),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Icon(Icons.close, size: 28.sp, color: Colors.black),
+                  ),
+                ],
               ),
+            ),
+            SizedBox(height: 16.h),
+            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+            SizedBox(height: 20.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        width: 6.w,
-                        height: 6.h,
+                        width: 8.w,
+                        height: 8.h,
                         decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
+                          color: Color(0xFF34C759),
                           shape: BoxShape.circle,
                         ),
                       ),
-                      SizedBox(width: 10.w),
+                      SizedBox(width: 8.w),
                       Text(
-                        'Pick Up',
+                        'Pick up',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF8E8E93),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 5.h),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: EdgeInsets.only(left: 16.w),
-                      child: Text(
-                        pickupAddr,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    pickupAddr,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                      height: 1.3,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 15.h),
-                  Divider(thickness: 1, color: Colors.grey.shade300),
-                  SizedBox(height: 15.h),
+                ],
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+            ),
+            SizedBox(height: 20.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
                     children: [
                       Container(
-                        width: 6.w,
-                        height: 6.h,
+                        width: 8.w,
+                        height: 8.h,
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: Color(0xFFFF3B30),
                           shape: BoxShape.circle,
                         ),
                       ),
-                      SizedBox(width: 10.w),
+                      SizedBox(width: 8.w),
                       Text(
                         'Destination',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF8E8E93),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 5.h),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: EdgeInsets.only(left: 16.w),
-                      child: Text(
-                        destAddr,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    destAddr,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 20.h),
+            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+            SizedBox(height: 20.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Date',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    currentDate,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
                     ),
                   ),
                 ],
               ),
             ),
             SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
+            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
             SizedBox(height: 20.h),
-            Row(
-              children: [
-                Text(
-                  'Date',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    height: 1.0,
-                    letterSpacing: -0.32,
-                    color: Colors.black,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment method',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF8E8E93),
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          paymentMethod,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 5.h),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                currentDate,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  height: 1.0,
-                  letterSpacing: -0.32,
-                  color: Colors.black,
-                ),
+                  Container(
+                    width: 1.w,
+                    height: 44.h,
+                    color: Color(0xFFE5E5EA),
+                    margin: EdgeInsets.symmetric(horizontal: 16.w),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Vehicle',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFF8E8E93),
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          selectedOption,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
+            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
             SizedBox(height: 20.h),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Payment Method',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 5.h),
-                      Text(
-                        paymentMethod,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 1.w,
-                  height: 40.h,
-                  color: Colors.grey.shade300,
-                ),
-                SizedBox(width: 20.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Vehicle',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 5.h),
-                      Text(
-                        selectedOption,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -0.32,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 20.h),
-            Align(
-              alignment: Alignment.centerLeft,
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -6879,19 +7005,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Price',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Colors.black,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF8E8E93),
                     ),
                   ),
-                  SizedBox(height: 5.h),
+                  SizedBox(height: 8.h),
                   Text(
-                    '₦${_currentRideResponse?.price.toStringAsFixed(0) ?? '12,000'}',
+                    '#${_currentRideResponse?.price.toStringAsFixed(0) ?? '45,000'}',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 18.sp,
+                      fontSize: 28.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
                     ),
@@ -6900,31 +7024,36 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Spacer(),
-            SizedBox(
-              width: 328.w,
-              height: 50.h,
+            Container(
+              height: 60.h,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFFE5E5EA), width: 1),
+                ),
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Close current sheet and show edit sheet
                         Navigator.pop(context);
                         _showEditPrebookingSheet();
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.edit, size: 16.sp, color: Colors.black),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 20.sp,
+                            color: Colors.black,
+                          ),
                           SizedBox(width: 8.w),
                           Text(
-                            'Modify Trip',
+                            'Modify trip',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w400,
-                              height: 22 / 16,
-                              letterSpacing: -0.41,
                               color: Colors.black,
                             ),
                           ),
@@ -6932,33 +7061,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    width: 1.w,
-                    height: 30.h,
-                    color: Colors.grey.shade300,
-                  ),
+                  Container(width: 1.w, height: 30.h, color: Color(0xFFE5E5EA)),
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Close the trip details sheet first
                         Navigator.pop(context);
-                        // Show cancel ride dialog
                         _showCancelRideDialog();
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.cancel, size: 16.sp, color: Colors.red),
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 20.sp,
+                            color: Colors.black,
+                          ),
                           SizedBox(width: 8.w),
                           Text(
-                            'Cancel Ride',
+                            'Chat driver',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w400,
-                              height: 22 / 16,
-                              letterSpacing: -0.41,
-                              color: Colors.red,
+                              color: Colors.black,
                             ),
                           ),
                         ],
@@ -7387,6 +7512,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -7516,6 +7642,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   showModalBottomSheet(
                     context: context,
+                    barrierColor: Colors.black.withOpacity(0.2),
                     builder: (context) => Container(
                       padding: EdgeInsets.all(20.w),
                       child: Column(
@@ -7551,6 +7678,7 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 onTap: () {
                   showModalBottomSheet(
+                    barrierColor: Colors.black.withOpacity(0.2),
                     context: context,
                     builder: (context) => Container(
                       padding: EdgeInsets.all(20.w),
@@ -7897,6 +8025,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showTripCanceledSheet() {
     showModalBottomSheet(
       context: context,
+      barrierColor: Colors.black.withOpacity(0.2),
       isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
@@ -8043,6 +8172,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      barrierColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
@@ -8309,6 +8439,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       isDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.2),
       enableDrag: false,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
@@ -8520,6 +8651,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       isDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.2),
       enableDrag: false,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
@@ -9475,7 +9607,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, double>? _parsePostGISLocation(String location) {
     try {
       if (location.length >= 50) {
-        final hexData = location.substring(18); // Skip SRID part
+        final hexData = location.substring(18);
         final lngHex = hexData.substring(0, 16);
         final latHex = hexData.substring(16, 32);
 

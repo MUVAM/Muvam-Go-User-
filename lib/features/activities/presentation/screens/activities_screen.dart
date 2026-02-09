@@ -44,24 +44,16 @@ class ActivitiesScreenState extends State<ActivitiesScreen> {
               width: 353.w,
               height: 32.h,
               decoration: BoxDecoration(
-                color: Color(0x767680).withOpacity(0.12),
+                color: const Color(0x767680).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8.r),
               ),
               padding: EdgeInsets.all(2.w),
               child: Row(
                 children: [
                   _buildTabItem('Prebooking', 0),
-                  Container(
-                    width: 0.5.w,
-                    height: 28.h,
-                    color: Colors.grey.shade300,
-                  ),
+                  _buildDivider(0),
                   _buildTabItem('Active', 1),
-                  Container(
-                    width: 0.5.w,
-                    height: 28.h,
-                    color: Colors.grey.shade300,
-                  ),
+                  _buildDivider(1),
                   _buildTabItem('History', 2),
                 ],
               ),
@@ -76,6 +68,17 @@ class ActivitiesScreenState extends State<ActivitiesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDivider(int dividerIndex) {
+    final bool shouldHide =
+        _selectedTabIndex == dividerIndex ||
+        _selectedTabIndex == dividerIndex + 1;
+
+    return Opacity(
+      opacity: shouldHide ? 0.0 : 1.0,
+      child: Container(width: 0.5.w, height: 28.h, color: Colors.grey.shade500),
     );
   }
 

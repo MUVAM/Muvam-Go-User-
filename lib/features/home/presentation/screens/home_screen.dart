@@ -3780,6 +3780,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       _updateMapWithRoute();
+      _sheetController.animateTo(
+        0.2,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
       _showBookingDetails();
     }
   }
@@ -4443,6 +4448,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: !_isBookingRide
                             ? () async {
                                 // Don't reset isScheduledRide here - it should persist until after booking
+
+                                _sheetController.animateTo(
+                                  0.2,
+                                  duration: Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
                                 if (selectedPaymentMethod == 'Pay with card') {
                                   setBookingState(() {
                                     _isBookingRide = true;
@@ -4543,6 +4554,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                               });
                                             } else {
                                               // _showBookingRequestSheet();
+                                              _sheetController.animateTo(
+                                                0.2,
+                                                duration: Duration(
+                                                  milliseconds: 300,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                              );
                                               _showBookSuccessfulSheet();
                                             }
                                           }
@@ -6661,23 +6679,24 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        height: 300.h,
+        height: 219.h,
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
-            ),
+            // Container(
+            //   width: 69.w,
+            //   height: 5.h,
+            //   margin: EdgeInsets.only(bottom: 20.h),
+            //   decoration: BoxDecoration(
+            //     color: Colors.grey.shade300,
+            //     borderRadius: BorderRadius.circular(2.5.r),
+            //   ),
+            // ),
             Text(
               'Booking Successful',
               style: TextStyle(
@@ -6692,30 +6711,32 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 10.h),
             Text(
               'We are searching for available nearby driver',
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w400,
                 height: 1.0,
                 letterSpacing: -0.32,
-                color: Colors.black,
+                color: Colors.grey,
               ),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 10.h),
             Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 20.h),
+            SizedBox(height: 10.h),
             SizedBox(
               width: 353.w,
               height: 10.h,
               child: LinearProgressIndicator(
+                borderRadius: BorderRadius.circular(10.r),
                 backgroundColor: Colors.grey.shade300,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   Color(ConstColors.mainColor),
                 ),
               ),
             ),
-            Spacer(),
+            // Spacer(),
+            SizedBox(height: 20.h),
             Container(
               width: 353.w,
               height: 48.h,
@@ -6725,8 +6746,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: GestureDetector(
                 onTap: () {
+                  _sheetController.animateTo(
+                    0.2,
+                    duration: Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
                   Navigator.pop(context);
-                  _showBookingRequestSheet();
+
+                  // _showBookingRequestSheet();
+                  _showTripDetailsSheet();
                 },
                 child: Center(
                   child: Text(
@@ -6778,17 +6806,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Column(
           children: [
-            SizedBox(height: 12.h),
-            Center(
-              child: Container(
-                width: 36.w,
-                height: 5.h,
-                decoration: BoxDecoration(
-                  color: Color(0xFFD1D1D6),
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
-              ),
-            ),
+            // SizedBox(height: 12.h),
+            // Center(
+            //   child: Container(
+            //     width: 36.w,
+            //     height: 5.h,
+            //     decoration: BoxDecoration(
+            //       color: Color(0xFFD1D1D6),
+            //       borderRadius: BorderRadius.circular(2.5.r),
+            //     ),
+            //   ),
+            // ),
             SizedBox(height: 16.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -6799,21 +6827,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     '${_currentRideResponse?.id ?? '10923444'}',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 24.sp,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.black,
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.close, size: 28.sp, color: Colors.black),
+                    child: Icon(Icons.close, size: 24.sp, color: Colors.black),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16.h),
-            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-            SizedBox(height: 20.h),
+            SizedBox(height: 13.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+            ),
+            SizedBox(height: 15.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Column(
@@ -6834,7 +6865,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Pick up',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 14.sp,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFF8E8E93),
                         ),
@@ -6846,7 +6877,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     pickupAddr,
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 16.sp,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                       height: 1.3,
@@ -6857,12 +6888,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 15.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 15.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Column(
@@ -6883,7 +6914,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Destination',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 14.sp,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFF8E8E93),
                         ),
@@ -6895,7 +6926,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     destAddr,
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 16.sp,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                       height: 1.3,
@@ -6906,39 +6937,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 20.h),
+            SizedBox(height: 15.h),
             Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-            SizedBox(height: 20.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Date',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF8E8E93),
+            SizedBox(height: 15.h),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Date',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF8E8E93),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    currentDate,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                    SizedBox(height: 8.h),
+                    Text(
+                      currentDate,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-            SizedBox(height: 20.h),
+            SizedBox(height: 15.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
+            ),
+            SizedBox(height: 15.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Row(
@@ -6951,7 +6988,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           'Payment method',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 14.sp,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF8E8E93),
                           ),
@@ -6961,7 +6998,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           paymentMethod,
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 16.sp,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: Colors.black,
                           ),
@@ -6983,7 +7020,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           'Vehicle',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 14.sp,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w400,
                             color: Color(0xFF8E8E93),
                           ),
@@ -6993,7 +7030,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           selectedOption,
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 16.sp,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: Colors.black,
                           ),
@@ -7004,50 +7041,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-            SizedBox(height: 20.h),
+            SizedBox(height: 15.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Price',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    '#${_currentRideResponse?.price.toStringAsFixed(0) ?? '45,000'}',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 28.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
+              child: Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
             ),
-            Spacer(),
-            Container(
-              height: 60.h,
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Color(0xFFE5E5EA), width: 1),
+            SizedBox(height: 15.h),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Price',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF8E8E93),
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      '#${_currentRideResponse?.price.toStringAsFixed(0) ?? '45,000'}',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            // Spacer(),
+            SizedBox(height: 30.h),
+            Container(
+              height: 60.h,
+              // decoration: BoxDecoration(
+              //   border: Border(
+              //     top: BorderSide(color: Color(0xFFE5E5EA), width: 1),
+              //   ),
+              // ),
               child: Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
+                        _sheetController.animateTo(
+                          0.2,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
                         _showEditPrebookingSheet();
                       },
                       child: Row(
@@ -7082,14 +7131,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.chat_bubble_outline,
-                            size: 20.sp,
-                            color: Colors.black,
-                          ),
+                          Icon(Icons.cancel, size: 20.sp, color: Colors.red),
                           SizedBox(width: 8.w),
                           Text(
-                            'Chat driver',
+                            'Cancel Ride',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
@@ -7422,6 +7467,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: GestureDetector(
                 onTap: () {
                   Navigator.pop(context);
+                  _sheetController.animateTo(
+                    0.2,
+                    duration: Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
                   _showEditPrebookingSheet();
                 },
                 child: Center(
@@ -7528,7 +7578,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        height: 600.h,
+        height: 852.h,
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -7550,7 +7600,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Edit pre booking',
+                    'Edit PreBooking',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 26.sp,
@@ -7585,6 +7635,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       _pickupCoordinates = result['location'] as LatLng;
                       fromController.text = result['address'] as String;
                     });
+                    _sheetController.animateTo(
+                      0.2,
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
                     _showEditPrebookingSheet();
                   }
                 },
@@ -7615,6 +7670,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       _destinationCoordinates = result['location'] as LatLng;
                       toController.text = result['address'] as String;
                     });
+                    _sheetController.animateTo(
+                      0.2,
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
                     _showEditPrebookingSheet();
                   }
                 },
@@ -7769,7 +7829,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
                 ),
               ),
-              SizedBox(height: 40.h),
+              SizedBox(height: 115.h),
+              // Spacer(),
               Column(
                 children: [
                   Container(
@@ -7982,7 +8043,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEditField(String label, String value) {
+  Widget _buildEditField(String label, String value, ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -7992,7 +8053,7 @@ class _HomeScreenState extends State<HomeScreen> {
             fontFamily: 'Inter',
             fontSize: 12.sp,
             fontWeight: FontWeight.w500,
-            color: Colors.grey.shade600,
+            color: Colors.black,
             letterSpacing: 0.5,
           ),
         ),
@@ -8003,31 +8064,79 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(color: Colors.grey.shade300, width: 1),
+            // border: Border.all(color: Colors.grey.shade300, width: 1),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: label == "VEHICLE"
+              ? Row(
+                  children: [
+                    Image.asset(
+                      "assets/images/car.png",
+                      width: 60.w,
+                      height: 28.h,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(width: 5.w),
+                    Column(
+                      children: [
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+
+                        Text("4 Passengers", style:TextStyle(fontSize:12, fontWeight:FontWeight.w400, color:Color(0xffB1B1B1)))
+                      ],
+                    ),
+                  ],
+                )
+              : label=="PAYMENT METHOD"?Row(
+                  children: [
+                    Image.asset(
+                      "assets/images/payincar_icon.png",
+                      width: 60.w,
+                      height: 28.h,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(width: 5.w),
+                    Column(
+                      children: [
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+
+                      Text(value, style:TextStyle(fontSize:12, fontWeight:FontWeight.w400, color:Color(0xffB1B1B1)))
+                      ],
+                    ),
+                  ],
+                ): Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Icon(
+                    //   Icons.edit,
+                    //   size: 18.sp,
+                    //   color: Color(ConstColors.mainColor),
+                    // ),
+                  ],
                 ),
-              ),
-              Icon(
-                Icons.edit,
-                size: 18.sp,
-                color: Color(ConstColors.mainColor),
-              ),
-            ],
-          ),
         ),
       ],
     );

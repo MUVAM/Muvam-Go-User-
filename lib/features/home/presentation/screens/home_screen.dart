@@ -4542,7 +4542,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 isScheduledRide = false;
                                               });
                                             } else {
-                                              _showBookingRequestSheet();
+                                              // _showBookingRequestSheet();
+                                              _showBookSuccessfulSheet();
                                             }
                                           }
                                         } else {}
@@ -4703,7 +4704,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                           isScheduledRide = false;
                                         });
                                       } else {
-                                        _showBookingRequestSheet();
+                                        _showBookSuccessfulSheet();
+
+                                        // _showBookingRequestSheet();
                                       }
                                     }
                                   } catch (e) {
@@ -6624,7 +6627,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    _showBookSuccessfulSheet();
+                    // _showBookSuccessfulSheet();
+                    _showTripDetailsSheet();
                   },
                   borderRadius: BorderRadius.circular(12.r),
                   child: Center(
@@ -6722,7 +6726,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: GestureDetector(
                 onTap: () {
                   Navigator.pop(context);
-                  _showTripDetailsSheet();
+                  _showBookingRequestSheet();
                 },
                 child: Center(
                   child: Text(

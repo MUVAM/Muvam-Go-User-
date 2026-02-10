@@ -6737,25 +6737,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             // Spacer(),
             SizedBox(height: 20.h),
-            Container(
-              width: 353.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  _sheetController.animateTo(
-                    0.2,
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                  Navigator.pop(context);
+            GestureDetector(
+              onTap: () {
+                _sheetController.animateTo(
+                  0.2,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+                Navigator.pop(context);
 
-                  // _showBookingRequestSheet();
-                  _showTripDetailsSheet();
-                },
+                // _showBookingRequestSheet();
+                _showTripDetailsSheet();
+              },
+              child: Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
                 child: Center(
                   child: Text(
                     'Trip Details',
@@ -8043,7 +8043,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEditField(String label, String value, ) {
+  Widget _buildEditField(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -8086,12 +8086,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
-                        Text("4 Passengers", style:TextStyle(fontSize:12, fontWeight:FontWeight.w400, color:Color(0xffB1B1B1)))
+                        Text(
+                          "4 Passengers",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xffB1B1B1),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 )
-              : label=="PAYMENT METHOD"?Row(
+              : label == "PAYMENT METHOD"
+              ? Row(
                   children: [
                     Image.asset(
                       "assets/images/payincar_icon.png",
@@ -8110,11 +8118,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
-                      Text(value, style:TextStyle(fontSize:12, fontWeight:FontWeight.w400, color:Color(0xffB1B1B1)))
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xffB1B1B1),
+                          ),
+                        ),
                       ],
                     ),
                   ],
-                ): Row(
+                )
+              : Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(

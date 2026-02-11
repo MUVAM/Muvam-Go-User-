@@ -20,7 +20,10 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ActivitiesTabsProvider>().fetchRideDetails(widget.rideId);
+      final provider = context.read<ActivitiesTabsProvider>();
+      if (provider.selectedRide?.id != widget.rideId) {
+        provider.fetchRideDetails(widget.rideId);
+      }
     });
   }
 
@@ -31,19 +34,14 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
       body: SafeArea(
         child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
-            if (provider.isLoadingDetails) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: Color(ConstColors.mainColor),
-                ),
-              );
-            }
-
-            if (provider.selectedRide == null) {
-              return Center(child: Text('Ride not found'));
-            }
-
-            final ride = provider.selectedRide!;
+            final ride =
+                provider.selectedRide ??
+                provider.historyRides.firstWhere(
+                  (r) => r.id == widget.rideId,
+                  orElse: () => provider.historyRides.isNotEmpty
+                      ? provider.historyRides.first
+                      : null as dynamic,
+                );
 
             return Padding(
               padding: EdgeInsets.all(20.w),

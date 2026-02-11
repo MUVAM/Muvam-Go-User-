@@ -23,7 +23,10 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ActivitiesTabsProvider>().fetchRideDetails(widget.rideId);
+      final provider = context.read<ActivitiesTabsProvider>();
+      if (provider.selectedRide?.id != widget.rideId) {
+        provider.fetchRideDetails(widget.rideId);
+      }
     });
   }
 
@@ -37,7 +40,6 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           context: context,
           message: 'Ride details not available',
         );
-
         return;
       }
 
@@ -87,19 +89,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       body: SafeArea(
         child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
-            if (provider.isLoadingDetails) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: Color(ConstColors.mainColor),
-                ),
-              );
-            }
-
-            if (provider.selectedRide == null) {
-              return Center(child: Text('Ride not found'));
-            }
-
-            final ride = provider.selectedRide!;
+            final ride =
+                provider.selectedRide ??
+                provider.activeRides.firstWhere(
+                  (r) => r.id == widget.rideId,
+                  orElse: () => provider.activeRides.isNotEmpty
+                      ? provider.activeRides.first
+                      : null as dynamic,
+                );
 
             return Padding(
               padding: EdgeInsets.all(20.w),

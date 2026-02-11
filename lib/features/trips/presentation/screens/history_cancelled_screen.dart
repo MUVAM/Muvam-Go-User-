@@ -21,7 +21,10 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ActivitiesTabsProvider>().fetchRideDetails(widget.rideId);
+      final provider = context.read<ActivitiesTabsProvider>();
+      if (provider.selectedRide?.id != widget.rideId) {
+        provider.fetchRideDetails(widget.rideId);
+      }
     });
   }
 
@@ -50,19 +53,14 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
       body: SafeArea(
         child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
-            if (provider.isLoadingDetails) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: Color(ConstColors.mainColor),
-                ),
-              );
-            }
-
-            if (provider.selectedRide == null) {
-              return Center(child: Text('Ride not found'));
-            }
-
-            final ride = provider.selectedRide!;
+            final ride =
+                provider.selectedRide ??
+                provider.historyRides.firstWhere(
+                  (r) => r.id == widget.rideId,
+                  orElse: () => provider.historyRides.isNotEmpty
+                      ? provider.historyRides.first
+                      : null as dynamic,
+                );
 
             return Padding(
               padding: EdgeInsets.all(20.w),
@@ -215,7 +213,7 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                   ),
                   SizedBox(height: 15.h),
                   Container(
-                    width: 353.w,
+                    width: double.infinity,
                     height: 70.h,
                     decoration: BoxDecoration(
                       color: Color(0xFFF5F5F5),

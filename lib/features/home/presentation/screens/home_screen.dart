@@ -4151,7 +4151,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setBookingState) => Container(
-          height: 400.h,
+          height: 351.h,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
@@ -4159,7 +4159,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             children: [
               // Drag handle
-              SizedBox(height: 12.h),
+              SizedBox(height: 11.57.h),
               Center(
                 child: Container(
                   width: 69.w,
@@ -4170,7 +4170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 20.h),
+              SizedBox(height: 18.h),
 
               // Add note section
               GestureDetector(
@@ -4223,7 +4223,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              SizedBox(height: 20.h),
+              SizedBox(height: 15.h),
 
               // Divider
               Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),

@@ -14,21 +14,49 @@ class ActivitiesScreen extends StatefulWidget {
   ActivitiesScreenState createState() => ActivitiesScreenState();
 }
 
-class ActivitiesScreenState extends State<ActivitiesScreen> {
+class ActivitiesScreenState extends State<ActivitiesScreen>
+    with WidgetsBindingObserver {
   int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Start polling when screen is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ActivitiesTabsProvider>().startAutoRefresh();
+      context.read<ActivitiesTabsProvider>().startPolling();
     });
   }
 
   @override
   void dispose() {
-    context.read<ActivitiesTabsProvider>().stopAutoRefresh();
+    WidgetsBinding.instance.removeObserver(this);
+    // Stop polling when screen is disposed
+    context.read<ActivitiesTabsProvider>().stopPolling();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final provider = Provider.of<ActivitiesTabsProvider>(
+      context,
+      listen: false,
+    );
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App came to foreground - resume polling
+        provider.resumePolling();
+        break;
+      case AppLifecycleState.paused:
+        // App went to background - pause polling to save battery
+        provider.pausePolling();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   @override
@@ -60,7 +88,7 @@ class ActivitiesScreenState extends State<ActivitiesScreen> {
             ),
           ),
           Positioned(
-            top: 130.h,
+            top: 100.h,
             left: 20.w,
             right: 20.w,
             bottom: 20.h,

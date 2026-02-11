@@ -4158,7 +4158,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Column(
             children: [
-              // Drag handle
               SizedBox(height: 11.57.h),
               Center(
                 child: Container(
@@ -4171,8 +4170,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 18.h),
-
-              // Add note section
               GestureDetector(
                 onTap: () => _showAddNoteSheet(
                   onNoteChanged: () {

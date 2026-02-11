@@ -15,7 +15,7 @@ class PrebookingTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ActivitiesTabsProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading) {
+        if (provider.isLoading && !provider.hasData) {
           return Center(
             child: CircularProgressIndicator(
               color: Color(ConstColors.mainColor),
@@ -23,7 +23,7 @@ class PrebookingTab extends StatelessWidget {
           );
         }
 
-        if (provider.errorMessage != null) {
+        if (provider.errorMessage != null && !provider.hasData) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -31,13 +31,14 @@ class PrebookingTab extends StatelessWidget {
                 Icon(Icons.error_outline, size: 48.sp, color: Colors.red),
                 SizedBox(height: 16.h),
                 Text(
-                  'Failed to load rides',
+                  provider.errorMessage ?? 'Failed to load rides',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 8.h),
                 TextButton(
@@ -74,13 +75,28 @@ class PrebookingTab extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (provider.isRefreshing) ...[
+                  SizedBox(height: 16.h),
+                  SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(ConstColors.mainColor),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
         }
 
-        return Column(
-          children: prebookedRides.map((ride) {
+        return ListView.builder(
+          physics: PageScrollPhysics(),
+          shrinkWrap: true,
+          itemCount: prebookedRides.length,
+          itemBuilder: (context, index) {
+            final ride = prebookedRides[index];
             return Padding(
               padding: EdgeInsets.only(bottom: 15.h),
               child: GestureDetector(
@@ -223,7 +239,7 @@ class PrebookingTab extends StatelessWidget {
                 ),
               ),
             );
-          }).toList(),
+          },
         );
       },
     );

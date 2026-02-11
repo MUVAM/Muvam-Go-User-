@@ -25,8 +25,9 @@ class ActivitiesService {
 
     final requestBody = <String, dynamic>{};
     if (status != null) requestBody['status'] = status;
-    if (limit != null) requestBody['limit'] = limit;
-    if (offset != null) requestBody['offset'] = offset;
+    // Uncomment these if you need pagination later
+    // if (limit != null) requestBody['limit'] = limit;
+    // if (offset != null) requestBody['offset'] = offset;
 
     AppLogger.log('FETCHING RIDES');
     AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rides}');
@@ -46,13 +47,13 @@ class ActivitiesService {
       );
 
       AppLogger.log('Response Status: ${response.statusCode}');
-      AppLogger.log('Response bodyy--++++--: ${response.body}');
+      AppLogger.log('Response Body: ${response.body}');
       AppLogger.log('Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         AppLogger.log(
-          'Successssss: ${data.toString().substring(0, min(200, data.toString().length))}',
+          'Success: ${data.toString().substring(0, min(200, data.toString().length))}',
         );
         return {'success': true, 'data': data};
       } else {

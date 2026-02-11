@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class HistoryCancelledScreen extends StatefulWidget {
   final int rideId;
@@ -21,6 +23,24 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ActivitiesTabsProvider>().fetchRideDetails(widget.rideId);
     });
+  }
+
+  String _formatTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('h:mm a').format(dateTime);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String _formatDate(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('MMMM d, yyyy').format(dateTime);
+    } catch (e) {
+      return '';
+    }
   }
 
   @override
@@ -56,17 +76,17 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                           provider.clearSelectedRide();
                           Navigator.pop(context);
                         },
-                        child: Icon(
-                          Icons.arrow_back,
-                          size: 24.sp,
-                          color: Colors.black,
+                        child: Image.asset(
+                          ConstImages.back,
+                          width: 33.w,
+                          height: 33.h,
                         ),
                       ),
                     ],
                   ),
                   SizedBox(height: 20.h),
                   Text(
-                    'Booking Id: ${ride.id}',
+                    'Booking id: ${ride.id}',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 26.sp,
@@ -74,144 +94,158 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                       color: Colors.black,
                     ),
                   ),
-                  SizedBox(height: 30.h),
-                  Container(
-                    padding: EdgeInsets.all(15.w),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8.r),
+                  SizedBox(height: 12.h),
+                  Text(
+                    _formatTime(ride.createdAt),
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
                     ),
-                    child: Column(
+                  ),
+                  Text(
+                    _formatDate(ride.createdAt),
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 30.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8.w,
+                        height: 8.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'Pick up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    ride.pickupAddress,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 15.h),
+                  Padding(
+                    padding: EdgeInsets.only(left: 16.w),
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 6.w,
-                              height: 6.h,
-                              decoration: BoxDecoration(
-                                color: Color(ConstColors.mainColor),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            Text(
-                              'Pick Up',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
+                        SvgPicture.asset(
+                          ConstImages.lineArrow,
+                          width: 24.w,
+                          height: 24.h,
                         ),
-                        SizedBox(height: 5.h),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 16.w),
-                            child: Text(
-                              ride.pickupAddress,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 15.h),
-                        Divider(thickness: 1, color: Colors.grey.shade300),
-                        SizedBox(height: 15.h),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6.w,
-                              height: 6.h,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            Text(
-                              'Destination',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 5.h),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 16.w),
-                            child: Text(
-                              ride.destAddress,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,
+                            color: Colors.grey.shade300,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 15.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8.w,
+                        height: 8.h,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'Destination',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    ride.destAddress,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
                   Divider(thickness: 1, color: Colors.grey.shade300),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: 16.h),
                   Text(
                     'Payment method',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Color(0xFFB1B1B1),
+                      color: Color(0xFF9E9E9E),
                     ),
                   ),
-                  SizedBox(height: 10.h),
+                  SizedBox(height: 15.h),
                   Container(
                     width: 353.w,
                     height: 70.h,
                     decoration: BoxDecoration(
-                      color: Color(0xFFB1B1B1).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(5.r),
+                      color: Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(8.r),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 10.w),
+                    padding: EdgeInsets.symmetric(horizontal: 15.w),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            Image.asset(
-                              ConstImages.wallet,
-                              width: 24.w,
-                              height: 24.h,
+                            Container(
+                              padding: EdgeInsets.all(4.sp),
+                              width: 50.w,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4.r),
+                              ),
+                              child: SvgPicture.asset(
+                                ConstImages.cashCard,
+                                width: 24.w,
+                                height: 24.h,
+                              ),
                             ),
-                            SizedBox(width: 10.w),
+                            SizedBox(width: 12.w),
                             Text(
                               ride.paymentMethod,
                               style: TextStyle(
                                 fontFamily: 'Inter',
-                                fontSize: 14.sp,
+                                fontSize: 16.sp,
                                 fontWeight: FontWeight.w400,
                                 color: Colors.black,
                               ),
@@ -224,57 +258,28 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                             fontFamily: 'Inter',
                             fontSize: 18.sp,
                             fontWeight: FontWeight.w600,
-                            height: 22 / 18,
-                            letterSpacing: -0.41,
                             color: Colors.red,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (ride.isCancelled) ...[
-                    SizedBox(height: 20.h),
-                    Divider(thickness: 1, color: Colors.grey.shade300),
-                    SizedBox(height: 20.h),
-                    Text(
-                      'Cancellation reason',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                    SizedBox(height: 5.h),
-                    Text(
-                      ride.cancellationReason!,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                  SizedBox(height: 20.h),
-                  Divider(thickness: 1, color: Colors.grey.shade300),
                   SizedBox(height: 20.h),
                   Text(
                     'Service type',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 12.sp,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                      color: Color(0xFF9E9E9E),
                     ),
                   ),
-                  SizedBox(height: 5.h),
                   Text(
-                    ride.vehicleType,
+                    ride.serviceType,
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 26.sp,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
                   ),

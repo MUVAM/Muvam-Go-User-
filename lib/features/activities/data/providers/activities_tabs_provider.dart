@@ -14,9 +14,10 @@ class ActivitiesTabsProvider extends ChangeNotifier {
   RideData? _selectedRide;
 
   bool _isLoading = false;
+  bool _isRefreshing = false;
   bool _isLoadingDetails = false;
   String? _errorMessage;
-  Timer? _refreshTimer;
+  Timer? _pollingTimer;
 
   List<RideData> get prebookedRides => _prebookedRides;
   List<RideData> get activeRides => _activeRides;
@@ -24,71 +25,106 @@ class ActivitiesTabsProvider extends ChangeNotifier {
   RideData? get selectedRide => _selectedRide;
 
   bool get isLoading => _isLoading;
+  bool get isRefreshing => _isRefreshing;
   bool get isLoadingDetails => _isLoadingDetails;
   String? get errorMessage => _errorMessage;
 
+  bool get hasData =>
+      _prebookedRides.isNotEmpty ||
+      _activeRides.isNotEmpty ||
+      _historyRides.isNotEmpty;
+
   ActivitiesTabsProvider() {
     fetchRides();
+    startPolling();
   }
 
-  Future<void> fetchRides() async {
-    _isLoading = true;
+  Future<void> fetchRides({bool isBackground = false}) async {
+    // Only show loading spinner on first load when there's no data
+    if (!isBackground && !hasData) {
+      _isLoading = true;
+    } else if (isBackground) {
+      _isRefreshing = true;
+    }
+
     _errorMessage = null;
     notifyListeners();
 
     try {
-      AppLogger.log('Fetching rides from API');
+      AppLogger.log('Fetching rides from API (background: $isBackground)');
 
-      bool hasError = false;
+      // Fetch all rides in parallel for faster response
+      final results = await Future.wait([
+        _activitiesService.getPrebookedRides(),
+        _activitiesService.getActiveRides(),
+        _activitiesService.getHistoryRides(),
+      ]);
+
+      final prebookedResult = results[0];
+      final activeResult = results[1];
+      final historyResult = results[2];
+
+      // Store previous counts to detect changes
+      final previousActiveCount = _activeRides.length;
+      final previousHistoryCount = _historyRides.length;
 
       // Fetch prebooked rides
-      final prebookedResult = await _activitiesService.getPrebookedRides();
       if (prebookedResult['success'] == true) {
         _prebookedRides = _parseRides(prebookedResult['data']);
         AppLogger.log('Prebooked rides: ${_prebookedRides.length}');
       } else {
         AppLogger.log('Prebooked rides failed: ${prebookedResult['message']}');
-        hasError = true;
+        if (!hasData) {
+          _errorMessage = prebookedResult['message'];
+        }
         _prebookedRides = [];
       }
 
       // Fetch active rides
-      final activeResult = await _activitiesService.getActiveRides();
       if (activeResult['success'] == true) {
         _activeRides = _parseRides(activeResult['data']);
         AppLogger.log('Active rides: ${_activeRides.length}');
+
+        if (isBackground && _activeRides.length > previousActiveCount) {
+          AppLogger.log('🚗 New active ride(s) detected!');
+        }
       } else {
         AppLogger.log('Active rides failed: ${activeResult['message']}');
-        hasError = true;
+        if (!hasData) {
+          _errorMessage = activeResult['message'];
+        }
         _activeRides = [];
       }
 
       // Fetch history rides
-      final historyResult = await _activitiesService.getHistoryRides();
       if (historyResult['success'] == true) {
         _historyRides = _parseRides(historyResult['data']);
         AppLogger.log('History rides: ${_historyRides.length}');
+
+        // Log if new history rides detected
+        if (isBackground && _historyRides.length > previousHistoryCount) {
+          AppLogger.log('📜 New history ride(s) detected!');
+        }
       } else {
         AppLogger.log('History rides failed: ${historyResult['message']}');
-        hasError = true;
+        if (!hasData) {
+          _errorMessage = historyResult['message'];
+        }
         _historyRides = [];
       }
 
-      // Only set error if API calls failed, not if they're just empty
-      if (hasError) {
-        _errorMessage = 'Failed to load some rides';
-      } else {
-        _errorMessage = null;
-        AppLogger.log('All rides fetched successfully');
-      }
+      AppLogger.log('All rides fetched successfully');
     } catch (e) {
       _errorMessage = 'Error fetching rides: $e';
       AppLogger.log('Exception: $e');
-      _prebookedRides = [];
-      _activeRides = [];
-      _historyRides = [];
+      if (!hasData) {
+        _prebookedRides = [];
+        _activeRides = [];
+        _historyRides = [];
+      }
     } finally {
       _isLoading = false;
+      _isRefreshing = false;
       notifyListeners();
     }
   }
@@ -161,19 +197,32 @@ class ActivitiesTabsProvider extends ChangeNotifier {
     }
   }
 
-  void startAutoRefresh() {
-    AppLogger.log('Starting auto-refresh');
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => fetchRides(),
+  void startPolling() {
+    AppLogger.log('Starting automatic polling every 10 seconds');
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(
+      const Duration(seconds: 10), // Poll every 10 seconds
+      (_) => fetchRides(isBackground: true),
     );
   }
 
-  void stopAutoRefresh() {
-    AppLogger.log('Stopping auto-refresh');
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
+  void stopPolling() {
+    AppLogger.log('Stopping automatic polling');
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  // Pause polling when app is in background to save battery
+  void pausePolling() {
+    AppLogger.log('Pausing polling');
+    _pollingTimer?.cancel();
+  }
+
+  // Resume polling when app comes to foreground
+  void resumePolling() {
+    AppLogger.log('Resuming polling');
+    startPolling();
+    fetchRides(isBackground: true); // Fetch immediately on resume
   }
 
   String formatPrice(double price) {
@@ -193,7 +242,7 @@ class ActivitiesTabsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    stopAutoRefresh();
+    stopPolling();
     super.dispose();
   }
 }

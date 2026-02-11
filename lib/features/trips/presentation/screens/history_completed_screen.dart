@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -56,10 +57,10 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                           provider.clearSelectedRide();
                           Navigator.pop(context);
                         },
-                        child: Icon(
-                          Icons.arrow_back,
-                          size: 24.sp,
-                          color: Colors.black,
+                        child: Image.asset(
+                          ConstImages.back,
+                          width: 33.w,
+                          height: 33.h,
                         ),
                       ),
                     ],
@@ -75,164 +76,119 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                     ),
                   ),
                   SizedBox(height: 30.h),
-                  Container(
-                    padding: EdgeInsets.all(15.w),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8.r),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Text(
+                        'Pick Up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        ride.pickupAddress,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
                     ),
-                    child: Column(
+                  ),
+                  SizedBox(height: 15.h),
+                  Padding(
+                    padding: EdgeInsets.only(left: 16.w),
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 6.w,
-                              height: 6.h,
-                              decoration: BoxDecoration(
-                                color: Color(ConstColors.mainColor),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            Text(
-                              'Pick Up',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
+                        SvgPicture.asset(
+                          ConstImages.lineArrow,
+                          width: 24.w,
+                          height: 24.h,
                         ),
-                        SizedBox(height: 5.h),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 16.w),
-                            child: Text(
-                              ride.pickupAddress,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 15.h),
-                        Divider(thickness: 1, color: Colors.grey.shade300),
-                        SizedBox(height: 15.h),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6.w,
-                              height: 6.h,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            Text(
-                              'Destination',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 5.h),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: EdgeInsets.only(left: 16.w),
-                            child: Text(
-                              ride.destAddress,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.black,
-                              ),
-                            ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,
+                            color: Colors.grey.shade300,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(height: 20.h),
-                  Divider(thickness: 1, color: Colors.grey.shade300),
-                  SizedBox(height: 20.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Amount',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
-                      ),
-                      Text(
-                        provider.formatPrice(ride.price),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 22 / 18,
-                          letterSpacing: -0.41,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ),
                   SizedBox(height: 15.h),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Container(
+                        width: 6.w,
+                        height: 6.h,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
                       Text(
-                        'Tip',
+                        'Destination',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
-                      ),
-                      Text(
-                        '₦500',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 22 / 18,
-                          letterSpacing: -0.41,
+                          height: 1.0,
+                          letterSpacing: -0.32,
                           color: Colors.black,
                         ),
                       ),
                     ],
                   ),
+                  SizedBox(height: 5.h),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16.w),
+                      child: Text(
+                        ride.destAddress,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          height: 1.0,
+                          letterSpacing: -0.32,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20.h),
+                  Divider(thickness: 1, color: Colors.grey.shade300),
                   SizedBox(height: 20.h),
                   Text(
                     'Payment method',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 18.sp,
+                      fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
                       height: 1.0,
                       letterSpacing: -0.32,
@@ -241,60 +197,134 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                   ),
                   SizedBox(height: 10.h),
                   Container(
-                    width: 353.w,
-                    height: 70.h,
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Color(0xFFB1B1B1).withOpacity(0.2),
+                      color: Color(0xFFB1B1B1).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(5.r),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 10.w),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: EdgeInsets.all(16.sp),
+                    child: Column(
                       children: [
+                        Container(
+                          padding: EdgeInsets.all(14.sp),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Amount',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                provider.formatPrice(ride.price),
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w400,
+                                  height: 22 / 18,
+                                  letterSpacing: -0.41,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 15.h),
+                        Container(
+                          padding: EdgeInsets.all(14.sp),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Tip',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                '₦500',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w400,
+                                  height: 22 / 18,
+                                  letterSpacing: -0.41,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Image.asset(
-                              ConstImages.wallet,
-                              width: 24.w,
-                              height: 24.h,
+                            Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(4.sp),
+                                  width: 50.w,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4.r),
+                                  ),
+                                  child: SvgPicture.asset(
+                                    ConstImages.cashCard,
+                                    width: 24.w,
+                                    height: 24.h,
+                                  ),
+                                ),
+                                SizedBox(width: 10.w),
+                                Text(
+                                  ride.paymentMethod,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(width: 10.w),
                             Text(
-                              ride.paymentMethod,
+                              provider.formatPrice(ride.price + 500),
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.black,
+                                fontWeight: FontWeight.w700,
+                                color: Color(ConstColors.mainColor),
                               ),
                             ),
                           ],
-                        ),
-                        Text(
-                          provider.formatPrice(ride.price + 500),
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w700,
-                            color: Color(ConstColors.mainColor),
-                          ),
                         ),
                       ],
                     ),
                   ),
                   SizedBox(height: 20.h),
-                  Divider(thickness: 1, color: Colors.grey.shade300),
-                  SizedBox(height: 20.h),
                   Text(
                     'Service type',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 12.sp,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black,
+                      color: Color(0xFFB1B1B1),
                     ),
                   ),
-                  SizedBox(height: 5.h),
                   Text(
                     ride.vehicleType,
                     style: TextStyle(
@@ -302,6 +332,18 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                       fontSize: 26.sp,
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 30.h),
+                  Center(
+                    child: Text(
+                      'Download receipt',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2A8359),
+                      ),
                     ),
                   ),
                 ],

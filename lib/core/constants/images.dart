@@ -49,4 +49,6 @@ class ConstImages {
   static const String arrowLeftAlt = 'assets/svg/arrow_left_alt.svg';
   static const String copyIcon = 'assets/svg/Copy-icon.svg';
   static const String location = 'assets/svg/location.svg';
+  static const String lineArrow = 'assets/svg/line-arrow.svg';
+  static const String cashCard = 'assets/svg/cash-card.svg';
 }

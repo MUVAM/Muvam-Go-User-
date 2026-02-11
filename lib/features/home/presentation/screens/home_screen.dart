@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -25,6 +26,7 @@ import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/services/websocket_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
+import 'package:muvam/core/utils/currency_formatter.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
@@ -1488,11 +1490,6 @@ class _HomeScreenState extends State<HomeScreen> {
         (marker) => marker.markerId.value == 'driver_location',
       );
 
-      AppLogger.log(
-        '🗑️ Removed $removedCount old driver marker(s)',
-        tag: 'DRIVER_MARKER',
-      );
-
       // Add new driver marker
       _mapMarkers.add(
         Marker(
@@ -1506,11 +1503,6 @@ class _HomeScreenState extends State<HomeScreen> {
             snippet: _assignedDriver?.name ?? 'Your driver',
           ),
         ),
-      );
-
-      AppLogger.log(
-        '✅ Driver marker added. Total markers: ${_mapMarkers.length}',
-        tag: 'DRIVER_MARKER',
       );
     });
   }
@@ -1554,22 +1546,16 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (routeDetails != null) {
-        final durationInSeconds = routeDetails['duration_value'] as int;
-        final durationInMinutes = (durationInSeconds / 60).ceil();
+        if (routeDetails['duration_value'] != null) {
+          final durationInSeconds = routeDetails['duration_value'];
 
-        AppLogger.log(
-          '✅ API Response - Duration: ${routeDetails['duration']}, Value: $durationInSeconds seconds = $durationInMinutes minutes',
-          tag: 'ETA',
-        );
+          log("this is the duration in seconds $durationInSeconds");
 
-        setState(() {
-          _driverArrivalTime = durationInMinutes.toString();
-        });
-
-        AppLogger.log(
-          '✅ ETA UPDATED TO: $durationInMinutes mins (displayed as: $_driverArrivalTime)',
-          tag: 'ETA',
-        );
+          final durationInMinutes = (durationInSeconds / 60).ceil();
+          setState(() {
+            _driverArrivalTime = durationInMinutes.toString();
+          });
+        }
       } else {
         AppLogger.log(
           '⚠️ API returned null, using fallback calculation',
@@ -1595,8 +1581,9 @@ class _HomeScreenState extends State<HomeScreen> {
           tag: 'ETA',
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
       AppLogger.error('Error calculating ETA', error: e, tag: 'ETA');
+      log("eta stack $stack");
     }
   }
 
@@ -1869,26 +1856,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {});
     } catch (e) {
-      AppLogger.error('Error estimating ride', error: e, tag: 'ESTIMATE');
       rethrow;
     }
   }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
-    AppLogger.log('📍 === ADDING ACTIVE RIDE MARKERS ===', tag: 'MARKERS');
-
     // Get ride status to determine what to display
     final status = ride['Status']?.toString().toLowerCase() ?? '';
-    AppLogger.log('🎯 Ride status for markers: $status', tag: 'MARKERS');
 
     // Parse PostGIS POINT format: "POINT(longitude latitude)"
     final pickupLocation = ride['PickupLocation']?.toString();
     final destLocation = ride['DestLocation']?.toString();
     final stopLocation = ride['StopLocation']?.toString();
-
-    AppLogger.log('📍 Raw PickupLocation: $pickupLocation', tag: 'MARKERS');
-    AppLogger.log('📍 Raw DestLocation: $destLocation', tag: 'MARKERS');
-    AppLogger.log('📍 Raw StopLocation: $stopLocation', tag: 'MARKERS');
 
     LatLng? pickupCoords;
     LatLng? destCoords;
@@ -4064,10 +4043,10 @@ class _HomeScreenState extends State<HomeScreen> {
       String title = '';
       switch (vehicleType) {
         case 'regular':
-          title = 'Regular vehicle';
+          title = 'Regular';
           break;
         case 'fancy':
-          title = 'Fancy vehicle';
+          title = 'Fancy';
           break;
         case 'vip':
           title = 'VIP';
@@ -4183,7 +4162,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(height: 12.h),
               Center(
                 child: Container(
-                  width: 36.w,
+                  width: 69.w,
                   height: 5.h,
                   decoration: BoxDecoration(
                     color: Color(0xFFD1D1D6),
@@ -4266,11 +4245,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         selectedVehicle != null
                             ? ConstImages.car
                             : ConstImages.bike,
-                        width: 80.w,
-                        height: 40.h,
+                        width: 60.w,
+                        height: 29.h,
                         fit: BoxFit.contain,
                       ),
-                      SizedBox(width: 16.w),
+                      SizedBox(width: 8.w),
 
                       // Vehicle info
                       Expanded(
@@ -4363,19 +4342,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       // Payment icon container
                       Container(
-                        width: 60.w,
-                        height: 60.h,
-                        padding: EdgeInsets.all(12.w),
-                        decoration: BoxDecoration(
-                          color: Color(0xFFF2F2F7),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
+                        width: 80.w,
+                        height: 38.h,
+                        // padding: EdgeInsets.all(12.w),
+                        // decoration: BoxDecoration(
+                        //   color: Color(0xFFF2F2F7),
+                        //   borderRadius: BorderRadius.circular(8.r),
+                        // ),
                         child: Image.asset(
+                          width: 80.w,
+                          height: 38.h,
                           _getPaymentMethodIcon(selectedPaymentMethod),
                           fit: BoxFit.contain,
                         ),
                       ),
-                      SizedBox(width: 16.w),
+                      SizedBox(width: 8.w),
 
                       // Payment method text
                       Expanded(
@@ -4402,7 +4383,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               Spacer(),
-
+              // Sizedbox(height: 30.h),
               // Bottom buttons
               Padding(
                 padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 30.h),
@@ -4416,7 +4397,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           _showPrebookSheet();
                         },
                         child: Container(
-                          height: 56.h,
+                          height: 47.h,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             border: Border.all(
@@ -4722,6 +4703,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                           isScheduledRide = false;
                                         });
                                       } else {
+                                        _sheetController.animateTo(
+                                          0.2,
+                                          duration: Duration(milliseconds: 300),
+                                          curve: Curves.easeInOut,
+                                        );
                                         _showBookSuccessfulSheet();
 
                                         // _showBookingRequestSheet();
@@ -4817,7 +4803,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
                             : null,
                         child: Container(
-                          height: 56.h,
+                          height: 47.h,
                           decoration: BoxDecoration(
                             color: _isBookingRide
                                 ? Color(ConstColors.mainColor).withOpacity(0.7)
@@ -5036,6 +5022,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _getPaymentMethodIcon(method),
               width: 55.w,
               height: 30.h,
+              fit: BoxFit.cover,
             ),
             SizedBox(width: 15.w),
             Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
@@ -5456,7 +5443,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _activeRide?['Status']?.toString().toLowerCase() == 'arrived';
     final bool hasStarted =
         _activeRide?['Status']?.toString().toLowerCase() == 'started';
-
+    log("this is the arrived bool $hasArrived");
+    log("this is the started bool $hasStarted");
     showModalBottomSheet(
       backgroundColor: Colors.transparent,
       context: context,
@@ -5558,39 +5546,58 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         // Only show timer when driver is on the way (not arrived, not started)
                         if (!hasStarted && !hasArrived) ...[
-                          Stack(
-                            children: [
-                              Container(
-                                width: 60.w,
-                                height: 60.h,
-                                decoration: BoxDecoration(
-                                  color: Color(ConstColors.mainColor),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _driverArrivalTime,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 18.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
+                          SizedBox(
+                            width: 60.w,
+                            height: 60.h,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Inner circle with ETA time
+                                Container(
+                                  width: 60.w,
+                                  height: 60.h,
+                                  decoration: BoxDecoration(
+                                    color: Color(ConstColors.mainColor),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        _driverArrivalTime,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'min',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10.sp,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              // White line decoration at top right
-                              Positioned(
-                                top: 0,
-                                left: 11.w,
-                                child: Image.asset(
-                                  'assets/images/whiteline.png',
-                                  width: 20.w,
-                                  height: 20.h,
-                                  fit: BoxFit.contain,
+                                // Rotating white arc indicator
+                                Container(
+                                  margin: EdgeInsets.all(8),
+                                  width: 60.w,
+                                  height: 60.h,
+                                  child: CircularProgressIndicator(
+                                    // value: 0.25, // Shows only a quarter arc
+                                    strokeWidth: 2.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                    backgroundColor: Colors.transparent,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           SizedBox(width: 15.w),
                         ],
@@ -5598,58 +5605,70 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                hasStarted
-                                    ? 'Enjoy your trip'
-                                    : hasArrived
-                                    ? 'Your driver has arrived'
-                                    : 'Driver is on the way',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    hasStarted
+                                        ? 'Enjoy your trip'
+                                        : hasArrived
+                                        ? 'Your driver has arrived'
+                                        : 'Driver is on the way',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  if (hasArrived || hasStarted)
+                                    GestureDetector(
+                                      onTap: () => Navigator.pop(context),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 24.sp,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                ],
                               ),
+                              SizedBox(height: 16.h),
                               Divider(
                                 thickness: 1,
                                 color: Colors.grey.shade300,
                               ),
+                              SizedBox(height: 20.h),
                             ],
                           ),
                         ),
 
                         // Navigation widget - show when ride has started
-                        if (hasArrived)
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Icon(
-                              Icons.close,
-                              size: 24.sp,
-                              color: Colors.grey[600],
-                            ),
-                          ),
                       ],
                     ),
                     // Driver Details
                     Column(
                       children: [
                         if (_assignedDriver != null) ...[
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          Container(
+                            margin: !hasStarted && !hasArrived
+                                ? EdgeInsets.only(left: 69.5.w)
+                                : EdgeInsets.only(left: 1.w),
                             child: _buildDriverDetail(
-                              'Driver name:',
+                              'Driver name: ',
                               _assignedDriver!.name,
                             ),
                           ),
-                          SizedBox(height: 10.h),
+                          SizedBox(height: 20.h),
                           if (!hasStarted) ...[
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                            Container(
+                              margin: !hasStarted && !hasArrived
+                                  ? EdgeInsets.only(left: 69.5.w)
+                                  : EdgeInsets.only(left: 1.w),
                               child: Row(
                                 children: [
                                   Text(
-                                    'Driver rating:',
+                                    'Driver rating: ',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.sp,
@@ -5658,7 +5677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       letterSpacing: -0.32,
                                     ),
                                   ),
-                                  Spacer(),
+                                  // Spacer(),
                                   Row(
                                     children: [
                                       Icon(
@@ -5684,34 +5703,61 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 10.h),
+
+                            SizedBox(height: 20.h),
                           ],
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          // Padding(
+                          //   padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          // child:
+                          Container(
+                            margin: !hasStarted && !hasArrived
+                                ? EdgeInsets.only(left: 69.5.w)
+                                : EdgeInsets.only(left: 1.w),
                             child: _buildDriverDetail(
-                              'Plate number:',
+                              'Plate number: ',
                               _assignedDriver!.plateNumber,
+                              // ),
                             ),
                           ),
-                          SizedBox(height: 10.h),
+                          SizedBox(height: 20.h),
                           if (!hasStarted) ...[
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                            Container(
+                              margin: !hasStarted && !hasArrived
+                                  ? EdgeInsets.only(left: 69.5.w)
+                                  : EdgeInsets.only(left: 1.w),
                               child: _buildDriverDetail(
-                                'Car:',
+                                'Car: ',
                                 _assignedDriver!.vehicleModel,
                               ),
                             ),
-                            SizedBox(height: 10.h),
+                            SizedBox(height: 20.h),
                           ],
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20.w),
+
+                          Container(
+                            margin: !hasStarted && !hasArrived
+                                ? EdgeInsets.only(left: 69.5.w)
+                                : EdgeInsets.only(left: 1.w),
+                            alignment: Alignment.center,
                             child: _buildDriverDetail(
-                              'Trip ID:',
+                              'Trip ID: ',
                               _activeRide?['ID']?.toString() ?? 'N/A',
                             ),
                           ),
                           SizedBox(height: 20.h),
+                          Container(
+                            margin: !hasStarted && !hasArrived
+                                ? EdgeInsets.only(left: 69.5.w)
+                                : EdgeInsets.only(left: 1.w),
+                            alignment: Alignment.center,
+                            child: _buildDriverDetail(
+                              'Price: #',
+                              CurrencyFormatter.format(
+                                _activeRide?['Price']?.toString() ?? "",
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 20.h),
+
                           // Payment Method
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -5891,15 +5937,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Icon(
-                                            hasStarted
-                                                ? Icons.sos
-                                                : hasArrived
-                                                ? Icons.call
-                                                : Icons.cancel,
-                                            size: 16.sp,
-                                            color: Colors.black,
-                                          ),
+                                          hasStarted
+                                              ? Image.asset(
+                                                  "assets/images/soss.png,",
+                                                  height: 28.h,
+                                                  width: 28.w,
+                                                  fit: BoxFit.contain,
+                                                )
+                                              : Icon(
+                                                  hasArrived
+                                                      ? Icons.call
+                                                      : Icons.cancel,
+                                                  size: 16.sp,
+                                                  color: Colors.black,
+                                                ),
                                           SizedBox(width: 8.w),
                                           Text(
                                             hasStarted
@@ -5909,6 +5960,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 : 'Cancel',
                                             style: TextStyle(
                                               color: !hasArrived
+                                                  ? Colors.black
+                                                  : hasArrived
                                                   ? Colors.black
                                                   : Colors.red,
                                               fontFamily: 'Inter',
@@ -6074,7 +6127,7 @@ class _HomeScreenState extends State<HomeScreen> {
             letterSpacing: -0.32,
           ),
         ),
-        Spacer(),
+        // Spacer(),
         Text(
           value,
           style: TextStyle(
@@ -6646,6 +6699,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     // _showBookSuccessfulSheet();
+
                     _showTripDetailsSheet();
                   },
                   borderRadius: BorderRadius.circular(12.r),
@@ -8407,9 +8461,11 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 20.h),
             Divider(thickness: 1, color: Colors.grey.shade300),
             SizedBox(height: 20.h),
-            _buildDriverDetail(
-              'Trip ID:',
-              _activeRide?['ID']?.toString() ?? 'N/A',
+            Center(
+              child: _buildDriverDetail(
+                'Trip ID:',
+                _activeRide?['ID']?.toString() ?? 'N/A',
+              ),
             ),
             SizedBox(height: 10.h),
             _buildDriverDetail(

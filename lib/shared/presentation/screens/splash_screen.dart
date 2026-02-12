@@ -68,10 +68,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _circlePositionAnimation =
-        Tween<Offset>(
-          begin: const Offset(0, 5), // Start from bottom
-          end: Offset.zero, // Move to center
-        ).animate(
+        Tween<Offset>(begin: const Offset(0, 5), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _circlePositionController,
             curve: Curves.easeInOut,
@@ -84,16 +81,9 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _circleScaleAnimation =
-        Tween<double>(
-          begin: 0.1, // Start small
-          end: 10.0, // Expand to fill screen
-        ).animate(
-          CurvedAnimation(
-            parent: _circleExpandController,
-            curve: Curves.easeInOut,
-          ),
-        );
+    _circleScaleAnimation = Tween<double>(begin: 0.1, end: 10.0).animate(
+      CurvedAnimation(parent: _circleExpandController, curve: Curves.easeInOut),
+    );
 
     // Text color animation controller (changes from green to white)
     _textColorController = AnimationController(
@@ -130,20 +120,40 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _initializeApp() async {
     try {
+      AppLogger.log(
+        '\n🚀 ========== INITIALIZING APP ==========',
+        tag: 'SPLASH',
+      );
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      // This will automatically refresh the token if needed
       final isTokenValid = await authProvider.checkTokenValidity();
 
+      AppLogger.log('🔐 Token valid: $isTokenValid', tag: 'SPLASH');
+
       if (isTokenValid) {
+        AppLogger.log('✅ User is authenticated', tag: 'SPLASH');
+
         try {
           await context.read<WalletProvider>().checkVirtualAccount();
-          AppLogger.log('Virtual account check completed');
+          AppLogger.log('💰 Virtual account check completed', tag: 'SPLASH');
         } catch (e) {
-          AppLogger.log('Failed to check virtual account: $e');
+          AppLogger.log(
+            '⚠️ Failed to check virtual account: $e',
+            tag: 'SPLASH',
+          );
         }
       }
 
       if (mounted) {
         if (isTokenValid) {
+          AppLogger.log('📱 Navigating to Main App', tag: 'SPLASH');
+          AppLogger.log(
+            '========== INITIALIZATION COMPLETE ==========\n',
+            tag: 'SPLASH',
+          );
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -151,6 +161,15 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           );
         } else {
+          AppLogger.log(
+            '🔓 No valid token, navigating to Onboarding',
+            tag: 'SPLASH',
+          );
+          AppLogger.log(
+            '========== REDIRECTING TO LOGIN ==========\n',
+            tag: 'SPLASH',
+          );
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const OnboardingScreen()),
@@ -158,7 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
     } catch (e) {
-      AppLogger.log('Initialization error: $e');
+      AppLogger.log('❌ Initialization error: $e', tag: 'SPLASH');
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -184,7 +203,6 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Car animation
           Center(
             child: SlideTransition(
               position: _carSlideAnimation,
@@ -195,7 +213,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-          // Green circle animation (behind text)
           Center(
             child: SlideTransition(
               position: _circlePositionAnimation,
@@ -212,7 +229,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ),
-          // Text animation with color change
           Center(
             child: FadeTransition(
               opacity: _textOpacityAnimation,

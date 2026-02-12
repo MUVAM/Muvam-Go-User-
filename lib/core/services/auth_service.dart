@@ -175,22 +175,34 @@ class AuthService {
     await prefs.setString(_tokenKey, tokenData.accessToken);
     await prefs.setString(_refreshTokenKey, tokenData.refreshToken);
 
+    // Access token expires in 1 hour (3600 seconds)
     final expiryTime =
         DateTime.now().millisecondsSinceEpoch + (tokenData.expiresIn * 1000);
     await prefs.setInt(_tokenExpiryKey, expiryTime);
 
-    AppLogger.log('Saved access_token: ${tokenData.accessToken}');
-    AppLogger.log('Saved refresh_token: ${tokenData.refreshToken}');
-    AppLogger.log('Token expires in: ${tokenData.expiresIn} seconds');
+    AppLogger.log(
+      '✅ Saved access_token: ${tokenData.accessToken}',
+      tag: 'AUTH',
+    );
+    AppLogger.log(
+      '✅ Saved refresh_token: ${tokenData.refreshToken}',
+      tag: 'AUTH',
+    );
+    AppLogger.log(
+      '⏰ Access token expires in: ${tokenData.expiresIn} seconds (1 hour)',
+      tag: 'AUTH',
+    );
+
+    final expiryDate = DateTime.fromMillisecondsSinceEpoch(expiryTime);
+    AppLogger.log('📅 Token will expire at: $expiryDate', tag: 'AUTH');
   }
 
   Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
-    await prefs.setInt(
-      'token_timestamp',
-      DateTime.now().millisecondsSinceEpoch,
-    );
+    // Default to 1 hour expiry if not provided
+    final expiryTime = DateTime.now().millisecondsSinceEpoch + (3600 * 1000);
+    await prefs.setInt(_tokenExpiryKey, expiryTime);
   }
 
   Future<String?> getToken() async {
@@ -198,26 +210,46 @@ class AuthService {
     final token = prefs.getString(_tokenKey);
     final expiryTime = prefs.getInt(_tokenExpiryKey);
 
-    if (token == null) return null;
+    if (token == null) {
+      AppLogger.log('❌ No token found', tag: 'AUTH');
+      return null;
+    }
 
     if (expiryTime != null) {
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       final bufferTime = 5 * 60 * 1000; // 5 minutes before expiry
 
-      if (currentTime >= (expiryTime - bufferTime)) {
-        AppLogger.log('Token expiring soon, refreshing...', tag: 'AUTH');
+      // Check if token has already expired
+      if (currentTime >= expiryTime) {
+        AppLogger.log(
+          '⚠️ Token has expired, attempting refresh...',
+          tag: 'AUTH',
+        );
         final refreshed = await refreshToken();
         if (refreshed) {
           return await getToken();
         } else {
-          AppLogger.log('Token refresh failed, clearing...', tag: 'AUTH');
+          AppLogger.log('❌ Token refresh failed, clearing tokens', tag: 'AUTH');
           await clearToken();
           return null;
         }
       }
 
-      final remainingTime = (expiryTime - currentTime) / 1000;
-      AppLogger.log('Token valid for: $remainingTime seconds', tag: 'AUTH');
+      // Check if token is expiring soon (within 5 minutes)
+      if (currentTime >= (expiryTime - bufferTime)) {
+        AppLogger.log('🔄 Token expiring soon, refreshing...', tag: 'AUTH');
+        final refreshed = await refreshToken();
+        if (refreshed) {
+          return await getToken();
+        }
+        // If refresh fails but token is still valid, continue using it
+      }
+
+      final remainingTime = (expiryTime - currentTime) / 1000 / 60;
+      AppLogger.log(
+        '✅ Token valid for: ${remainingTime.toStringAsFixed(1)} minutes',
+        tag: 'AUTH',
+      );
     }
 
     return token;
@@ -233,38 +265,50 @@ class AuthService {
       final refreshToken = await getRefreshToken();
 
       if (refreshToken == null) {
-        AppLogger.log('No refresh token available', tag: 'AUTH');
+        AppLogger.log('❌ No refresh token available', tag: 'AUTH');
         return false;
       }
 
-      AppLogger.log('Refreshing token...', tag: 'AUTH');
+      AppLogger.log('🔄 Attempting to refresh token...', tag: 'AUTH');
 
-      final response = await http.post(
-        Uri.parse('${UrlConstants.baseUrl}${UrlConstants.refreshToken}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refresh_token': refreshToken}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('${UrlConstants.baseUrl}${UrlConstants.refreshToken}'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Token refresh request timed out');
+            },
+          );
 
       AppLogger.log(
-        'Refresh token response: ${response.statusCode}',
+        '📡 Refresh response status: ${response.statusCode}',
         tag: 'AUTH',
       );
-      AppLogger.log('Refresh token body: ${response.body}', tag: 'AUTH');
+      AppLogger.log('📄 Refresh response body: ${response.body}', tag: 'AUTH');
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        final tokenData = TokenData.fromJson(responseData['token']);
 
-        await _saveTokenData(tokenData);
+        if (responseData['token'] != null) {
+          final tokenData = TokenData.fromJson(responseData['token']);
+          await _saveTokenData(tokenData);
 
-        AppLogger.log('Token refreshed successfully', tag: 'AUTH');
-        return true;
+          AppLogger.log('✅ Token refreshed successfully!', tag: 'AUTH');
+          return true;
+        } else {
+          AppLogger.log('❌ Invalid response structure', tag: 'AUTH');
+          return false;
+        }
       } else {
-        AppLogger.log('Token refresh failed: ${response.body}', tag: 'AUTH');
+        AppLogger.log('❌ Token refresh failed: ${response.body}', tag: 'AUTH');
         return false;
       }
     } catch (e) {
-      AppLogger.log('Token refresh error: $e', tag: 'AUTH');
+      AppLogger.log('❌ Token refresh error: $e', tag: 'AUTH');
       return false;
     }
   }
@@ -274,12 +318,14 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_tokenExpiryKey);
-    await prefs.remove('token_timestamp');
+    AppLogger.log('🗑️ All tokens cleared', tag: 'AUTH');
   }
 
   Future<bool> isTokenValid() async {
     final token = await getToken();
-    return token != null;
+    final isValid = token != null;
+    AppLogger.log('🔐 Token validity check: $isValid', tag: 'AUTH');
+    return isValid;
   }
 
   Future<ApiResponse> completeProfile(CompleteProfileRequest request) async {

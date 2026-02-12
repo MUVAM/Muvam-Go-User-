@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -26,6 +27,24 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         provider.fetchRideDetails(widget.rideId);
       }
     });
+  }
+
+  String _formatTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('h:mm a').format(dateTime);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String _formatDate(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr).toLocal();
+      return DateFormat('MMMM d, yyyy').format(dateTime);
+    } catch (e) {
+      return '';
+    }
   }
 
   @override
@@ -170,14 +189,27 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     ),
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    provider.formatDateTime(ride.scheduledAt ?? ride.createdAt),
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        _formatDate(ride.createdAt),
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        _formatTime(ride.createdAt),
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 10.h),
                   Divider(thickness: 1, color: Colors.grey.shade300),

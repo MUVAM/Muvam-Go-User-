@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -12,6 +13,24 @@ class HistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String formatTime(String dateTimeStr) {
+      try {
+        final dateTime = DateTime.parse(dateTimeStr).toLocal();
+        return DateFormat('h:mm a').format(dateTime);
+      } catch (e) {
+        return '';
+      }
+    }
+
+    String formatDate(String dateTimeStr) {
+      try {
+        final dateTime = DateTime.parse(dateTimeStr).toLocal();
+        return DateFormat('MMMM d, yyyy').format(dateTime);
+      } catch (e) {
+        return '';
+      }
+    }
+
     return Consumer<ActivitiesTabsProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading && !provider.hasData) {
@@ -99,8 +118,8 @@ class HistoryTab extends StatelessWidget {
               padding: EdgeInsets.only(bottom: 15.h),
               child: HistoryItem(
                 rideId: ride.id,
-                time: ride.formattedTime,
-                date: ride.formattedDate,
+                time: formatTime(ride.createdAt),
+                date: formatDate(ride.createdAt),
                 destination: ride.destAddress,
                 isCompleted: ride.isCompleted,
                 price: ride.isCompleted

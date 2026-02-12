@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
@@ -13,6 +14,24 @@ class PrebookingTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String formatTime(String dateTimeStr) {
+      try {
+        final dateTime = DateTime.parse(dateTimeStr).toLocal();
+        return DateFormat('h:mm a').format(dateTime);
+      } catch (e) {
+        return '';
+      }
+    }
+
+    String formatDate(String dateTimeStr) {
+      try {
+        final dateTime = DateTime.parse(dateTimeStr).toLocal();
+        return DateFormat('MMMM d, yyyy').format(dateTime);
+      } catch (e) {
+        return '';
+      }
+    }
+
     return Consumer<ActivitiesTabsProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading && !provider.hasData) {
@@ -130,7 +149,7 @@ class PrebookingTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                ride.formattedTime,
+                                formatTime(ride.createdAt),
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w500,
@@ -139,7 +158,7 @@ class PrebookingTab extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                ride.formattedDate,
+                                formatDate(ride.createdAt),
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.w600,

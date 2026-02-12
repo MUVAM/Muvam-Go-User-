@@ -51,18 +51,28 @@ class RideData {
     this.driver,
   });
 
-  // Format time: 8:30pm
   String get formattedTime {
-    final dateStr = scheduledAt ?? createdAt;
-    final dateTime = DateTime.parse(dateStr).toLocal();
-    return DateFormat('h:mma').format(dateTime).toLowerCase();
+    try {
+      final dateStr = scheduledAt ?? createdAt;
+      if (dateStr.isEmpty) return '';
+
+      final dateTime = DateTime.parse(dateStr).toLocal();
+      return DateFormat('h:mm a').format(dateTime);
+    } catch (e) {
+      return '';
+    }
   }
 
-  // Format date: Jan 26, 2026
   String get formattedDate {
-    final dateStr = scheduledAt ?? createdAt;
-    final dateTime = DateTime.parse(dateStr).toLocal();
-    return DateFormat('MMM d, yyyy').format(dateTime);
+    try {
+      final dateStr = scheduledAt ?? createdAt;
+      if (dateStr.isEmpty) return '';
+
+      final dateTime = DateTime.parse(dateStr).toLocal();
+      return DateFormat('MMMM d, yyyy').format(dateTime);
+    } catch (e) {
+      return '';
+    }
   }
 
   bool _hasValidScheduledTime() {

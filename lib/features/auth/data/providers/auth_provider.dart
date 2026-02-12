@@ -144,6 +144,10 @@ class AuthProvider with ChangeNotifier {
     return await _authService.isTokenValid();
   }
 
+  Future<bool> refreshToken() async {
+    return await _authService.refreshToken();
+  }
+
   Future<void> logout() async {
     await _authService.clearToken();
     _verifyOtpResponse = null;

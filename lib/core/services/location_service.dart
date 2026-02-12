@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/trips/data/models/location_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/url_constants.dart';
@@ -12,6 +13,7 @@ class LocationService {
 
   Future<List<FavouriteLocation>> getFavouriteLocations() async {
     final token = await _getToken();
+    AppLogger.log('User tokennnnnnnn: $token', tag: 'LOCATION_SERVICE');
     final response = await http.get(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}'),
       headers: {
@@ -30,6 +32,7 @@ class LocationService {
 
   Future<void> addFavouriteLocation(AddFavouriteRequest request) async {
     final token = await _getToken();
+    AppLogger.log('User tokennnnnnnn: $token', tag: 'LOCATION_SERVICE');
     final response = await http.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}'),
       headers: {

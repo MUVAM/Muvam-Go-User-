@@ -7,7 +7,6 @@ class UrlConstants {
 
   static final String webSocketUrl = dotenv.env['WEBSOCKET_URL'] ?? '';
 
-  // Google Maps
   static final String googleMapsApiKey =
       dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
 
@@ -16,6 +15,7 @@ class UrlConstants {
   static const String resendOtp = "/otp/resend";
   static const String verifyOtp = "/otp/verify";
   static const String registerUser = "/users/register";
+  static const String refreshToken = "/users/refreshToken";
   static const String completeProfile = "/users/profile/complete";
   static const String userProfile = "/users/profile";
   static const String userTip = "/users/tip";

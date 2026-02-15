@@ -1131,6 +1131,14 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'accepted':
       case 'arrived':
       case 'started':
+
+    //      if (_isActiveRideSheetVisible) {
+    //   Navigator.pop(context);
+    //   _isActiveRideSheetVisible = false;
+    // }
+
+
+    
         // Extract driver and ride information
         final driverData = ride['Driver'] ?? {};
         if (driverData.isNotEmpty) {
@@ -1221,7 +1229,18 @@ class _HomeScreenState extends State<HomeScreen> {
             tag: 'RIDE_STATUS',
           );
         }
-
+  if (_isActiveRideSheetVisible) {
+      Navigator.pop(context);
+      _isActiveRideSheetVisible = false;
+      // Wait a moment then show updated sheet
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (mounted) {
+          _showDriverAcceptedSheet();
+        }
+      });
+    } else if (!_hasUserDismissedSheet) {
+      _showDriverAcceptedSheet();
+    }
         // Show appropriate UI only if not already visible and user hasn't dismissed
         if (status == 'started') {
           // Show in-car UI
@@ -1244,6 +1263,13 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
 
       case 'cancelled':
+
+      if (_isActiveRideSheetVisible) {
+    Navigator.pop(context);
+    _isActiveRideSheetVisible = false;
+        }
+
+
         // Clear active ride state and map markers
         _stopDriverLocationTracking();
         setState(() {
@@ -1269,45 +1295,32 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+
+
+
+
   /// Start tracking driver location and updating ETA
   void _startDriverLocationTracking() {
-    AppLogger.log(
-      '🚗 ========== STARTING DRIVER LOCATION TRACKING ==========',
-      tag: 'DRIVER_TRACKING',
-    );
+   
 
     // Cancel any existing timer
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
 
-    AppLogger.log(
-      '⏰ Setting up timer to update every 5 seconds',
-      tag: 'DRIVER_TRACKING',
-    );
-
     // Update driver location every 5 seconds
     _driverLocationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
-      AppLogger.log(
-        '⏰ Timer tick - updating driver location',
-        tag: 'DRIVER_TRACKING',
-      );
+     
       _updateDriverLocation();
     });
 
     // Initial update
-    AppLogger.log(
-      '🔄 Performing initial driver location update',
-      tag: 'DRIVER_TRACKING',
-    );
+   
     _updateDriverLocation();
   }
 
   /// Stop tracking driver location
   void _stopDriverLocationTracking() {
-    AppLogger.log(
-      '🛑 ========== STOPPING DRIVER LOCATION TRACKING ==========',
-      tag: 'DRIVER_TRACKING',
-    );
+  
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
     _driverLocationTimer = null;
@@ -1316,33 +1329,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Update driver location from active ride data
   Future<void> _updateDriverLocation() async {
-    AppLogger.log(
-      '📍 === UPDATE DRIVER LOCATION CALLED ===',
-      tag: 'DRIVER_LOCATION',
-    );
+  
 
     if (_activeRide == null) {
-      AppLogger.log(
-        '⚠️ No active ride found, stopping tracking',
-        tag: 'DRIVER_LOCATION',
-      );
+    
       _stopDriverLocationTracking();
       return;
     }
 
-    AppLogger.log(
-      '✅ Active ride exists, fetching latest ride data...',
-      tag: 'DRIVER_LOCATION',
-    );
+ 
 
     try {
       // Fetch latest ride data to get updated driver location
       final response = await _rideService.getActiveRides();
 
-      AppLogger.log(
-        '📥 Response received: ${response['success']}',
-        tag: 'DRIVER_LOCATION',
-      );
 
       // Check if rides are in response['rides'] or response['data']['rides']
       List? rides;
@@ -1353,38 +1353,23 @@ class _HomeScreenState extends State<HomeScreen> {
         rides = response['data']['rides'] as List;
       }
 
-      AppLogger.log(
-        '📊 Rides found: ${rides != null}, Number of rides: ${rides?.length ?? 0}',
-        tag: 'DRIVER_LOCATION',
-      );
 
       if (response['success'] == true && rides != null) {
-        AppLogger.log(
-          '📊 Number of rides: ${rides.length}',
-          tag: 'DRIVER_LOCATION',
-        );
+      
 
         if (rides.isNotEmpty) {
           final ride = rides[0];
           final status = ride['Status']?.toString().toLowerCase() ?? '';
 
-          AppLogger.log('🎯 Ride status: $status', tag: 'DRIVER_LOCATION');
 
           // Only track location when driver is on the way (accepted status)
           if (status == 'accepted') {
-            AppLogger.log(
-              '✅ Status is accepted, checking for driver data...',
-              tag: 'DRIVER_LOCATION',
-            );
+       
 
             final driverData = ride['Driver'];
             if (driverData != null && driverData['Location'] != null) {
               final driverLocationStr = driverData['Location'].toString();
 
-              AppLogger.log(
-                '📍 Driver location (raw): $driverLocationStr',
-                tag: 'DRIVER_LOCATION',
-              );
 
               // Parse driver location from WKB format
               final driverCoords = _parsePostGISPoint(driverLocationStr);
@@ -2590,10 +2575,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   right: 30.w,
                   child: GestureDetector(
                     onTap: () {
+
+
                       if (_activeRide != null) {
                         _hasUserDismissedSheet = false;
                         _showDriverAcceptedSheet();
                       }
+
+
+          
                     },
                     child: Container(
                       width: 50.w,
@@ -5936,7 +5926,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           hasStarted
                                               ? Image.asset(
-                                                  "assets/images/soss.png,",
+                                                  "assets/images/soss.png",
                                                   height: 28.h,
                                                   width: 28.w,
                                                   fit: BoxFit.contain,

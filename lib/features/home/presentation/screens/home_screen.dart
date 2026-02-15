@@ -4,6 +4,7 @@ import 'dart:developer';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBottomSheetVisible = true;
   bool _showDestinationField = false;
   bool _showStopField = false; // Controls stop address visibility
-
+String? _lastKnownRideStatus;
   Map<String, dynamic>? _incomingCall;
   final CallService _callService = CallService();
   int _currentIndex = 0;
@@ -1229,10 +1230,20 @@ class _HomeScreenState extends State<HomeScreen> {
             tag: 'RIDE_STATUS',
           );
         }
-  if (_isActiveRideSheetVisible) {
+
+if (status != _lastKnownRideStatus) {
+    AppLogger.log(
+      '🔄 Status changed from $_lastKnownRideStatus to $status',
+      tag: 'RIDE_STATUS',
+    );
+    
+    // Update the last known status
+    _lastKnownRideStatus = status;
+    
+    // Dismiss and reopen sheet with updated data
+    if (_isActiveRideSheetVisible) {
       Navigator.pop(context);
       _isActiveRideSheetVisible = false;
-      // Wait a moment then show updated sheet
       Future.delayed(Duration(milliseconds: 300), () {
         if (mounted) {
           _showDriverAcceptedSheet();
@@ -1241,18 +1252,42 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (!_hasUserDismissedSheet) {
       _showDriverAcceptedSheet();
     }
-        // Show appropriate UI only if not already visible and user hasn't dismissed
-        if (status == 'started') {
-          // Show in-car UI
-        } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
-          AppLogger.log('✅ Showing driver accepted sheet for status: $status');
-          _showDriverAcceptedSheet();
-        } else {
-          AppLogger.log(
-            '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
-          );
-        }
-        break;
+  } else {
+    AppLogger.log(
+      '⏭️ Status unchanged ($status), skipping sheet update',
+      tag: 'RIDE_STATUS',
+    );
+  }
+  break;
+
+
+
+
+
+  // if (_isActiveRideSheetVisible) {
+  //     Navigator.pop(context);
+  //     _isActiveRideSheetVisible = false;
+  //     // Wait a moment then show updated sheet
+  //     Future.delayed(Duration(milliseconds: 300), () {
+  //       if (mounted) {
+  //         _showDriverAcceptedSheet();
+  //       }
+  //     });
+  //   } else if (!_hasUserDismissedSheet) {
+  //     _showDriverAcceptedSheet();
+  //   }
+  //       // Show appropriate UI only if not already visible and user hasn't dismissed
+  //       if (status == 'started') {
+  //         // Show in-car UI
+  //       } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
+  //         AppLogger.log('✅ Showing driver accepted sheet for status: $status');
+  //         _showDriverAcceptedSheet();
+  //       } else {
+  //         AppLogger.log(
+  //           '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
+  //         );
+  //       }
+  //       break;
 
       case 'completed':
         // Check if passenger has rated
@@ -1268,6 +1303,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.pop(context);
     _isActiveRideSheetVisible = false;
         }
+  _lastKnownRideStatus = null;
 
 
         // Clear active ride state and map markers
@@ -4085,6 +4121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: isSelected ? Colors.white : Colors.black,
                         ),
                       ),
+                      SizedBox(height:5.h),
                       Text(
                         '${_currentEstimate!.durationMin.round()} min | 4 passengers',
                         style: ConstTextStyles.vehicleSubtitle.copyWith(
@@ -4131,7 +4168,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final selectedOption = selectedVehicle != null
-        ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+        ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
 
     showModalBottomSheet(
@@ -6819,7 +6856,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedOption =
         _currentRideResponse?.vehicleType ??
         (selectedVehicle != null
-            ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+            ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
             : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!]);
     final currentDate =
         '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} at ${TimeOfDay.now().format(context)}';
@@ -7198,7 +7235,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showTripScheduledSheet({String? pickupAddress, String? destAddress}) {
     final selectedOption = selectedVehicle != null
-        ? ['Regular vehicle', 'Fancy vehicle', 'VIP'][selectedVehicle!]
+        ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
 
     // Format the scheduled date and time
@@ -7799,7 +7836,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           if (selectedVehicle != null) ...[
                             ListTile(
-                              title: Text('Regular vehicle'),
+                              title: Text('Regular'),
                               onTap: () {
                                 setState(() {
                                   selectedVehicle = 0;
@@ -7808,7 +7845,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                             ),
                             ListTile(
-                              title: Text('Fancy vehicle'),
+                              title: Text('Fancy'),
                               onTap: () {
                                 setState(() {
                                   selectedVehicle = 1;
@@ -7863,8 +7900,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   'VEHICLE',
                   selectedVehicle != null
                       ? [
-                          'Regular vehicle',
-                          'Fancy vehicle',
+                          'Regular',
+                          'Fancy',
                           'VIP',
                         ][selectedVehicle!]
                       : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
@@ -7972,8 +8009,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Get vehicle type
                         final vehicleType = selectedVehicle != null
                             ? [
-                                'Regular vehicle',
-                                'Fancy vehicle',
+                                'Regular',
+                                'Fancy',
                                 'VIP',
                               ][selectedVehicle!]
                             : [
@@ -9111,12 +9148,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                         _mapMarkers = {};
                                         _mapPolylines = {};
                                       });
-                                      CustomFlushbar.showInfo(
-                                        context: context,
-                                        message: 'Thank you for your rating!',
+                                      // CustomFlushbar.
+                                      // showInfo(
+                                      //   context: context,
+                                      //   message: 'Thank you for your rating!',    
+                                      // );
 
-                                        
-                                      );
+
+                                           Flushbar(
+        title: "Success",
+        message: "Thank you for your rating!",
+        duration: Duration(seconds: 3),
+        backgroundColor: Colors.green,
+        margin: EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(8),
+        flushbarPosition: FlushbarPosition.TOP,
+      ).show(context);
                                     }
                                   });
                                 } else {

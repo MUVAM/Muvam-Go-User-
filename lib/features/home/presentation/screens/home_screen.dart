@@ -9114,6 +9114,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       CustomFlushbar.showInfo(
                                         context: context,
                                         message: 'Thank you for your rating!',
+
+                                        
                                       );
                                     }
                                   });

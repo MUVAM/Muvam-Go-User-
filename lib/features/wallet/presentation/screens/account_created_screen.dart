@@ -41,15 +41,15 @@ class AccountCreatedScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 10.h),
-              Text(
-                'Go back home',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Color(ConstColors.mainColor),
-                ),
-              ),
+              // Text(
+              //   'Go back home',
+              //   style: TextStyle(
+              //     fontFamily: 'Inter',
+              //     fontSize: 18.sp,
+              //     fontWeight: FontWeight.w700,
+              //     color: Color(ConstColors.mainColor),
+              //   ),
+              // ),
               const Spacer(),
               GestureDetector(
                 onTap: () {

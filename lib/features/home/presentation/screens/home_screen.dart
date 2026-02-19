@@ -4628,8 +4628,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       } else {
                                         CustomFlushbar.showError(
                                           context: context,
-                                          message:
-                                              'Failed to book ride. Please try again.',
+                                          message: '${e.toString()}',
                                         );
                                       }
                                     }
@@ -4671,68 +4670,124 @@ class _HomeScreenState extends State<HomeScreen> {
                                       // Wallet payment - call initializePayment just like card
                                       if (selectedPaymentMethod ==
                                           'Pay with wallet') {
-                                        final paymentData =
-                                            await _paymentService
-                                                .initializePayment(
-                                                  rideId:
-                                                      _currentRideResponse!.id,
-                                                  amount: _currentRideResponse!
-                                                      .price,
-                                                );
+                                        setState(() {
+                                          selectedPaymentMethod = 'wallet';
+                                        });
+                                        // final paymentData =
+                                        //     await _paymentService
+                                        //         .initializePayment(
+                                        //           rideId:
+                                        //               _currentRideResponse!.id,
+                                        //           amount: _currentRideResponse!
+                                        //               .price,
+                                        //         );
 
-                                        AppLogger.log(
-                                          '💳 Wallet payment data: $paymentData',
-                                          tag: 'WALLET',
-                                        );
+                                        // AppLogger.log(
+                                        //   '💳 Wallet payment data: $paymentData',
+                                        //   tag: 'WALLET',
+                                        // );
 
-                                        if (paymentData['success'] == true ||
-                                            paymentData['status'] == true) {
-                                          // Payment initialized successfully, proceed to success sheet
-                                          if (mounted) {
-                                            fromController.clear();
-                                            toController.clear();
-                                            setState(() {
-                                              _showDestinationField = false;
-                                            });
-                                            Navigator.pop(context);
+                                        // if (paymentData['success'] == true ||
+                                        //     paymentData['status'] == true) {
+                                        // Payment initialized successfully, proceed to success sheet
+                                        // if (mounted) {
+                                        //   fromController.clear();
+                                        //   toController.clear();
+                                        //   setState(() {
+                                        //     _showDestinationField = false;
+                                        //   });
+                                        //   Navigator.pop(context);
 
-                                            if (isScheduledRide) {
-                                              final pickupAddress =
-                                                  _currentRideResponse!
-                                                      .pickupAddress;
-                                              final destAddress =
-                                                  _currentRideResponse!
-                                                      .destAddress;
-                                              _showTripScheduledSheet(
-                                                pickupAddress: pickupAddress,
-                                                destAddress: destAddress,
-                                              );
-                                              setState(() {
-                                                isScheduledRide = false;
-                                              });
-                                            } else {
-                                              _sheetController.animateTo(
-                                                0.2,
-                                                duration: Duration(
-                                                  milliseconds: 300,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
-                                              _showBookSuccessfulSheet();
-                                            }
-                                          }
-                                        } else {
-                                          // Payment initialization failed
-                                          if (mounted) {
-                                            setBookingState(() {
-                                              _isBookingRide = false;
-                                            });
-                                            CustomFlushbar.showError(
-                                              context: context,
-                                              message:
-                                                  paymentData['message'] ??
-                                                  'Wallet payment failed. Please try another method.',
+                                        //   if (isScheduledRide) {
+                                        //     final pickupAddress =
+                                        //         _currentRideResponse!
+                                        //             .pickupAddress;
+                                        //     final destAddress =
+                                        //         _currentRideResponse!
+                                        //             .destAddress;
+                                        //     _showTripScheduledSheet(
+                                        //       pickupAddress: pickupAddress,
+                                        //       destAddress: destAddress,
+                                        //     );
+                                        //     setState(() {
+                                        //       isScheduledRide = false;
+                                        //     });
+                                        //   } else {
+                                        //     _sheetController.animateTo(
+                                        //       0.2,
+                                        //       duration: Duration(
+                                        //         milliseconds: 300,
+                                        //       ),
+                                        //       curve: Curves.easeInOut,
+                                        //     );
+                                        //     _showBookSuccessfulSheet();
+                                        //   }
+                                        // }
+                                        // }
+                                        //  else {
+                                        //   // Payment initialization failed
+                                        //   if (mounted) {
+                                        //     setBookingState(() {
+                                        //       _isBookingRide = false;
+                                        //     });
+                                        //     CustomFlushbar.showError(
+                                        //       context: context,
+                                        //       message:
+                                        //           paymentData['message'] ??
+                                        //           'Wallet payment failed. Please try another method.',
+                                        //     );
+                                        //   }
+                                        // }
+
+                                        final scheduledDateTime =
+                                            isScheduledRide
+                                            ? DateTime(
+                                                selectedDate.year,
+                                                selectedDate.month,
+                                                selectedDate.day,
+                                                selectedTime.hour,
+                                                selectedTime.minute,
+                                              )
+                                            : null;
+
+                                        _currentRideResponse =
+                                            await _requestRide(
+                                              isScheduled: isScheduledRide,
+                                              scheduledDateTime:
+                                                  scheduledDateTime,
                                             );
+
+                                        if (mounted) {
+                                          fromController.clear();
+                                          toController.clear();
+                                          setState(() {
+                                            _showDestinationField = false;
+                                          });
+                                          Navigator.pop(context);
+
+                                          if (isScheduledRide) {
+                                            final pickupAddress =
+                                                _currentRideResponse!
+                                                    .pickupAddress;
+                                            final destAddress =
+                                                _currentRideResponse!
+                                                    .destAddress;
+                                            _showTripScheduledSheet(
+                                              pickupAddress: pickupAddress,
+                                              destAddress: destAddress,
+                                            );
+                                            setState(() {
+                                              isScheduledRide = false;
+                                            });
+                                          } else {
+                                            _sheetController.animateTo(
+                                              0.2,
+                                              duration: Duration(
+                                                milliseconds: 300,
+                                              ),
+                                              curve: Curves.easeInOut,
+                                            );
+                                            _showBookSuccessfulSheet();
                                           }
                                         }
                                       } else {
@@ -4852,8 +4907,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         // Show generic error snackbar for other errors
                                         CustomFlushbar.showError(
                                           context: context,
-                                          message:
-                                              'Failed to book ride. Please try again.',
+                                          message: e.toString(),
                                         );
                                       }
                                     }
@@ -5017,11 +5071,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Pay with card',
                       onPaymentChanged: onPaymentChanged,
                     ),
-                    Divider(thickness: 1, color: Colors.grey.shade300),
-                    _buildPaymentOption(
-                      'pay4me',
-                      onPaymentChanged: onPaymentChanged,
-                    ),
+                    // Divider(thickness: 1, color: Colors.grey.shade300),
+                    // _buildPaymentOption(
+                    //   'pay4me',
+                    //   onPaymentChanged: onPaymentChanged,
+                    // ),
                     Divider(thickness: 1, color: Colors.grey.shade300),
                     _buildPaymentOption(
                       'Pay in car',
@@ -5349,21 +5403,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               SizedBox(height: 20.h),
-              Container(
-                width: double.infinity,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Color(ConstColors.greyColor)),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    setPrebookState(() {
-                      selectedDate = DateTime.now().add(Duration(days: 1));
-                      selectedTime = TimeOfDay.now();
-                    });
-                  },
+              GestureDetector(
+                onTap: () {
+                  setPrebookState(() {
+                    selectedDate = DateTime.now().add(Duration(days: 1));
+                    selectedTime = TimeOfDay.now();
+                  });
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Color(ConstColors.greyColor)),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
                   child: Center(
                     child: Text(
                       'Reset to now',
@@ -5377,21 +5431,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 10.h),
-              Container(
-                width: double.infinity,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: Color(ConstColors.mainColor),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      isScheduledRide = true;
-                    });
-                    Navigator.pop(context);
-                    _showBookingDetails();
-                  },
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isScheduledRide = true;
+                  });
+                  Navigator.pop(context);
+                  _showBookingDetails();
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: Color(ConstColors.mainColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
                   child: Center(
                     child: Text(
                       'Set pickup date and time',
@@ -8297,11 +8351,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                             color: Colors.grey.shade300,
                                           ),
                                           _buildPaymentOption('Pay with card'),
-                                          Divider(
-                                            thickness: 1,
-                                            color: Colors.grey.shade300,
-                                          ),
-                                          _buildPaymentOption('pay4me'),
+                                          // Divider(
+                                          //   thickness: 1,
+                                          //   color: Colors.grey.shade300,
+                                          // ),
+                                          // _buildPaymentOption('pay4me'),
                                           Divider(
                                             thickness: 1,
                                             color: Colors.grey.shade300,
@@ -8599,8 +8653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
 
                               // Now handle payment based on selected method
-                              if (selectedPaymentMethod == 'Pay with card' ||
-                                  selectedPaymentMethod == 'Pay with wallet') {
+                              if (selectedPaymentMethod == 'Pay with card') {
                                 final price =
                                     _currentRideResponse?.price ??
                                     (_activeRide?['Price'] is double
@@ -8638,7 +8691,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
 
                                   final paymentResult = await Navigator.push(
-                                    this.context,
+                                    context,
                                     MaterialPageRoute(
                                       builder: (context) => PaymentWebViewScreen(
                                         authorizationUrl:
@@ -8649,56 +8702,123 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   );
 
-                                  if (paymentResult == true && mounted) {
-                                    CustomFlushbar.showSuccess(
-                                      context: this.context,
-                                      message:
-                                          'Prebooking saved and payment successful!',
-                                    );
-                                  } else if (mounted) {
-                                    CustomFlushbar.showError(
-                                      context: this.context,
-                                      message: 'Payment was not completed.',
-                                    );
+                                  // Replace the result handling with:
+                                  if (paymentResult == true) {
+                                    // Verify payment before showing success
+                                    try {
+                                      final verifyResult = await _paymentService
+                                          .verifyPayment(
+                                            paymentData['reference'],
+                                          );
+
+                                      if (!mounted) return;
+
+                                      if (verifyResult['success'] == true ||
+                                          verifyResult['status'] == 'success') {
+                                        fromController.clear();
+                                        toController.clear();
+                                        setState(() {
+                                          _showDestinationField = false;
+                                        });
+                                        Navigator.pop(context);
+
+                                        if (isScheduledRide) {
+                                          final pickupAddress =
+                                              _currentRideResponse!
+                                                  .pickupAddress;
+                                          final destAddress =
+                                              _currentRideResponse!.destAddress;
+                                          _showTripScheduledSheet(
+                                            pickupAddress: pickupAddress,
+                                            destAddress: destAddress,
+                                          );
+                                          setState(() {
+                                            isScheduledRide = false;
+                                          });
+                                        } else {
+                                          _sheetController.animateTo(
+                                            0.2,
+                                            duration: Duration(
+                                              milliseconds: 300,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                          );
+                                          _showBookSuccessfulSheet();
+                                        }
+                                      } else {
+                                        if (mounted) {
+                                          setState(() {
+                                            _isBookingRide = false;
+                                          });
+                                          CustomFlushbar.showError(
+                                            context: context,
+                                            message:
+                                                verifyResult['message'] ??
+                                                'Payment verification failed. Please try again.',
+                                          );
+                                        }
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isBookingRide = false;
+                                        });
+                                        CustomFlushbar.showError(
+                                          context: context,
+                                          message:
+                                              'Error verifying payment: $e',
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isBookingRide = false;
+                                      });
+                                      CustomFlushbar.showError(
+                                        context: context,
+                                        message: 'Payment was not completed.',
+                                      );
+                                    }
                                   }
                                   return;
                                 }
 
                                 // Wallet payment
-                                if (selectedPaymentMethod ==
-                                    'Pay with wallet') {
-                                  if (mounted &&
-                                      Navigator.of(
-                                        this.context,
-                                        rootNavigator: true,
-                                      ).canPop()) {
-                                    Navigator.of(
-                                      this.context,
-                                      rootNavigator: true,
-                                    ).pop();
-                                  }
+                                // if (selectedPaymentMethod ==
+                                //     'Pay with wallet') {
+                                // if (mounted &&
+                                //     Navigator.of(
+                                //       this.context,
+                                //       rootNavigator: true,
+                                //     ).canPop()) {
+                                //   Navigator.of(
+                                //     this.context,
+                                //     rootNavigator: true,
+                                //   ).pop();
+                                // }
 
-                                  if (paymentData['success'] == true ||
-                                      paymentData['status'] == true) {
-                                    if (mounted) {
-                                      CustomFlushbar.showSuccess(
-                                        context: this.context,
-                                        message:
-                                            'Prebooking saved and wallet charged successfully!',
-                                      );
-                                    }
-                                  } else {
-                                    if (mounted) {
-                                      CustomFlushbar.showError(
-                                        context: this.context,
-                                        message:
-                                            paymentData['message'] ??
-                                            'Wallet payment failed.',
-                                      );
-                                    }
-                                  }
-                                  return;
-                                }
+                                // if (paymentData['success'] == true ||
+                                //     paymentData['status'] == true) {
+                                //   if (mounted) {
+                                //     CustomFlushbar.showSuccess(
+                                //       context: this.context,
+                                //       message:
+                                //           'Prebooking saved and wallet charged successfully!',
+                                //     );
+                                //   }
+                                // } else {
+                                //   if (mounted) {
+                                //     CustomFlushbar.showError(
+                                //       context: this.context,
+                                //       message:
+                                //           paymentData['message'] ??
+                                //           'Wallet payment failed.',
+                                //     );
+                                //   }
+                                // }
+                                // return;
+                                // }
                               }
 
                               // For Pay in car / pay4me - no payment initialization needed

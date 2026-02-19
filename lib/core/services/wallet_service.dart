@@ -29,9 +29,11 @@ class WalletService {
       body: jsonEncode(request.toJson()),
     );
 
-    AppLogger.log('Create virtual account response: $response');
+    AppLogger.log('Create virtual account response: ${response.statusCode}');
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 202) {
       AppLogger.log('Virtual account createdddddd: ${response.body}');
       final jsonResponse = jsonDecode(response.body);
       return CreateVirtualAccountResponse.fromJson(jsonResponse);

@@ -78,8 +78,18 @@ class UserProfileProvider with ChangeNotifier {
     required String lastName,
     required String email,
     required String dateOfBirth,
+    String? city,
+    String? profilePhotoPath,
   }) async {
     AppLogger.log('UserProfileProvider: Updating user profile');
+    if (city != null) {
+      AppLogger.log('UserProfileProvider: Updating city to: $city');
+    }
+    if (profilePhotoPath != null) {
+      AppLogger.log(
+        'UserProfileProvider: Updating profile photo: $profilePhotoPath',
+      );
+    }
 
     _isUpdating = true;
     _errorMessage = null;
@@ -91,6 +101,8 @@ class UserProfileProvider with ChangeNotifier {
         lastName: lastName,
         email: email,
         dateOfBirth: dateOfBirth,
+        city: city,
+        profilePhotoPath: profilePhotoPath,
       );
 
       _isUpdating = false;

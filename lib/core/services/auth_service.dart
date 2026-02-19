@@ -337,26 +337,40 @@ class AuthService {
 
     multipartRequest.headers['Authorization'] = 'Bearer $token';
     multipartRequest.fields['first_name'] = request.firstName;
-    if (request.middleName != null) {
+    if (request.middleName != null && request.middleName!.isNotEmpty) {
       multipartRequest.fields['middle_name'] = request.middleName!;
     }
     multipartRequest.fields['last_name'] = request.lastName;
     multipartRequest.fields['email'] = request.email;
+
+    // Add city field if provided
+    if (request.city != null && request.city!.isNotEmpty) {
+      multipartRequest.fields['city'] = request.city!;
+      AppLogger.log('Adding city to profile update: ${request.city}');
+    }
 
     if (request.profilePhotoPath != null) {
       final file = File(request.profilePhotoPath!);
       multipartRequest.files.add(
         await http.MultipartFile.fromPath('profile_photo', file.path),
       );
+      AppLogger.log('Adding profile photo: ${request.profilePhotoPath}');
     }
+
+    AppLogger.log(
+      'Complete Profile Request Fields: ${multipartRequest.fields}',
+    );
 
     final response = await multipartRequest.send();
     final responseBody = await response.stream.bytesToString();
 
+    AppLogger.log('Complete Profile Response Status: ${response.statusCode}');
+    AppLogger.log('Complete Profile Response Body: $responseBody');
+
     if (response.statusCode == 200) {
       return ApiResponse.fromJson(jsonDecode(responseBody));
     } else {
-      throw Exception('Failed to complete profile');
+      throw Exception('Failed to complete profile: $responseBody');
     }
   }
 

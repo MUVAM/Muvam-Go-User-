@@ -86,6 +86,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     emailController.dispose();
     stateController.dispose();
     referralController.dispose();
+    locationController.dispose();
     super.dispose();
   }
 
@@ -259,6 +260,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 _selectedState = result;
                 stateController.text = result;
               });
+              AppLogger.log('User selected state: $_selectedState');
             }
           },
           child: Container(
@@ -384,10 +386,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       _locationPoint = 'POINT(${position.longitude} ${position.latitude})';
       AppLogger.log('Location Point (correct format): $_locationPoint');
 
-      // Set default state using coordinates as fallback
-      String fallbackCity =
-          'City_${position.latitude.toStringAsFixed(2)}_${position.longitude.toStringAsFixed(2)}';
-      _selectedState = fallbackCity;
+      // DON'T auto-fill state - user must select from StateSelectionScreen
+      // Only log the current state
+      if (stateController.text.isNotEmpty) {
+        AppLogger.log('User has selected state: ${stateController.text}');
+      } else {
+        AppLogger.log(
+          'No state selected yet - user must select from StateSelectionScreen',
+        );
+      }
 
       String address = '';
       bool geocodingSuccessful = false;
@@ -413,9 +420,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   place.administrativeArea ??
                   place.subLocality;
 
+              // DON'T update state field - user must select manually
+              // Just log for debugging purposes
               if (city != null && city.isNotEmpty) {
-                _selectedState = city;
-                AppLogger.log('Extracted city: $_selectedState');
+                AppLogger.log(
+                  'Geocoded city detected: $city (not auto-filling state field)',
+                );
               }
 
               // Build a readable address
@@ -493,7 +503,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }
 
       AppLogger.log('Final location point to send to backend: $_locationPoint');
-      AppLogger.log('Final city to send to backend: $_selectedState');
+      AppLogger.log('Final city/state to send to backend: $_selectedState');
     } on LocationServiceDisabledException catch (e) {
       AppLogger.log('Location services disabled: $e');
       setState(() {
@@ -511,7 +521,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       setState(() {
         locationController.clear();
         _locationPoint = null;
-        _selectedState = null;
+        // NEVER clear _selectedState - user selected it manually from StateSelectionScreen
       });
 
       if (!mounted) return;
@@ -538,6 +548,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     );
                     return;
                   }
+
+                  // Final validation log before sending
+                  AppLogger.log('=== REGISTRATION DATA ===');
+                  AppLogger.log(
+                    'Selected State (_selectedState): $_selectedState',
+                  );
+                  AppLogger.log(
+                    'State Controller Text: ${stateController.text}',
+                  );
+                  AppLogger.log('Location Point: $_locationPoint');
+                  AppLogger.log('========================');
 
                   final prefs = await SharedPreferences.getInstance();
                   final phone =

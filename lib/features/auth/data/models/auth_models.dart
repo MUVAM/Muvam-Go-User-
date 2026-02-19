@@ -117,10 +117,9 @@ class VerifyOtpResponse {
       );
 }
 
-// FIXED: RegisterUserResponse now expects nested token object like the API returns
 class RegisterUserResponse {
   final String message;
-  final TokenData token; // Changed from String to TokenData
+  final TokenData token;
   final Map<String, dynamic> user;
 
   RegisterUserResponse({
@@ -132,7 +131,7 @@ class RegisterUserResponse {
   factory RegisterUserResponse.fromJson(Map<String, dynamic> json) {
     return RegisterUserResponse(
       message: json['message'],
-      token: TokenData.fromJson(json['token']), // Parse nested token object
+      token: TokenData.fromJson(json['token']),
       user: json['user'],
     );
   }
@@ -143,6 +142,7 @@ class CompleteProfileRequest {
   final String? middleName;
   final String lastName;
   final String email;
+  final String? city;
   final String? profilePhotoPath;
 
   CompleteProfileRequest({
@@ -150,6 +150,7 @@ class CompleteProfileRequest {
     this.middleName,
     required this.lastName,
     required this.email,
+    this.city,
     this.profilePhotoPath,
   });
 }

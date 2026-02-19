@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -11,6 +12,8 @@ class UserProfileService {
     required String lastName,
     required String email,
     required String dateOfBirth,
+    String? city,
+    String? profilePhotoPath,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -21,12 +24,123 @@ class UserProfileService {
       }
 
       final url = '${UrlConstants.baseUrl}/users/profile/update';
+
+      if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
+        return await _updateProfileWithPhoto(
+          url: url,
+          token: token,
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          dateOfBirth: dateOfBirth,
+          city: city,
+          profilePhotoPath: profilePhotoPath,
+        );
+      } else {
+        return await _updateProfileWithoutPhoto(
+          url: url,
+          token: token,
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          dateOfBirth: dateOfBirth,
+          city: city,
+        );
+      }
+    } catch (e) {
+      AppLogger.error('Error updating profile', error: e, tag: 'PROFILE');
+      return {'success': false, 'message': 'Error updating profile: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> _updateProfileWithPhoto({
+    required String url,
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String dateOfBirth,
+    String? city,
+    required String profilePhotoPath,
+  }) async {
+    try {
+      final multipartRequest = http.MultipartRequest('PUT', Uri.parse(url));
+
+      multipartRequest.headers['Authorization'] = 'Bearer $token';
+      multipartRequest.fields['first_name'] = firstName;
+      multipartRequest.fields['last_name'] = lastName;
+      multipartRequest.fields['email'] = email;
+      multipartRequest.fields['date_of_birth'] = dateOfBirth;
+
+      if (city != null && city.isNotEmpty) {
+        multipartRequest.fields['city'] = city;
+        AppLogger.log('Adding city to multipart update: $city', tag: 'PROFILE');
+      }
+
+      // Add profile photo
+      final file = File(profilePhotoPath);
+      multipartRequest.files.add(
+        await http.MultipartFile.fromPath('profile_photo', file.path),
+      );
+
+      AppLogger.log(
+        '=== UPDATE PROFILE WITH PHOTO REQUEST ===',
+        tag: 'PROFILE',
+      );
+      AppLogger.log('URL: $url', tag: 'PROFILE');
+      AppLogger.log('Fields: ${multipartRequest.fields}', tag: 'PROFILE');
+      AppLogger.log('Photo: $profilePhotoPath', tag: 'PROFILE');
+
+      final streamedResponse = await multipartRequest.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      AppLogger.log('Response Status: ${response.statusCode}', tag: 'PROFILE');
+      AppLogger.log('Response Body: ${response.body}', tag: 'PROFILE');
+      AppLogger.log('=== END UPDATE PROFILE ===', tag: 'PROFILE');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        if (data['user'] != null) {
+          final updatedUser = UserProfile.fromJson(data['user']);
+          await _cacheUserData(updatedUser);
+        }
+
+        return {'success': true, 'data': data};
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to update profile: ${response.body}',
+        };
+      }
+    } catch (e) {
+      AppLogger.error('Error in multipart update', error: e, tag: 'PROFILE');
+      return {'success': false, 'message': 'Error updating profile: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> _updateProfileWithoutPhoto({
+    required String url,
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String dateOfBirth,
+    String? city,
+  }) async {
+    try {
       final requestBody = {
         'first_name': firstName,
         'last_name': lastName,
         'email': email,
         'date_of_birth': dateOfBirth,
       };
+
+      // Add city if provided
+      if (city != null && city.isNotEmpty) {
+        requestBody['city'] = city;
+        AppLogger.log('Adding city to update: $city', tag: 'PROFILE');
+      }
 
       AppLogger.log('=== UPDATE PROFILE REQUEST ===', tag: 'PROFILE');
       AppLogger.log('URL: $url', tag: 'PROFILE');
@@ -61,7 +175,7 @@ class UserProfileService {
         };
       }
     } catch (e) {
-      AppLogger.error('Error updating profile', error: e, tag: 'PROFILE');
+      AppLogger.error('Error in JSON update', error: e, tag: 'PROFILE');
       return {'success': false, 'message': 'Error updating profile: $e'};
     }
   }

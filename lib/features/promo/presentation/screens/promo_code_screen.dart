@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:muvam/features/promo/data/providers/promo_code_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -36,18 +37,18 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
 
     final success = await provider.validatePromoCode(code);
 
-    if (mounted) {
-      if (success) {
-        CustomFlushbar.showInfo(
-          context: context,
-          message:
-              provider.promoValidation?.message ??
-              'Promo code applied successfully!',
-        );
-      } else {
-        CustomFlushbar.showError(
-          context: context,
-          message: provider.errorMessage ?? 'Invalid promo code',
+    if (success) {
+      CustomFlushbar.showInfo(
+        context: context,
+        message:
+            provider.promoValidation?.message ??
+            'Promo code applied successfully!',
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     }
@@ -184,7 +185,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                     onTap: promoProvider.isValidating ? null : _applyPromo,
                     child: Container(
                       width: double.infinity,
-                      height: 48.h,
+                      height: 47.h,
                       decoration: BoxDecoration(
                         color: Color(ConstColors.mainColor),
                         borderRadius: BorderRadius.circular(8.r),

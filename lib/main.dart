@@ -18,10 +18,10 @@ import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/profile/presentation/screens/biometric_lock_screen.dart';
-import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:muvam/features/promo/data/providers/promo_code_provider.dart';
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/shared/presentation/screens/network_banner.dart';
 import 'package:muvam/shared/presentation/screens/splash_screen.dart';
 import 'package:muvam/shared/providers/connectivity_provider.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -40,6 +40,7 @@ Future<void> main() async {
   await FCMTokenService.initializeFCM();
 
   EnhancedNotificationService.initEnhancedNotifications();
+
   // CRITICAL: Set up WebSocket call handler BEFORE running app
   _setupGlobalWebSocketHandlerSync();
 
@@ -52,13 +53,11 @@ void _setupGlobalWebSocketHandlerSync() {
   AppLogger.log('DRIVER: Setting up global call handler', tag: 'MAIN_SETUP');
   AppLogger.log('═══════════════════════════════════════', tag: 'MAIN_SETUP');
 
-  // Check if handler already exists
   AppLogger.log(
     'Handler before setup: ${webSocket.onIncomingCall != null}',
     tag: 'MAIN_SETUP',
   );
 
-  // Set handler BEFORE any connection attempt
   webSocket.addIncomingCallListener((callData) {
     AppLogger.log(
       '══════════════════════════════════',
@@ -95,7 +94,6 @@ void _setupGlobalWebSocketHandlerSync() {
     AppLogger.log('Ride ID: $rideId', tag: 'DRIVER_MAIN_CALL');
     AppLogger.log('Recipient ID: $recipientId', tag: 'DRIVER_MAIN_CALL');
 
-    // Only show for call_initiate
     if (callType == 'call_initiate') {
       AppLogger.log(
         'Showing incoming call overlay...',
@@ -103,7 +101,6 @@ void _setupGlobalWebSocketHandlerSync() {
       );
 
       try {
-        // Show incoming call overlay globally
         GlobalCallService.instance.showIncomingCall(
           callData: callData,
           onAccept: (sessionId) async {
@@ -112,7 +109,6 @@ void _setupGlobalWebSocketHandlerSync() {
               tag: 'DRIVER_MAIN_CALL',
             );
 
-            // Answer the call logic
             AppLogger.log(
               'DRIVER: User accepted call - Session: $sessionId',
               tag: 'DRIVER_MAIN_CALL',
@@ -145,9 +141,7 @@ void _setupGlobalWebSocketHandlerSync() {
             );
 
             try {
-              // Reject the call via API
               final callService = CallService();
-              // Do NOT call initialize() here
               try {
                 await callService.rejectCall(sessionId);
               } finally {
@@ -173,14 +167,12 @@ void _setupGlobalWebSocketHandlerSync() {
         tag: 'DRIVER_MAIN_CALL',
       );
 
-      // Buffer WebRTC messages that might arrive before CallScreen is ready
       if (callType == 'call_offer' || callType == 'call_ice_candidate') {
         GlobalCallService.instance.addPendingMessage(callData);
       }
     }
   });
 
-  // Verify handler was set
   AppLogger.log(
     'Handler after setup: ${webSocket.onIncomingCall != null}',
     tag: 'MAIN_SETUP',
@@ -208,11 +200,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-
-    // Initialize global call service with navigator key
     GlobalCallService.instance.initialize(MyApp.navigatorKey);
-
-    // Add lifecycle observer
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -233,14 +221,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      // App is going to background
       biometricService.recordBackgroundTime();
       AppLogger.log('App going to background, time recorded', tag: 'LIFECYCLE');
     } else if (state == AppLifecycleState.resumed) {
-      // App is coming back to foreground
       AppLogger.log('App resumed from background', tag: 'LIFECYCLE');
 
-      // Check if we should lock the app
       biometricService.shouldLockApp().then((shouldLock) {
         AppLogger.log('Should lock app: $shouldLock', tag: 'LIFECYCLE');
 
@@ -255,7 +240,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _showBiometricLockScreen() {
     AppLogger.log('Showing biometric lock screen', tag: 'LIFECYCLE');
 
-    // Use the navigator key to show the lock screen
     MyApp.navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (context) => BiometricLockScreen(
@@ -283,6 +267,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       builder: (context, child) {
         return MultiProvider(
           providers: [
+            ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
             ChangeNotifierProvider(create: (_) => AuthProvider()),
             ChangeNotifierProvider(create: (_) => LocationProvider()),
             ChangeNotifierProvider(create: (_) => ProfileProvider()),
@@ -293,7 +278,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ChangeNotifierProvider(create: (_) => UserProfileProvider()),
             ChangeNotifierProvider(create: (_) => ActivitiesTabsProvider()),
             ChangeNotifierProvider(create: (_) => ReferralProvider()),
-            ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
             ChangeNotifierProvider(create: (_) => PromoCodeProvider()),
             ChangeNotifierProvider(create: (_) => DeleteAccountProvider()),
           ],
@@ -302,12 +286,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               debugShowCheckedModeBanner: false,
               title: 'Muvam',
               theme: ThemeData(useMaterial3: true),
-              home: SplashScreen(),
               navigatorKey: MyApp.navigatorKey,
-              routes: {
-                '/home': (context) =>
-                    SplashScreen(), // Replace with your actual home screen
-              },
+              routes: {'/home': (context) => SplashScreen()},
+              home: NetworkBanner(child: SplashScreen()),
             ),
           ),
         );

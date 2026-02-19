@@ -23,7 +23,7 @@ class UserProfileService {
         return {'success': false, 'message': 'No authentication token found'};
       }
 
-      final url = '${UrlConstants.baseUrl}/users/profile/update';
+      final url = '${UrlConstants.baseUrl}/users/profile/complete';
 
       if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
         return await _updateProfileWithPhoto(

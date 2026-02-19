@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isBottomSheetVisible = true;
   bool _showDestinationField = false;
   bool _showStopField = false; // Controls stop address visibility
-String? _lastKnownRideStatus;
+  String? _lastKnownRideStatus;
   Map<String, dynamic>? _incomingCall;
   final CallService _callService = CallService();
   int _currentIndex = 0;
@@ -72,7 +72,7 @@ String? _lastKnownRideStatus;
   final TextEditingController toController = TextEditingController();
   final TextEditingController stopController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
-  DateTime selectedDate = DateTime.now();
+  DateTime selectedDate = DateTime.now().add(Duration(days: 1));
   TimeOfDay selectedTime = TimeOfDay.now();
   int? selectedCancelReason;
   bool isScheduledRide = false; // Track if booking is scheduled
@@ -1133,13 +1133,11 @@ String? _lastKnownRideStatus;
       case 'arrived':
       case 'started':
 
-    //      if (_isActiveRideSheetVisible) {
-    //   Navigator.pop(context);
-    //   _isActiveRideSheetVisible = false;
-    // }
+        //      if (_isActiveRideSheetVisible) {
+        //   Navigator.pop(context);
+        //   _isActiveRideSheetVisible = false;
+        // }
 
-
-    
         // Extract driver and ride information
         final driverData = ride['Driver'] ?? {};
         if (driverData.isNotEmpty) {
@@ -1231,63 +1229,59 @@ String? _lastKnownRideStatus;
           );
         }
 
-if (status != _lastKnownRideStatus) {
-    AppLogger.log(
-      '🔄 Status changed from $_lastKnownRideStatus to $status',
-      tag: 'RIDE_STATUS',
-    );
-    
-    // Update the last known status
-    _lastKnownRideStatus = status;
-    
-    // Dismiss and reopen sheet with updated data
-    if (_isActiveRideSheetVisible) {
-      Navigator.pop(context);
-      _isActiveRideSheetVisible = false;
-      Future.delayed(Duration(milliseconds: 300), () {
-        if (mounted) {
-          _showDriverAcceptedSheet();
+        if (status != _lastKnownRideStatus) {
+          AppLogger.log(
+            '🔄 Status changed from $_lastKnownRideStatus to $status',
+            tag: 'RIDE_STATUS',
+          );
+
+          // Update the last known status
+          _lastKnownRideStatus = status;
+
+          // Dismiss and reopen sheet with updated data
+          if (_isActiveRideSheetVisible) {
+            Navigator.pop(context);
+            _isActiveRideSheetVisible = false;
+            Future.delayed(Duration(milliseconds: 300), () {
+              if (mounted) {
+                _showDriverAcceptedSheet();
+              }
+            });
+          } else if (!_hasUserDismissedSheet) {
+            _showDriverAcceptedSheet();
+          }
+        } else {
+          AppLogger.log(
+            '⏭️ Status unchanged ($status), skipping sheet update',
+            tag: 'RIDE_STATUS',
+          );
         }
-      });
-    } else if (!_hasUserDismissedSheet) {
-      _showDriverAcceptedSheet();
-    }
-  } else {
-    AppLogger.log(
-      '⏭️ Status unchanged ($status), skipping sheet update',
-      tag: 'RIDE_STATUS',
-    );
-  }
-  break;
+        break;
 
-
-
-
-
-  // if (_isActiveRideSheetVisible) {
-  //     Navigator.pop(context);
-  //     _isActiveRideSheetVisible = false;
-  //     // Wait a moment then show updated sheet
-  //     Future.delayed(Duration(milliseconds: 300), () {
-  //       if (mounted) {
-  //         _showDriverAcceptedSheet();
-  //       }
-  //     });
-  //   } else if (!_hasUserDismissedSheet) {
-  //     _showDriverAcceptedSheet();
-  //   }
-  //       // Show appropriate UI only if not already visible and user hasn't dismissed
-  //       if (status == 'started') {
-  //         // Show in-car UI
-  //       } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
-  //         AppLogger.log('✅ Showing driver accepted sheet for status: $status');
-  //         _showDriverAcceptedSheet();
-  //       } else {
-  //         AppLogger.log(
-  //           '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
-  //         );
-  //       }
-  //       break;
+      // if (_isActiveRideSheetVisible) {
+      //     Navigator.pop(context);
+      //     _isActiveRideSheetVisible = false;
+      //     // Wait a moment then show updated sheet
+      //     Future.delayed(Duration(milliseconds: 300), () {
+      //       if (mounted) {
+      //         _showDriverAcceptedSheet();
+      //       }
+      //     });
+      //   } else if (!_hasUserDismissedSheet) {
+      //     _showDriverAcceptedSheet();
+      //   }
+      //       // Show appropriate UI only if not already visible and user hasn't dismissed
+      //       if (status == 'started') {
+      //         // Show in-car UI
+      //       } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
+      //         AppLogger.log('✅ Showing driver accepted sheet for status: $status');
+      //         _showDriverAcceptedSheet();
+      //       } else {
+      //         AppLogger.log(
+      //           '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
+      //         );
+      //       }
+      //       break;
 
       case 'completed':
         // Check if passenger has rated
@@ -1298,13 +1292,11 @@ if (status != _lastKnownRideStatus) {
         break;
 
       case 'cancelled':
-
-      if (_isActiveRideSheetVisible) {
-    Navigator.pop(context);
-    _isActiveRideSheetVisible = false;
+        if (_isActiveRideSheetVisible) {
+          Navigator.pop(context);
+          _isActiveRideSheetVisible = false;
         }
-  _lastKnownRideStatus = null;
-
+        _lastKnownRideStatus = null;
 
         // Clear active ride state and map markers
         _stopDriverLocationTracking();
@@ -1331,32 +1323,24 @@ if (status != _lastKnownRideStatus) {
     });
   }
 
-
-
-
-
   /// Start tracking driver location and updating ETA
   void _startDriverLocationTracking() {
-   
-
     // Cancel any existing timer
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
 
     // Update driver location every 5 seconds
     _driverLocationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
-     
       _updateDriverLocation();
     });
 
     // Initial update
-   
+
     _updateDriverLocation();
   }
 
   /// Stop tracking driver location
   void _stopDriverLocationTracking() {
-  
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
     _driverLocationTimer = null;
@@ -1365,20 +1349,14 @@ if (status != _lastKnownRideStatus) {
 
   /// Update driver location from active ride data
   Future<void> _updateDriverLocation() async {
-  
-
     if (_activeRide == null) {
-    
       _stopDriverLocationTracking();
       return;
     }
 
- 
-
     try {
       // Fetch latest ride data to get updated driver location
       final response = await _rideService.getActiveRides();
-
 
       // Check if rides are in response['rides'] or response['data']['rides']
       List? rides;
@@ -1389,23 +1367,16 @@ if (status != _lastKnownRideStatus) {
         rides = response['data']['rides'] as List;
       }
 
-
       if (response['success'] == true && rides != null) {
-      
-
         if (rides.isNotEmpty) {
           final ride = rides[0];
           final status = ride['Status']?.toString().toLowerCase() ?? '';
 
-
           // Only track location when driver is on the way (accepted status)
           if (status == 'accepted') {
-       
-
             final driverData = ride['Driver'];
             if (driverData != null && driverData['Location'] != null) {
               final driverLocationStr = driverData['Location'].toString();
-
 
               // Parse driver location from WKB format
               final driverCoords = _parsePostGISPoint(driverLocationStr);
@@ -2611,15 +2582,10 @@ if (status != _lastKnownRideStatus) {
                   right: 30.w,
                   child: GestureDetector(
                     onTap: () {
-
-
                       if (_activeRide != null) {
                         _hasUserDismissedSheet = false;
                         _showDriverAcceptedSheet();
                       }
-
-
-          
                     },
                     child: Container(
                       width: 50.w,
@@ -4121,7 +4087,7 @@ if (status != _lastKnownRideStatus) {
                           color: isSelected ? Colors.white : Colors.black,
                         ),
                       ),
-                      SizedBox(height:5.h),
+                      SizedBox(height: 5.h),
                       Text(
                         '${_currentEstimate!.durationMin.round()} min | 4 passengers',
                         style: ConstTextStyles.vehicleSubtitle.copyWith(
@@ -5325,7 +5291,7 @@ if (status != _lastKnownRideStatus) {
                 child: GestureDetector(
                   onTap: () {
                     setPrebookState(() {
-                      selectedDate = DateTime.now();
+                      selectedDate = DateTime.now().add(Duration(days: 1));
                       selectedTime = TimeOfDay.now();
                     });
                   },
@@ -5953,7 +5919,9 @@ if (status != _lastKnownRideStatus) {
                                           // Call Driver functionality
                                           if (_assignedDriver != null &&
                                               _activeRide != null) {
-                                            _showCancelRideDialog();
+                                            Navigator.pop(context);
+                                            _showTripCanceledSheet();
+                                            // _showCancelRideDialog();
                                           }
                                         }
                                       },
@@ -6276,7 +6244,7 @@ if (status != _lastKnownRideStatus) {
                 Navigator.of(context).pop();
                 // Show loading
                 showDialog(
-                  context: context,
+                  context: this.context,
                   barrierDismissible: false,
                   builder: (context) => Center(
                     child: CircularProgressIndicator(
@@ -6298,8 +6266,12 @@ if (status != _lastKnownRideStatus) {
                   );
 
                   // Close loading dialog using root navigator
-                  if (mounted) {
-                    Navigator.of(context, rootNavigator: true).pop();
+                  if (mounted &&
+                      Navigator.of(
+                        this.context,
+                        rootNavigator: true,
+                      ).canPop()) {
+                    Navigator.of(this.context, rootNavigator: true).pop();
                   }
 
                   if (result['success'] == true) {
@@ -6318,14 +6290,14 @@ if (status != _lastKnownRideStatus) {
                       // Stop tracking
                       _stopDriverLocationTracking();
                       CustomFlushbar.showSuccess(
-                        context: context,
+                        context: this.context,
                         message: 'Ride cancelled successfully',
                       );
                     }
                   } else {
                     if (mounted) {
                       CustomFlushbar.showError(
-                        context: context,
+                        context: this.context,
                         message: result['message'] ?? 'Failed to cancel ride',
                       );
                     }
@@ -6333,14 +6305,14 @@ if (status != _lastKnownRideStatus) {
                 } catch (e) {
                   // Close loading dialog using root navigator
                   if (mounted) {
-                    Navigator.of(context, rootNavigator: true).pop();
+                    Navigator.of(this.context, rootNavigator: true).pop();
                   }
 
                   AppLogger.error('Cancel ride error', error: e, tag: 'CANCEL');
 
                   if (mounted) {
                     CustomFlushbar.showError(
-                      context: context,
+                      context: this.context,
                       message: 'Error cancelling ride: $e',
                     );
                   }
@@ -7203,8 +7175,10 @@ if (status != _lastKnownRideStatus) {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
+                        // Navigator.pop(context);
+                        // _showCancelRideDialog();
                         Navigator.pop(context);
-                        _showCancelRideDialog();
+                        _showTripCanceledSheet();
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -7655,468 +7629,816 @@ if (status != _lastKnownRideStatus) {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => Container(
-        height: 852.h,
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Edit PreBooking',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.close, size: 24.sp, color: Colors.black),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30.h),
-              // PICK UP - Tappable to select location
-              GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  // Navigate to map selection for pickup
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MapSelectionScreen(
-                        isFromField: true,
-                        initialLocation: _pickupCoordinates ?? _currentLocation,
-                      ),
-                    ),
-                  );
-
-                  if (result != null && result is Map<String, dynamic>) {
-                    setState(() {
-                      _pickupCoordinates = result['location'] as LatLng;
-                      fromController.text = result['address'] as String;
-                    });
-                    _sheetController.animateTo(
-                      0.2,
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                    _showEditPrebookingSheet();
-                  }
-                },
-                child: _buildEditField(
-                  'PICK UP',
-                  fromController.text.isNotEmpty
-                      ? fromController.text
-                      : _currentLocationAddress,
-                ),
-              ),
-              SizedBox(height: 15.h),
-              // DESTINATION - Tappable to select location
-              GestureDetector(
-                onTap: () async {
-                  Navigator.pop(context);
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MapSelectionScreen(
-                        isFromField: false,
-                        initialLocation: _destinationCoordinates,
-                      ),
-                    ),
-                  );
-
-                  if (result != null && result is Map<String, dynamic>) {
-                    setState(() {
-                      _destinationCoordinates = result['location'] as LatLng;
-                      toController.text = result['address'] as String;
-                    });
-                    _sheetController.animateTo(
-                      0.2,
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                    _showEditPrebookingSheet();
-                  }
-                },
-                child: _buildEditField('DESTINATION', toController.text),
-              ),
-              SizedBox(height: 15.h),
-              // WHEN - Tappable to select date and time
-              GestureDetector(
-                onTap: () async {
-                  // Select date
-                  final DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(Duration(days: 365)),
-                  );
-                  if (pickedDate != null) {
-                    // Select time
-                    final TimeOfDay? pickedTime = await showTimePicker(
-                      context: context,
-                      initialTime: selectedTime,
-                    );
-                    if (pickedTime != null) {
-                      setState(() {
-                        selectedDate = pickedDate;
-                        selectedTime = pickedTime;
-                      });
-                    }
-                  }
-                },
-                child: _buildEditField('WHEN', formattedDate),
-              ),
-              SizedBox(height: 15.h),
-              // PAYMENT METHOD - Tappable to select payment method
-              GestureDetector(
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    barrierColor: Colors.black.withOpacity(0.2),
-                    builder: (context) => Container(
-                      padding: EdgeInsets.all(20.w),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            title: Text('Pay in car'),
-                            onTap: () {
-                              setState(() {
-                                selectedPaymentMethod = 'Pay in car';
-                              });
-                              Navigator.pop(context);
-                            },
-                          ),
-                          ListTile(
-                            title: Text('Pay online'),
-                            onTap: () {
-                              setState(() {
-                                selectedPaymentMethod = 'Pay online';
-                              });
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                child: _buildEditField('PAYMENT METHOD', selectedPaymentMethod),
-              ),
-              SizedBox(height: 15.h),
-              // VEHICLE - Tappable to select vehicle type
-              GestureDetector(
-                onTap: () {
-                  showModalBottomSheet(
-                    barrierColor: Colors.black.withOpacity(0.2),
-                    context: context,
-                    builder: (context) => Container(
-                      padding: EdgeInsets.all(20.w),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (selectedVehicle != null) ...[
-                            ListTile(
-                              title: Text('Regular'),
-                              onTap: () {
-                                setState(() {
-                                  selectedVehicle = 0;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              title: Text('Fancy'),
-                              onTap: () {
-                                setState(() {
-                                  selectedVehicle = 1;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              title: Text('VIP'),
-                              onTap: () {
-                                setState(() {
-                                  selectedVehicle = 2;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ] else ...[
-                            ListTile(
-                              title: Text('Bicycle'),
-                              onTap: () {
-                                setState(() {
-                                  selectedDelivery = 0;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              title: Text('Vehicle'),
-                              onTap: () {
-                                setState(() {
-                                  selectedDelivery = 1;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              title: Text('Motor bike'),
-                              onTap: () {
-                                setState(() {
-                                  selectedDelivery = 2;
-                                });
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                child: _buildEditField(
-                  'VEHICLE',
-                  selectedVehicle != null
-                      ? [
-                          'Regular',
-                          'Fancy',
-                          'VIP',
-                        ][selectedVehicle!]
-                      : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!],
-                ),
-              ),
-              SizedBox(height: 115.h),
-              // Spacer(),
-              Column(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            height: 852.h,
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
                 children: [
                   Container(
-                    width: 353.w,
-                    height: 48.h,
+                    width: 69.w,
+                    height: 5.h,
+                    margin: EdgeInsets.only(bottom: 20.h),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.red),
-                      borderRadius: BorderRadius.circular(8.r),
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2.5.r),
                     ),
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showTripCanceledSheet();
-                      },
-                      child: Center(
-                        child: Text(
-                          'Cancel prebooking',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Edit PreBooking',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 26.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Icon(
+                          Icons.close,
+                          size: 24.sp,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 30.h),
+                  // PICK UP - Tappable to select location
+                  // GestureDetector(
+                  //   onTap: () async {
+                  //     Navigator.pop(context);
+                  //     // Navigate to map selection for pickup
+                  //     final result = await Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //         builder: (context) => MapSelectionScreen(
+                  //           isFromField: true,
+                  //           initialLocation: _pickupCoordinates ?? _currentLocation,
+                  //         ),
+                  //       ),
+                  //     );
+
+                  //     if (result != null && result is Map<String, dynamic>) {
+                  //       setState(() {
+                  //         _pickupCoordinates = result['location'] as LatLng;
+                  //         fromController.text = result['address'] as String;
+                  //       });
+                  //       _sheetController.animateTo(
+                  //         0.2,
+                  //         duration: Duration(milliseconds: 300),
+                  //         curve: Curves.easeInOut,
+                  //       );
+                  //       _showEditPrebookingSheet();
+                  //     }
+                  //   },
+                  //   child: _buildEditField(
+                  //     'PICK UP',
+                  //     fromController.text.isNotEmpty
+                  //         ? fromController.text
+                  //         : _currentLocationAddress,
+                  //   ),
+                  // ),
+
+                  // Replace the GestureDetector wrapping _buildEditField('PICK UP', ...) with:
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PICK UP',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Container(
+                        height: 50.h,
+                        decoration: BoxDecoration(
+                          color: Color(
+                            ConstColors.fieldColor,
+                          ).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: TextField(
+                          controller: fromController,
+                          onChanged: (value) {
+                            setSheetState(() {
+                              _isFromFieldFocused = true;
+                            });
+                            _searchLocations(value);
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Enter pickup location',
+                            hintStyle: TextStyle(
+                              fontSize: 14.sp,
+                              color: Colors.grey[400],
+                            ),
+                            prefixIcon: Padding(
+                              padding: EdgeInsets.only(left: 16.w, right: 12.w),
+                              child: SvgPicture.asset(
+                                ConstImages.search,
+                                width: 20.w,
+                                height: 20.h,
+                                color: Colors.grey,
+                                fit: BoxFit.scaleDown,
+                              ),
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 48.w,
+                              minHeight: 20.h,
+                            ),
+                            suffixIcon: GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MapSelectionScreen(
+                                      isFromField: true,
+                                      initialLocation:
+                                          _pickupCoordinates ??
+                                          _currentLocation,
+                                    ),
+                                  ),
+                                );
+                                if (result != null &&
+                                    result is Map<String, dynamic>) {
+                                  setSheetState(() {
+                                    _pickupCoordinates =
+                                        result['location'] as LatLng;
+                                    fromController.text =
+                                        result['address'] as String;
+                                  });
+                                  _sheetController.animateTo(
+                                    0.2,
+                                    duration: Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                  _showEditPrebookingSheet();
+                                }
+                              },
+                              child: Container(
+                                width: 24.w,
+                                height: 24.h,
+                                margin: EdgeInsets.only(right: 16.w),
+                                child: Icon(
+                                  Icons.map,
+                                  size: 20.sp,
+                                  color: Color(ConstColors.mainColor),
+                                ),
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 0,
+                              vertical: 15.h,
+                            ),
                           ),
                         ),
                       ),
+                      if (_showSuggestions &&
+                          _locationSuggestions.isNotEmpty &&
+                          _isFromFieldFocused)
+                        Container(
+                          constraints: BoxConstraints(maxHeight: 200.h),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8.r),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black12, blurRadius: 4),
+                            ],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: _locationSuggestions.length,
+                            separatorBuilder: (_, __) =>
+                                Divider(height: 1, color: Colors.grey.shade200),
+                            itemBuilder: (context, index) {
+                              final prediction = _locationSuggestions[index];
+                              return ListTile(
+                                dense: true,
+                                leading: Icon(
+                                  Icons.location_on,
+                                  size: 20.sp,
+                                  color: Colors.grey,
+                                ),
+                                title: Text(
+                                  prediction.mainText,
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: prediction.secondaryText.isNotEmpty
+                                    ? Text(
+                                        prediction.secondaryText,
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          color: Colors.grey[600],
+                                        ),
+                                      )
+                                    : null,
+                                onTap: () async {
+                                  final placeDetails = await _placesService
+                                      .getPlaceDetails(
+                                        prediction.placeId,
+                                        sessionToken: _sessionToken,
+                                      );
+                                  if (placeDetails != null) {
+                                    setSheetState(() {
+                                      _pickupCoordinates = LatLng(
+                                        placeDetails.latitude,
+                                        placeDetails.longitude,
+                                      );
+                                      fromController.text =
+                                          prediction.description;
+                                      _showSuggestions = false;
+                                      _locationSuggestions = [];
+                                      _sessionToken = null;
+                                    });
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 15.h),
+                  // DESTINATION - Tappable to select location
+                  // GestureDetector(
+                  //   onTap: () async {
+                  //     Navigator.pop(context);
+                  //     final result = await Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //         builder: (context) => MapSelectionScreen(
+                  //           isFromField: false,
+                  //           initialLocation: _destinationCoordinates,
+                  //         ),
+                  //       ),
+                  //     );
+
+                  //     if (result != null && result is Map<String, dynamic>) {
+                  //       setState(() {
+                  //         _destinationCoordinates = result['location'] as LatLng;
+                  //         toController.text = result['address'] as String;
+                  //       });
+                  //       _sheetController.animateTo(
+                  //         0.2,
+                  //         duration: Duration(milliseconds: 300),
+                  //         curve: Curves.easeInOut,
+                  //       );
+                  //       _showEditPrebookingSheet();
+                  //     }
+                  //   },
+                  //   child: _buildEditField('DESTINATION', toController.text),
+                  // ),
+
+                  // Replace the GestureDetector wrapping _buildEditField('DESTINATION', ...) with:
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'DESTINATION',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Container(
+                        height: 50.h,
+                        decoration: BoxDecoration(
+                          color: Color(
+                            ConstColors.fieldColor,
+                          ).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: TextField(
+                          controller: toController,
+                          onChanged: (value) {
+                            setSheetState(() {
+                              _isFromFieldFocused = false;
+                            });
+                            _searchLocations(value);
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Enter destination',
+                            hintStyle: TextStyle(
+                              fontSize: 14.sp,
+                              color: Colors.grey[400],
+                            ),
+                            prefixIcon: Padding(
+                              padding: EdgeInsets.only(left: 16.w, right: 12.w),
+                              child: SvgPicture.asset(
+                                ConstImages.search,
+                                width: 20.w,
+                                height: 20.h,
+                                color: Colors.grey,
+                                fit: BoxFit.scaleDown,
+                              ),
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 48.w,
+                              minHeight: 20.h,
+                            ),
+                            suffixIcon: GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(context);
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MapSelectionScreen(
+                                      isFromField: false,
+                                      initialLocation:
+                                          _destinationCoordinates ??
+                                          _currentLocation,
+                                    ),
+                                  ),
+                                );
+                                if (result != null &&
+                                    result is Map<String, dynamic>) {
+                                  setSheetState(() {
+                                    _destinationCoordinates =
+                                        result['location'] as LatLng;
+                                    toController.text =
+                                        result['address'] as String;
+                                  });
+                                  _sheetController.animateTo(
+                                    0.2,
+                                    duration: Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                  _showEditPrebookingSheet();
+                                }
+                              },
+                              child: Container(
+                                width: 24.w,
+                                height: 24.h,
+                                margin: EdgeInsets.only(right: 16.w),
+                                child: Icon(
+                                  Icons.map,
+                                  size: 20.sp,
+                                  color: Color(ConstColors.mainColor),
+                                ),
+                              ),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 0,
+                              vertical: 15.h,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_showSuggestions &&
+                          _locationSuggestions.isNotEmpty &&
+                          !_isFromFieldFocused)
+                        Container(
+                          constraints: BoxConstraints(maxHeight: 200.h),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8.r),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black12, blurRadius: 4),
+                            ],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: _locationSuggestions.length,
+                            separatorBuilder: (_, __) =>
+                                Divider(height: 1, color: Colors.grey.shade200),
+                            itemBuilder: (context, index) {
+                              final prediction = _locationSuggestions[index];
+                              return ListTile(
+                                dense: true,
+                                leading: Icon(
+                                  Icons.location_on,
+                                  size: 20.sp,
+                                  color: Colors.grey,
+                                ),
+                                title: Text(
+                                  prediction.mainText,
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: prediction.secondaryText.isNotEmpty
+                                    ? Text(
+                                        prediction.secondaryText,
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          color: Colors.grey[600],
+                                        ),
+                                      )
+                                    : null,
+                                onTap: () async {
+                                  final placeDetails = await _placesService
+                                      .getPlaceDetails(
+                                        prediction.placeId,
+                                        sessionToken: _sessionToken,
+                                      );
+                                  if (placeDetails != null) {
+                                    setSheetState(() {
+                                      _destinationCoordinates = LatLng(
+                                        placeDetails.latitude,
+                                        placeDetails.longitude,
+                                      );
+                                      toController.text =
+                                          prediction.description;
+                                      _showSuggestions = false;
+                                      _locationSuggestions = [];
+                                      _sessionToken = null;
+                                    });
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 15.h),
+                  // WHEN - Tappable to select date and time
+                  GestureDetector(
+                    onTap: () async {
+                      // Select date
+                      final DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(Duration(days: 365)),
+                      );
+                      if (pickedDate != null) {
+                        // Select time
+                        final TimeOfDay? pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: selectedTime,
+                        );
+                        if (pickedTime != null) {
+                          setSheetState(() {
+                            selectedDate = pickedDate;
+                            selectedTime = pickedTime;
+                          });
+                        }
+                      }
+                    },
+                    child: _buildEditField('WHEN', formattedDate),
+                  ),
+                  SizedBox(height: 15.h),
+                  // PAYMENT METHOD - Tappable to select payment method
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        barrierColor: Colors.black.withOpacity(0.2),
+                        builder: (context) => Container(
+                          padding: EdgeInsets.all(20.w),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                title: Text('Pay in car'),
+                                onTap: () {
+                                  setSheetState(() {
+                                    selectedPaymentMethod = 'in_car';
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              ),
+                              ListTile(
+                                title: Text('Pay with Card'),
+                                onTap: () {
+                                  setSheetState(() {
+                                    selectedPaymentMethod = 'gateway';
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    child: _buildEditField(
+                      'PAYMENT METHOD',
+                      selectedPaymentMethod,
                     ),
                   ),
                   SizedBox(height: 15.h),
-                  Container(
-                    width: 353.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: Color(ConstColors.mainColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: GestureDetector(
-                      onTap: () async {
-                        // Get ride ID
-                        final rideId =
-                            _currentRideResponse?.id ??
-                            (_activeRide?['ID'] is int
-                                ? _activeRide!['ID']
-                                : int.parse(
-                                    _activeRide?['ID']?.toString() ?? '0',
-                                  ));
-                        print('DEBUG: rideId found: $rideId'); // DEBUG
-
-                        // Get pickup coordinates
-                        final pickupCoords =
-                            _pickupCoordinates ?? _currentLocation;
-                        final pickup =
-                            'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
-
-                        // Get destination coordinates
-                        final destCoords = _destinationCoordinates;
-                        if (destCoords == null) {
-                          CustomFlushbar.showError(
-                            context: context,
-                            message: 'Please select a destination',
-                          );
-                          return;
-                        }
-                        final dest =
-                            'POINT(${destCoords.longitude} ${destCoords.latitude})';
-
-                        // Get pickup address
-                        final pickupAddress = fromController.text.isNotEmpty
-                            ? fromController.text
-                            : 'Current location';
-
-                        // Get destination address
-                        final destAddress = toController.text;
-                        if (destAddress.isEmpty) {
-                          CustomFlushbar.showError(
-                            context: context,
-                            message: 'Please enter a destination',
-                          );
-                          return;
-                        }
-
-                        // Format scheduled date and time
-                        final scheduledDateTime = DateTime(
-                          selectedDate.year,
-                          selectedDate.month,
-                          selectedDate.day,
-                          selectedTime.hour,
-                          selectedTime.minute,
-                        );
-                        final scheduledAt = scheduledDateTime
-                            .toUtc()
-                            .toIso8601String();
-
-                        // Get stop address if available
-                        final stopAddress = stopController.text.isNotEmpty
-                            ? stopController.text
-                            : null;
-
-                        // Get vehicle type
-                        final vehicleType = selectedVehicle != null
-                            ? [
-                                'Regular',
-                                'Fancy',
-                                'VIP',
-                              ][selectedVehicle!]
-                            : [
-                                'Bicycle',
-                                'Vehicle',
-                                'Motor bike',
-                              ][selectedDelivery!];
-
-                        // Close the sheet
-                        Navigator.pop(context);
-
-                        // Show loading
-                        showDialog(
-                          context: this.context,
-                          barrierDismissible: false,
-                          builder: (context) => Center(
-                            child: CircularProgressIndicator(
-                              color: Color(ConstColors.mainColor),
-                            ),
+                  // VEHICLE - Tappable to select vehicle type
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        barrierColor: Colors.black.withOpacity(0.2),
+                        context: context,
+                        builder: (context) => Container(
+                          padding: EdgeInsets.all(20.w),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (selectedVehicle != null) ...[
+                                ListTile(
+                                  title: Text('Regular'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedVehicle = 0;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: Text('Fancy'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedVehicle = 1;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: Text('VIP'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedVehicle = 2;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ] else ...[
+                                ListTile(
+                                  title: Text('Bicycle'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedDelivery = 0;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: Text('Vehicle'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedDelivery = 1;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: Text('Motor bike'),
+                                  onTap: () {
+                                    setSheetState(() {
+                                      selectedDelivery = 2;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ],
+                            ],
                           ),
-                        );
-
-                        try {
-                          // Call update prebooked ride API
-                          final result = await _rideService.updatePrebookedRide(
-                            rideId: rideId,
-                            dest: dest,
-                            destAddress: destAddress,
-                            pickup: pickup,
-                            pickupAddress: pickupAddress,
-                            scheduledAt: scheduledAt,
-                            stopAddress: stopAddress,
-                            vehicleType: vehicleType,
-                          );
-
-                          // Close loading dialog
-                          if (mounted) {
-                            Navigator.of(
-                              this.context,
-                              rootNavigator: true,
-                            ).pop();
-                          }
-
-                          if (result['success'] == true) {
-                            if (mounted) {
-                              CustomFlushbar.showSuccess(
-                                context: this.context,
-                                message: 'Ride updated successfully',
-                              );
-
-                              // Optionally refresh the ride details
-                              AppLogger.log(
-                                'Updated ride data: ${result['data']}',
-                                tag: 'UPDATE_PREBOOKED',
-                              );
-                            }
-                          } else {
-                            if (mounted) {
-                              CustomFlushbar.showError(
-                                context: this.context,
-                                message:
-                                    result['message'] ??
-                                    'Failed to update ride',
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          // Close loading dialog
-                          if (mounted) {
-                            Navigator.of(
-                              this.context,
-                              rootNavigator: true,
-                            ).pop();
-                          }
-
-                          AppLogger.error(
-                            'Update prebooked ride error',
-                            error: e,
-                            tag: 'UPDATE_PREBOOKED',
-                          );
-
-                          if (mounted) {
-                            CustomFlushbar.showError(
-                              context: this.context,
-                              message: 'Error updating ride: $e',
-                            );
-                          }
-                        }
-                      },
-                      child: Center(
-                        child: Text(
-                          'Save prebooking',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    },
+                    child: _buildEditField(
+                      'VEHICLE',
+                      selectedVehicle != null
+                          ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
+                          : [
+                              'Bicycle',
+                              'Vehicle',
+                              'Motor bike',
+                            ][selectedDelivery!],
+                    ),
+                  ),
+                  SizedBox(height: 115.h),
+                  // Spacer(),
+                  Column(
+                    children: [
+                      Container(
+                        width: 353.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showTripCanceledSheet();
+                          },
+                          child: Center(
+                            child: Text(
+                              'Cancel prebooking',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      SizedBox(height: 15.h),
+                      Container(
+                        width: 353.w,
+                        height: 48.h,
+                        decoration: BoxDecoration(
+                          color: Color(ConstColors.mainColor),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: GestureDetector(
+                          onTap: () async {
+                            // Get ride ID
+                            final rideId =
+                                _currentRideResponse?.id ??
+                                (_activeRide?['ID'] is int
+                                    ? _activeRide!['ID']
+                                    : int.parse(
+                                        _activeRide?['ID']?.toString() ?? '0',
+                                      ));
+                            print('DEBUG: rideId found: $rideId'); // DEBUG
+
+                            // Get pickup coordinates
+                            final pickupCoords =
+                                _pickupCoordinates ?? _currentLocation;
+                            final pickup =
+                                'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
+
+                            // Get destination coordinates
+                            final destCoords = _destinationCoordinates;
+                            if (destCoords == null) {
+                              CustomFlushbar.showError(
+                                context: context,
+                                message: 'Please select a destination',
+                              );
+                              return;
+                            }
+                            final dest =
+                                'POINT(${destCoords.longitude} ${destCoords.latitude})';
+
+                            // Get pickup address
+                            final pickupAddress = fromController.text.isNotEmpty
+                                ? fromController.text
+                                : 'Current location';
+
+                            // Get destination address
+                            final destAddress = toController.text;
+                            if (destAddress.isEmpty) {
+                              CustomFlushbar.showError(
+                                context: context,
+                                message: 'Please enter a destination',
+                              );
+                              return;
+                            }
+
+                            // Format scheduled date and time
+                            final scheduledDateTime = DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              selectedTime.hour,
+                              selectedTime.minute,
+                            );
+                            final scheduledAt = scheduledDateTime
+                                .toUtc()
+                                .toIso8601String();
+
+                            // Get stop address if available
+                            final stopAddress = stopController.text.isNotEmpty
+                                ? stopController.text
+                                : null;
+
+                            // Get vehicle type
+                            final vehicleType = selectedVehicle != null
+                                ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
+                                : [
+                                    'Bicycle',
+                                    'Vehicle',
+                                    'Motor bike',
+                                  ][selectedDelivery!];
+
+                            // Close the sheet
+                            Navigator.pop(context);
+
+                            // Show loading
+                            showDialog(
+                              context: this.context,
+                              barrierDismissible: false,
+                              builder: (context) => Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(ConstColors.mainColor),
+                                ),
+                              ),
+                            );
+
+                            try {
+                              // Call update prebooked ride API
+                              final result = await _rideService
+                                  .updatePrebookedRide(
+                                    rideId: rideId,
+                                    dest: dest,
+                                    destAddress: destAddress,
+                                    pickup: pickup,
+                                    pickupAddress: pickupAddress,
+                                    scheduledAt: scheduledAt,
+                                    stopAddress: stopAddress,
+                                    vehicleType: vehicleType,
+                                  );
+
+                              // Close loading dialog
+                              if (mounted) {
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).pop();
+                              }
+
+                              if (result['success'] == true) {
+                                if (mounted) {
+                                  CustomFlushbar.showSuccess(
+                                    context: this.context,
+                                    message: 'Ride updated successfully',
+                                  );
+
+                                  // Optionally refresh the ride details
+                                  AppLogger.log(
+                                    'Updated ride data: ${result['data']}',
+                                    tag: 'UPDATE_PREBOOKED',
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  CustomFlushbar.showError(
+                                    context: this.context,
+                                    message:
+                                        result['message'] ??
+                                        'Failed to update ride',
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              // Close loading dialog
+                              if (mounted) {
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).pop();
+                              }
+
+                              AppLogger.error(
+                                'Update prebooked ride error',
+                                error: e,
+                                tag: 'UPDATE_PREBOOKED',
+                              );
+
+                              if (mounted) {
+                                CustomFlushbar.showError(
+                                  context: this.context,
+                                  message: 'Error updating ride: $e',
+                                );
+                              }
+                            }
+                          },
+                          child: Center(
+                            child: Text(
+                              'Save prebooking',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -8323,8 +8645,16 @@ if (status != _lastKnownRideStatus) {
                 child: GestureDetector(
                   onTap: selectedCancelReason != null
                       ? () {
-                          Navigator.pop(context);
-                          _showFeedbackSuccessSheet();
+                          // Navigator.pop(context);
+                          // _showFeedbackSuccessSheet();
+
+                          if (selectedCancelReason == 3) {
+                            Navigator.pop(context);
+                            _showCancelRideDialog();
+                          } else {
+                            Navigator.pop(context);
+                            _showFeedbackSuccessSheet();
+                          }
                         }
                       : null,
                   child: Center(
@@ -8383,68 +8713,159 @@ if (status != _lastKnownRideStatus) {
   }
 
   void _showFeedbackSuccessSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      barrierColor: Colors.black.withOpacity(0.2),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        height: 400.h,
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    final reasons = [
+      'I am taking alternative transport',
+      'It is taking too long to get a driver',
+      'I have to attend to something',
+      'Others',
+    ];
+    final reason = selectedCancelReason != null
+        ? reasons[selectedCancelReason!]
+        : 'Cancelled by passenger';
+
+    // Call cancel API
+    () async {
+      try {
+        final rideId =
+            _currentRideResponse?.id ??
+            (_activeRide?['ID'] is int
+                ? _activeRide!['ID']
+                : int.parse(_activeRide?['ID']?.toString() ?? '0'));
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: CircularProgressIndicator(
+              color: Color(ConstColors.mainColor),
+            ),
+          ),
+        );
+
+        final result = await _rideService.cancelRide(
+          rideId: rideId,
+          reason: reason,
+        );
+        log("this is the ride response $result");
+        log("this is the ride id$rideId");
+        if (mounted &&
+            Navigator.of(this.context, rootNavigator: true).canPop()) {
+          Navigator.of(this.context, rootNavigator: true).pop();
+        }
+
+        if (result['success'] == true) {
+          if (mounted) {
+            setState(() {
+              _activeRide = null;
+              _isDriverAssigned = false;
+              _isRideAccepted = false;
+              _isInCar = false;
+              _assignedDriver = null;
+              _currentRideResponse = null;
+              _mapMarkers = {};
+              _mapPolylines = {};
+              _lastKnownRideStatus = null;
+            });
+            _stopDriverLocationTracking();
+          }
+        } else {
+          if (mounted) {
+            CustomFlushbar.showError(
+              context: this.context,
+              message: result['message'] ?? 'Failed to cancel ride',
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted &&
+            Navigator.of(this.context, rootNavigator: true).canPop()) {
+          Navigator.of(this.context, rootNavigator: true).pop();
+        }
+        if (mounted) {
+          CustomFlushbar.showError(context: this.context, message: 'Error: $e');
+        }
+        return;
+      }
+
+      // Show success sheet only after successful cancellation
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        barrierColor: Colors.black.withOpacity(0.2),
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
-        child: Column(
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 30.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
+        builder: (context) => Container(
+          height: 400.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100.sp,
+                height: 100.sp,
+                decoration: BoxDecoration(
+                  color: Color(0xff34B869),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check, color: Colors.white, size: 40.sp),
               ),
-            ),
-            Container(
-              width: 266.w,
-              height: 212.h,
-              margin: EdgeInsets.only(top: 30.h, left: 62.w),
-              child: Image.asset(
-                'assets/images/Feedback_suucess.png',
-                fit: BoxFit.contain,
+              SizedBox(height: 10.h),
+              Text(
+                "Feedback Sent",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 28.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
-            ),
-            Spacer(),
-            Container(
-              width: 353.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(8.r),
+              Text(
+                "We've received your answer\nand we hope we see you next\ntime.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
               ),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                },
-                child: Center(
-                  child: Text(
-                    'GO HOME',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
+
+              SizedBox(height: 30.h),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 353.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: Color(ConstColors.mainColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'GO HOME',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }();
   }
 
   void _showTripCompletedSheet() {
@@ -9151,19 +9572,18 @@ if (status != _lastKnownRideStatus) {
                                       // CustomFlushbar.
                                       // showInfo(
                                       //   context: context,
-                                      //   message: 'Thank you for your rating!',    
+                                      //   message: 'Thank you for your rating!',
                                       // );
 
-
-                                           Flushbar(
-        title: "Success",
-        message: "Thank you for your rating!",
-        duration: Duration(seconds: 3),
-        backgroundColor: Colors.green,
-        margin: EdgeInsets.all(8),
-        borderRadius: BorderRadius.circular(8),
-        flushbarPosition: FlushbarPosition.TOP,
-      ).show(context);
+                                      Flushbar(
+                                        title: "Success",
+                                        message: "Thank you for your rating!",
+                                        duration: Duration(seconds: 3),
+                                        backgroundColor: Colors.green,
+                                        margin: EdgeInsets.all(8),
+                                        borderRadius: BorderRadius.circular(8),
+                                        flushbarPosition: FlushbarPosition.TOP,
+                                      ).show(context);
                                     }
                                   });
                                 } else {

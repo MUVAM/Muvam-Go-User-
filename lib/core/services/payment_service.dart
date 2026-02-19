@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as log;
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
@@ -67,7 +68,7 @@ class PaymentService {
     );
 
     AppLogger.log('Payment Initialize Response Status: ${response.statusCode}');
-    AppLogger.log('Payment Initialize Response Body: ${response.body}');
+    log.log('Payment Initialize Response Body: ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = jsonDecode(response.body);

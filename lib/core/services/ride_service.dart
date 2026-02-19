@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -76,7 +77,7 @@ class RideService {
     AppLogger.log('=== RIDE REQUEST RESPONSE ===');
     AppLogger.log('Response Status: ${response.statusCode}');
     AppLogger.log('Response Headers: ${response.headers}');
-    AppLogger.log('FULL RESPONSE BODY: ${response.body}');
+    log('FULL RESPONSE BODY: ${response.body}');
 
     if (response.body.isNotEmpty) {
       try {
@@ -483,7 +484,7 @@ class RideService {
   }) async {
     final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/update/$rideId';
-    
+
     final requestBody = {
       'dest': dest,
       'dest_address': destAddress,

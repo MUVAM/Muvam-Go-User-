@@ -1674,11 +1674,25 @@ class _HomeScreenState extends State<HomeScreen> {
               .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
           if (currentAddress.isEmpty) currentAddress = 'Current location';
         }
+        // setState(() {
+        //   _currentLocation = LatLng(position.latitude, position.longitude);
+        //   _userCurrentLocation = position;
+        //   _currentLocationAddress = currentAddress; // Store the address
+        //   _isLocationLoaded = true;
+        // });
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _userCurrentLocation = position;
-          _currentLocationAddress = currentAddress; // Store the address
+          _currentLocationAddress = currentAddress;
           _isLocationLoaded = true;
+          // Auto-fill fromController so textfield shows real address immediately
+          // and becomes editable right away
+          if (fromController.text.isEmpty ||
+              fromController.text == 'Current location') {
+            fromController.text = currentAddress;
+            _pickupCoordinates = LatLng(position.latitude, position.longitude);
+            _isFromFieldEditable = true;
+          }
         });
         AppLogger.log(
           '📍 Current user location: ${position.latitude}, ${position.longitude}',
@@ -4627,22 +4641,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     });
                                   }
                                 } else {
-                                  AppLogger.log(
-                                    '🚗 OTHER PAYMENT METHOD: $selectedPaymentMethod',
-                                    tag: 'BOOK_NOW',
-                                  );
-
                                   setBookingState(() {
                                     _isBookingRide = true;
                                   });
                                   try {
-                                    AppLogger.log(
-                                      '🚗 BOOK NOW - OTHER PAYMENT: Starting ride request...',
-                                    );
-                                    AppLogger.log(
-                                      '💳 Selected Payment Method: $selectedPaymentMethod',
-                                    );
-                                    // Combine selected date and time into DateTime for scheduled rides
                                     final scheduledDateTime = isScheduledRide
                                         ? DateTime(
                                             selectedDate.year,
@@ -4657,50 +4659,117 @@ class _HomeScreenState extends State<HomeScreen> {
                                       scheduledDateTime: scheduledDateTime,
                                     );
 
-                                    if (mounted) {
-                                      AppLogger.log(
-                                        '✅ Ride request successful for other payment method',
-                                      );
+                                    if (_currentRideResponse != null &&
+                                        mounted) {
                                       AppLogger.log(
                                         '🎫 Ride ID: ${_currentRideResponse!.id}',
                                       );
                                       AppLogger.log(
                                         '💰 Ride Price: ${_currentRideResponse!.price}',
                                       );
-                                      fromController.clear();
-                                      toController.clear();
-                                      setState(() {
-                                        _showDestinationField = false;
-                                      });
-                                      Navigator.pop(context);
-                                      // Show appropriate sheet based on ride type
-                                      if (isScheduledRide) {
-                                        // Store addresses before clearing
-                                        final pickupAddress =
-                                            fromController.text.isNotEmpty
-                                            ? fromController.text
-                                            : _currentLocationAddress;
-                                        final destAddress =
-                                            toController.text.isNotEmpty
-                                            ? toController.text
-                                            : 'Destination';
-                                        _showTripScheduledSheet(
-                                          pickupAddress: pickupAddress,
-                                          destAddress: destAddress,
-                                        );
-                                        // Reset scheduled ride flag
-                                        setState(() {
-                                          isScheduledRide = false;
-                                        });
-                                      } else {
-                                        _sheetController.animateTo(
-                                          0.2,
-                                          duration: Duration(milliseconds: 300),
-                                          curve: Curves.easeInOut,
-                                        );
-                                        _showBookSuccessfulSheet();
 
-                                        // _showBookingRequestSheet();
+                                      // Wallet payment - call initializePayment just like card
+                                      if (selectedPaymentMethod ==
+                                          'Pay with wallet') {
+                                        final paymentData =
+                                            await _paymentService
+                                                .initializePayment(
+                                                  rideId:
+                                                      _currentRideResponse!.id,
+                                                  amount: _currentRideResponse!
+                                                      .price,
+                                                );
+
+                                        AppLogger.log(
+                                          '💳 Wallet payment data: $paymentData',
+                                          tag: 'WALLET',
+                                        );
+
+                                        if (paymentData['success'] == true ||
+                                            paymentData['status'] == true) {
+                                          // Payment initialized successfully, proceed to success sheet
+                                          if (mounted) {
+                                            fromController.clear();
+                                            toController.clear();
+                                            setState(() {
+                                              _showDestinationField = false;
+                                            });
+                                            Navigator.pop(context);
+
+                                            if (isScheduledRide) {
+                                              final pickupAddress =
+                                                  _currentRideResponse!
+                                                      .pickupAddress;
+                                              final destAddress =
+                                                  _currentRideResponse!
+                                                      .destAddress;
+                                              _showTripScheduledSheet(
+                                                pickupAddress: pickupAddress,
+                                                destAddress: destAddress,
+                                              );
+                                              setState(() {
+                                                isScheduledRide = false;
+                                              });
+                                            } else {
+                                              _sheetController.animateTo(
+                                                0.2,
+                                                duration: Duration(
+                                                  milliseconds: 300,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                              );
+                                              _showBookSuccessfulSheet();
+                                            }
+                                          }
+                                        } else {
+                                          // Payment initialization failed
+                                          if (mounted) {
+                                            setBookingState(() {
+                                              _isBookingRide = false;
+                                            });
+                                            CustomFlushbar.showError(
+                                              context: context,
+                                              message:
+                                                  paymentData['message'] ??
+                                                  'Wallet payment failed. Please try another method.',
+                                            );
+                                          }
+                                        }
+                                      } else {
+                                        // All other payment methods (Pay in car, pay4me etc.)
+                                        if (mounted) {
+                                          fromController.clear();
+                                          toController.clear();
+                                          setState(() {
+                                            _showDestinationField = false;
+                                          });
+                                          Navigator.pop(context);
+
+                                          if (isScheduledRide) {
+                                            final pickupAddress =
+                                                _currentRideResponse!
+                                                    .pickupAddress;
+                                            final destAddress =
+                                                _currentRideResponse!
+                                                    .destAddress;
+                                            _showTripScheduledSheet(
+                                              pickupAddress: pickupAddress,
+                                              destAddress: destAddress,
+                                            );
+                                            setState(() {
+                                              isScheduledRide = false;
+                                            });
+                                          } else {
+                                            _sheetController.animateTo(
+                                              0.2,
+                                              duration: Duration(
+                                                milliseconds: 300,
+                                              ),
+                                              curve: Curves.easeInOut,
+                                            );
+                                            _showBookSuccessfulSheet();
+                                          }
+                                        }
                                       }
                                     }
                                   } catch (e) {
@@ -8107,43 +8176,188 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SizedBox(height: 15.h),
                   // PAYMENT METHOD - Tappable to select payment method
-                  GestureDetector(
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        barrierColor: Colors.black.withOpacity(0.2),
-                        builder: (context) => Container(
-                          padding: EdgeInsets.all(20.w),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PAYMENT METHOD',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Color(0xFF2C9BE0),
+                            barrierColor: Colors.black.withOpacity(0.2),
+                            builder: (context) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PromoCodeScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: Color(0xFF2C9BE0),
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20.r),
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 20.w,
+                                        vertical: 10.h,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Apply 20% off promo code>>',
+                                            style: TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 12.sp,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16.r),
+                                  ),
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                    ),
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20.w),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 69.w,
+                                            height: 5.h,
+                                            margin: EdgeInsets.only(
+                                              bottom: 20.h,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade300,
+                                              borderRadius:
+                                                  BorderRadius.circular(2.5.r),
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Choose payment method',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 18.sp,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    Navigator.pop(context),
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 24.sp,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 20.h),
+                                          _buildPaymentOption(
+                                            'Pay with wallet',
+                                          ),
+                                          Divider(
+                                            thickness: 1,
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          _buildPaymentOption('Pay with card'),
+                                          Divider(
+                                            thickness: 1,
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          _buildPaymentOption('pay4me'),
+                                          Divider(
+                                            thickness: 1,
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          _buildPaymentOption('Pay in car'),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 15.w,
+                            vertical: 12.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Color(
+                              ConstColors.fieldColor,
+                            ).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Row(
                             children: [
-                              ListTile(
-                                title: Text('Pay in car'),
-                                onTap: () {
-                                  setSheetState(() {
-                                    selectedPaymentMethod = 'in_car';
-                                  });
-                                  Navigator.pop(context);
-                                },
+                              Image.asset(
+                                _getPaymentMethodIcon(selectedPaymentMethod),
+                                width: 60.w,
+                                height: 28.h,
+                                fit: BoxFit.contain,
                               ),
-                              ListTile(
-                                title: Text('Pay with Card'),
-                                onTap: () {
-                                  setSheetState(() {
-                                    selectedPaymentMethod = 'gateway';
-                                  });
-                                  Navigator.pop(context);
-                                },
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: Text(
+                                  selectedPaymentMethod,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16.sp,
+                                color: Colors.grey,
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
-                    child: _buildEditField(
-                      'PAYMENT METHOD',
-                      selectedPaymentMethod,
-                    ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 15.h),
                   // VEHICLE - Tappable to select vehicle type
@@ -8277,7 +8491,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     : int.parse(
                                         _activeRide?['ID']?.toString() ?? '0',
                                       ));
-                            print('DEBUG: rideId found: $rideId'); // DEBUG
 
                             // Get pickup coordinates
                             final pickupCoords =
@@ -8297,12 +8510,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             final dest =
                                 'POINT(${destCoords.longitude} ${destCoords.latitude})';
 
-                            // Get pickup address
                             final pickupAddress = fromController.text.isNotEmpty
                                 ? fromController.text
                                 : 'Current location';
-
-                            // Get destination address
                             final destAddress = toController.text;
                             if (destAddress.isEmpty) {
                               CustomFlushbar.showError(
@@ -8312,7 +8522,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               return;
                             }
 
-                            // Format scheduled date and time
                             final scheduledDateTime = DateTime(
                               selectedDate.year,
                               selectedDate.month,
@@ -8323,13 +8532,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             final scheduledAt = scheduledDateTime
                                 .toUtc()
                                 .toIso8601String();
-
-                            // Get stop address if available
                             final stopAddress = stopController.text.isNotEmpty
                                 ? stopController.text
                                 : null;
-
-                            // Get vehicle type
                             final vehicleType = selectedVehicle != null
                                 ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
                                 : [
@@ -8353,7 +8558,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
 
                             try {
-                              // Call update prebooked ride API
+                              // First update the prebooked ride
                               final result = await _rideService
                                   .updatePrebookedRide(
                                     rideId: rideId,
@@ -8366,28 +8571,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                     vehicleType: vehicleType,
                                   );
 
-                              // Close loading dialog
-                              if (mounted) {
-                                Navigator.of(
-                                  this.context,
-                                  rootNavigator: true,
-                                ).pop();
-                              }
-
-                              if (result['success'] == true) {
-                                if (mounted) {
-                                  CustomFlushbar.showSuccess(
-                                    context: this.context,
-                                    message: 'Ride updated successfully',
-                                  );
-
-                                  // Optionally refresh the ride details
-                                  AppLogger.log(
-                                    'Updated ride data: ${result['data']}',
-                                    tag: 'UPDATE_PREBOOKED',
-                                  );
+                              if (result['success'] != true) {
+                                if (mounted &&
+                                    Navigator.of(
+                                      this.context,
+                                      rootNavigator: true,
+                                    ).canPop()) {
+                                  Navigator.of(
+                                    this.context,
+                                    rootNavigator: true,
+                                  ).pop();
                                 }
-                              } else {
                                 if (mounted) {
                                   CustomFlushbar.showError(
                                     context: this.context,
@@ -8396,26 +8590,154 @@ class _HomeScreenState extends State<HomeScreen> {
                                         'Failed to update ride',
                                   );
                                 }
+                                return;
                               }
-                            } catch (e) {
-                              // Close loading dialog
-                              if (mounted) {
+
+                              AppLogger.log(
+                                '✅ Prebooked ride updated: ${result['data']}',
+                                tag: 'UPDATE_PREBOOKED',
+                              );
+
+                              // Now handle payment based on selected method
+                              if (selectedPaymentMethod == 'Pay with card' ||
+                                  selectedPaymentMethod == 'Pay with wallet') {
+                                final price =
+                                    _currentRideResponse?.price ??
+                                    (_activeRide?['Price'] is double
+                                        ? _activeRide!['Price']
+                                        : double.tryParse(
+                                                _activeRide?['Price']
+                                                        ?.toString() ??
+                                                    '0',
+                                              ) ??
+                                              0.0);
+
+                                final paymentData = await _paymentService
+                                    .initializePayment(
+                                      rideId: rideId,
+                                      amount: price,
+                                    );
+
+                                AppLogger.log(
+                                  '💳 Payment data: $paymentData',
+                                  tag: 'UPDATE_PREBOOKED',
+                                );
+
+                                if (selectedPaymentMethod == 'Pay with card' &&
+                                    paymentData['authorization_url'] != null) {
+                                  // Close loading
+                                  if (mounted &&
+                                      Navigator.of(
+                                        this.context,
+                                        rootNavigator: true,
+                                      ).canPop()) {
+                                    Navigator.of(
+                                      this.context,
+                                      rootNavigator: true,
+                                    ).pop();
+                                  }
+
+                                  final paymentResult = await Navigator.push(
+                                    this.context,
+                                    MaterialPageRoute(
+                                      builder: (context) => PaymentWebViewScreen(
+                                        authorizationUrl:
+                                            paymentData['authorization_url'],
+                                        reference: paymentData['reference'],
+                                        onPaymentSuccess: () {},
+                                      ),
+                                    ),
+                                  );
+
+                                  if (paymentResult == true && mounted) {
+                                    CustomFlushbar.showSuccess(
+                                      context: this.context,
+                                      message:
+                                          'Prebooking saved and payment successful!',
+                                    );
+                                  } else if (mounted) {
+                                    CustomFlushbar.showError(
+                                      context: this.context,
+                                      message: 'Payment was not completed.',
+                                    );
+                                  }
+                                  return;
+                                }
+
+                                // Wallet payment
+                                if (selectedPaymentMethod ==
+                                    'Pay with wallet') {
+                                  if (mounted &&
+                                      Navigator.of(
+                                        this.context,
+                                        rootNavigator: true,
+                                      ).canPop()) {
+                                    Navigator.of(
+                                      this.context,
+                                      rootNavigator: true,
+                                    ).pop();
+                                  }
+
+                                  if (paymentData['success'] == true ||
+                                      paymentData['status'] == true) {
+                                    if (mounted) {
+                                      CustomFlushbar.showSuccess(
+                                        context: this.context,
+                                        message:
+                                            'Prebooking saved and wallet charged successfully!',
+                                      );
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      CustomFlushbar.showError(
+                                        context: this.context,
+                                        message:
+                                            paymentData['message'] ??
+                                            'Wallet payment failed.',
+                                      );
+                                    }
+                                  }
+                                  return;
+                                }
+                              }
+
+                              // For Pay in car / pay4me - no payment initialization needed
+                              if (mounted &&
+                                  Navigator.of(
+                                    this.context,
+                                    rootNavigator: true,
+                                  ).canPop()) {
                                 Navigator.of(
                                   this.context,
                                   rootNavigator: true,
                                 ).pop();
                               }
-
+                              if (mounted) {
+                                CustomFlushbar.showSuccess(
+                                  context: this.context,
+                                  message: 'Prebooking saved successfully!',
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted &&
+                                  Navigator.of(
+                                    this.context,
+                                    rootNavigator: true,
+                                  ).canPop()) {
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).pop();
+                              }
                               AppLogger.error(
-                                'Update prebooked ride error',
+                                'Save prebooked ride error',
                                 error: e,
                                 tag: 'UPDATE_PREBOOKED',
                               );
-
                               if (mounted) {
                                 CustomFlushbar.showError(
                                   context: this.context,
-                                  message: 'Error updating ride: $e',
+                                  message: 'Error saving prebooking: $e',
                                 );
                               }
                             }

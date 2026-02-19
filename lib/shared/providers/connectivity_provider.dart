@@ -1,65 +1,104 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:muvam/core/services/connectivity_service.dart';
-import 'package:muvam/core/utils/app_logger.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
-class ConnectivityProvider with ChangeNotifier {
-  final ConnectivityService _connectivityService = ConnectivityService();
+enum NetworkState { connected, disconnected, reconnecting }
 
-  bool _isConnected = true;
-  bool get isConnected => _isConnected;
+class ConnectivityProvider extends ChangeNotifier {
+  static final ConnectivityProvider _instance =
+      ConnectivityProvider._internal();
+  factory ConnectivityProvider() => _instance;
+  ConnectivityProvider._internal();
 
-  bool _hasShownInitialStatus = false;
+  // ── State ──────────────────────────────────────────────────────────────────
+  NetworkState _state = NetworkState.connected;
+  bool _isInitialized = false;
+  bool _wasDisconnected = false;
+  DateTime? _disconnectedAt;
 
-  ConnectivityProvider() {
-    _initialize();
+  final List<VoidCallback> _onReconnectListeners = [];
+  StreamSubscription<InternetStatus>? _subscription;
+
+  final _connection = InternetConnection.createInstance(
+    checkInterval: const Duration(seconds: 5),
+    customCheckOptions: [
+      InternetCheckOption(
+        uri: Uri.parse('https://one.one.one.one'),
+        responseStatusFn: (response) =>
+            response.statusCode >= 200 && response.statusCode < 300,
+      ),
+      InternetCheckOption(
+        uri: Uri.parse('https://www.google.com'),
+        responseStatusFn: (response) =>
+            response.statusCode >= 200 && response.statusCode < 300,
+      ),
+    ],
+  );
+
+  // ── Getters ────────────────────────────────────────────────────────────────
+  NetworkState get state => _state;
+  bool get isConnected => _state == NetworkState.connected;
+  bool get isDisconnected => _state == NetworkState.disconnected;
+  bool get isReconnecting => _state == NetworkState.reconnecting;
+  bool get isInitialized => _isInitialized;
+
+  // ── Initialize ─────────────────────────────────────────────────────────────
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    final hasAccess = await _connection.hasInternetAccess;
+    _state = hasAccess ? NetworkState.connected : NetworkState.disconnected;
+    if (!hasAccess) _disconnectedAt = DateTime.now();
+    _isInitialized = true;
+
+    _subscription = _connection.onStatusChange.listen(_onStatusChanged);
+
+    notifyListeners();
   }
 
-  Future<void> _initialize() async {
-    _connectivityService.onConnectivityChanged = (isConnected) {
-      AppLogger.log(
-        'CALLBACK RECEIVED in provider! isConnected: $isConnected',
-        tag: 'CONNECTIVITY_PROVIDER',
-      );
+  void _onStatusChanged(InternetStatus status) {
+    if (status == InternetStatus.connected) {
+      if (_wasDisconnected) {
+        // Brief "reconnecting" flash, then connected
+        _state = NetworkState.reconnecting;
+        notifyListeners();
 
-      _isConnected = isConnected;
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          _state = NetworkState.connected;
+          _wasDisconnected = false;
+          _disconnectedAt = null;
+          notifyListeners();
+
+          for (final cb in _onReconnectListeners) {
+            cb();
+          }
+        });
+      } else {
+        _state = NetworkState.connected;
+        notifyListeners();
+      }
+    } else {
+      _wasDisconnected = true;
+      _disconnectedAt ??= DateTime.now();
+      _state = NetworkState.disconnected;
       notifyListeners();
-
-      AppLogger.log(
-        'notifyListeners() called successfully',
-        tag: 'CONNECTIVITY_PROVIDER',
-      );
-    };
-
-    AppLogger.log(
-      'Callback registered, initializing service...',
-      tag: 'CONNECTIVITY_PROVIDER',
-    );
-
-    await _connectivityService.initialize();
-
-    _isConnected = _connectivityService.isConnected;
-    _hasShownInitialStatus = true;
-
-    AppLogger.log(
-      'Provider initialized. Initial status: $_isConnected',
-      tag: 'CONNECTIVITY_PROVIDER',
-    );
-
-    notifyListeners();
+    }
   }
 
-  Future<bool> checkConnectivity() async {
-    final isConnected = await _connectivityService.checkConnectivity();
-    _isConnected = isConnected;
-    notifyListeners();
-    return isConnected;
+  // ── Public helpers ─────────────────────────────────────────────────────────
+  Future<bool> checkNow() => _connection.hasInternetAccess;
+
+  void addReconnectListener(VoidCallback cb) {
+    _onReconnectListeners.add(cb);
   }
 
-  bool get hasShownInitialStatus => _hasShownInitialStatus;
+  void removeReconnectListener(VoidCallback cb) {
+    _onReconnectListeners.remove(cb);
+  }
 
   @override
   void dispose() {
-    _connectivityService.dispose();
+    _subscription?.cancel();
     super.dispose();
   }
 }

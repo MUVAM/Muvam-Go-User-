@@ -51,7 +51,9 @@ class WalletCard extends StatelessWidget {
                       ),
                     ),
                     GestureDetector(
-                      onTap: onFundWallet,
+                      // onTap: onFundWallet,
+                                          onTap: onCopyAccountNumber,
+
                       child: Container(
                         width: 100.w,
                         height: 28.h,

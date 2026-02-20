@@ -31,8 +31,11 @@ class WalletSummaryResponse {
 
   factory WalletSummaryResponse.fromJson(Map<String, dynamic> json) =>
       WalletSummaryResponse(
-        id: json['id'] ?? 0,
-        balance: (json['balance'] ?? 0).toDouble(),
+id: json['wallet_id'] ?? 0,
+transactions: (json['recent_transactions'] as List<dynamic>?)
+    ?.map((t) => TransactionData.fromJson(t))
+    .toList() ?? [],
+            balance: (json['balance'] ?? 0).toDouble(),
         currency: json['currency'] ?? 'NGN',
         isActive: json['is_active'] ?? false,
         isFrozen: json['is_frozen'] ?? false,
@@ -45,11 +48,7 @@ class WalletSummaryResponse {
         virtualAccount: json['virtual_account'] != null
             ? VirtualAccountInfo.fromJson(json['virtual_account'])
             : null,
-        transactions:
-            (json['transactions'] as List<dynamic>?)
-                ?.map((t) => TransactionData.fromJson(t))
-                .toList() ??
-            [],
+        
       );
 }
 
@@ -98,12 +97,11 @@ class TransactionData {
 
   factory TransactionData.fromJson(Map<String, dynamic> json) =>
       TransactionData(
-        id: json['id'] ?? 0,
-        amount: (json['amount'] ?? 0).toDouble(),
+id: json['ID'] ?? 0,
+createdAt: json['CreatedAt'] ?? '',        amount: (json['amount'] ?? 0).toDouble(),
         type: json['type'] ?? '',
         status: json['status'] ?? '',
         description: json['description'] ?? '',
-        createdAt: json['createdAt'] ?? '',
         balanceBefore: (json['balance_before'] ?? 0).toDouble(),
         balanceAfter: (json['balance_after'] ?? 0).toDouble(),
       );

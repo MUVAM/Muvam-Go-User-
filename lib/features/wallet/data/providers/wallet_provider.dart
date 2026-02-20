@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:muvam/core/services/wallet_service.dart';
 import 'package:muvam/features/wallet/data/models/wallet_models.dart';
@@ -103,23 +105,25 @@ class WalletProvider with ChangeNotifier {
     final balance = walletBalance ?? 0.0;
     return '₦${balance.toStringAsFixed(2)}';
   }
+Future<bool> fetchWalletSummary() async {
+  debugPrint('🟡 fetchWalletSummary started');
+  _setLoading(true);
+  _setError(null);
 
-  // Wallet Summary Methods
-  Future<bool> fetchWalletSummary() async {
-    _setLoading(true);
-    _setError(null);
-
-    try {
-      _walletSummary = await _walletService.getWalletSummary();
-      _setLoading(false);
-      return true;
-    } catch (e) {
-      _setError(e.toString().replaceAll('Exception: ', ''));
-      _setLoading(false);
-      return false;
-    }
+  try {
+    debugPrint('🟡 Calling walletService.getWalletSummary...');
+    _walletSummary = await _walletService.getWalletSummary();
+    debugPrint('🟡 getWalletSummary returned: $_walletSummary');
+    _setLoading(false);
+    return true;
+  } catch (e, stack) {
+    debugPrint('🔴 fetchWalletSummary ERROR: $e');
+    debugPrint('🔴 Stack: $stack');
+    _setError(e.toString().replaceAll('Exception: ', ''));
+    _setLoading(false);
+    return false;
   }
-
+}
   String formatAmount(double amount) {
     return '₦${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
   }

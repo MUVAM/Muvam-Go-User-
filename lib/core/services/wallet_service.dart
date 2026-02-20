@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/wallet/data/models/wallet_models.dart';
@@ -95,31 +96,46 @@ class WalletService {
   }
 
   Future<WalletSummaryResponse> getWalletSummary() async {
-    AppLogger.log('thisss endpoint is getting called sha');
-    final token = await _getToken();
+    debugPrint('🟢 WalletService.getWalletSummary called');
+    try {
+      final token = await _getToken();
+      debugPrint('🟢 Token: ${token != null ? "EXISTS" : "NULL"}');
 
-    AppLogger.log(
-      'Getting wallet summary with token: ${token != null ? "Present" : "Missing"}',
-    );
+      final url = '${UrlConstants.baseUrl}${UrlConstants.walletSummary}';
+      debugPrint('🟢 URL: $url');
 
-    final response = await http.get(
-      Uri.parse('${UrlConstants.baseUrl}${UrlConstants.walletSummary}'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            Duration(seconds: 30),
+            onTimeout: () {
+              debugPrint('🔴 Request TIMED OUT after 30 seconds');
+              throw Exception('Request timed out');
+            },
+          );
 
-    AppLogger.log('Wallet summary response: ${response.statusCode}');
+      debugPrint('🟢 Response status: ${response.statusCode}');
+      debugPrint('🟢 Response body: ${response.body}');
 
-    if (response.statusCode == 200) {
-      AppLogger.log('Wallet summary: ${response.body}');
-      final jsonResponse = jsonDecode(response.body);
-      return WalletSummaryResponse.fromJson(jsonResponse);
-    } else {
-      AppLogger.log('Failed to fetch wallet summary: ${response.body}');
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Failed to fetch wallet summary');
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return WalletSummaryResponse.fromJson(jsonResponse);
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(
+          errorBody['message'] ?? 'Failed to fetch wallet summary',
+        );
+      }
+    } catch (e, stack) {
+      debugPrint('🔴 WalletService.getWalletSummary ERROR: $e');
+      debugPrint('🔴 Stack: $stack');
+      rethrow;
     }
   }
 
@@ -141,7 +157,7 @@ class WalletService {
       },
     );
 
-    AppLogger.log('Get virtual account response: ${response.statusCode}');
+    AppLogger.log('Get virtual account response: ${response.body}');
 
     if (response.statusCode == 200) {
       AppLogger.log('Virtual account found: ${response.body}');

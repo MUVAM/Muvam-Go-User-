@@ -5,9 +5,57 @@ import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/features/wallet/presentation/screens/get_account_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
+import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dart';
+import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
+import 'package:muvam/features/wallet/presentation/widgets/wallet_card.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class WalletEmptyScreen extends StatelessWidget {
+class WalletEmptyScreen extends StatefulWidget {
   const WalletEmptyScreen({super.key});
+
+  @override
+  State<WalletEmptyScreen> createState() => _WalletEmptyScreenState();
+}
+
+class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
+ @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        debugPrint('🔵 WalletScreen initState called');
+
+        // Check if provider exists
+        final provider = context.read<WalletProvider>();
+        debugPrint('🔵 WalletProvider found: $provider');
+
+        // Check token directly
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('auth_token');
+        debugPrint(
+          '🔵 Auth token: ${token != null ? "EXISTS: $token" : "NULL - THIS IS THE PROBLEM"}',
+        );
+
+        debugPrint('🔵 Calling fetchWalletSummary...');
+        final result = await provider.fetchWalletSummary();
+        debugPrint('🔵 fetchWalletSummary result: $result');
+        debugPrint('🔵 Error message: ${provider.errorMessage}');
+        debugPrint('🔵 Wallet summary: ${provider.walletSummary}');
+      } catch (e, stack) {
+        debugPrint('🔴 CRITICAL ERROR in WalletScreen initState: $e');
+        debugPrint('🔴 Stack trace: $stack');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

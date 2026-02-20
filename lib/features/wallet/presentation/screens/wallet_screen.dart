@@ -10,6 +10,7 @@ import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dar
 import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
 import 'package:muvam/features/wallet/presentation/widgets/wallet_card.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -22,8 +23,30 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<WalletProvider>().fetchWalletSummary();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        debugPrint('🔵 WalletScreen initState called');
+
+        // Check if provider exists
+        final provider = context.read<WalletProvider>();
+        debugPrint('🔵 WalletProvider found: $provider');
+
+        // Check token directly
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('auth_token');
+        debugPrint(
+          '🔵 Auth token: ${token != null ? "EXISTS: $token" : "NULL - THIS IS THE PROBLEM"}',
+        );
+
+        debugPrint('🔵 Calling fetchWalletSummary...');
+        final result = await provider.fetchWalletSummary();
+        debugPrint('🔵 fetchWalletSummary result: $result');
+        debugPrint('🔵 Error message: ${provider.errorMessage}');
+        debugPrint('🔵 Wallet summary: ${provider.walletSummary}');
+      } catch (e, stack) {
+        debugPrint('🔴 CRITICAL ERROR in WalletScreen initState: $e');
+        debugPrint('🔴 Stack trace: $stack');
+      }
     });
   }
 

@@ -1654,6 +1654,58 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Future<void> _getCurrentLocation() async {
+  //   try {
+  //     LocationPermission permission = await Geolocator.checkPermission();
+  //     if (permission == LocationPermission.denied) {
+  //       permission = await Geolocator.requestPermission();
+  //     }
+
+  //     if (permission != LocationPermission.denied) {
+  //       Position position = await Geolocator.getCurrentPosition();
+  //       List<Placemark> placemarks = await placemarkFromCoordinates(
+  //         position.latitude,
+  //         position.longitude,
+  //       );
+  //       String currentAddress = 'Current location';
+  //       if (placemarks.isNotEmpty) {
+  //         Placemark place = placemarks[0];
+  //         currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
+  //             .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+  //         if (currentAddress.isEmpty) currentAddress = 'Current location';
+  //       }
+  //       // setState(() {
+  //       //   _currentLocation = LatLng(position.latitude, position.longitude);
+  //       //   _userCurrentLocation = position;
+  //       //   _currentLocationAddress = currentAddress; // Store the address
+  //       //   _isLocationLoaded = true;
+  //       // });
+  //       setState(() {
+  //         _currentLocation = LatLng(position.latitude, position.longitude);
+  //         _userCurrentLocation = position;
+  //         _currentLocationAddress = currentAddress;
+  //         _isLocationLoaded = true;
+  //         // Auto-fill fromController so textfield shows real address immediately
+  //         // and becomes editable right away
+  //         if (fromController.text.isEmpty ||
+  //             fromController.text == 'Current location') {
+  //           fromController.text = currentAddress;
+  //           _pickupCoordinates = LatLng(position.latitude, position.longitude);
+  //           _isFromFieldEditable = true;
+  //         }
+  //       });
+  //       AppLogger.log(
+  //         '📍 Current user location: ${position.latitude}, ${position.longitude}',
+  //       );
+
+  //       // Check for nearby drivers immediately after getting location
+  //       _checkNearbyDrivers();
+  //     }
+  //   } catch (e) {
+  //     AppLogger.log('Error getting location: $e');
+  //   }
+  // }
+
   Future<void> _getCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -1661,48 +1713,68 @@ class _HomeScreenState extends State<HomeScreen> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission != LocationPermission.denied) {
-        Position position = await Geolocator.getCurrentPosition();
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
-        String currentAddress = 'Current location';
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks[0];
-          currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
-              .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
-          if (currentAddress.isEmpty) currentAddress = 'Current location';
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever)
+        return;
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Get address
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      String currentAddress = 'Current location';
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
+            .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+        if (currentAddress.trim().isEmpty || currentAddress.trim() == ',') {
+          currentAddress =
+              place.locality ?? place.administrativeArea ?? 'Current location';
         }
-        // setState(() {
-        //   _currentLocation = LatLng(position.latitude, position.longitude);
-        //   _userCurrentLocation = position;
-        //   _currentLocationAddress = currentAddress; // Store the address
-        //   _isLocationLoaded = true;
-        // });
+      }
+
+      final coords = LatLng(position.latitude, position.longitude);
+
+      if (mounted) {
         setState(() {
-          _currentLocation = LatLng(position.latitude, position.longitude);
+          _currentLocation = coords;
           _userCurrentLocation = position;
           _currentLocationAddress = currentAddress;
           _isLocationLoaded = true;
-          // Auto-fill fromController so textfield shows real address immediately
-          // and becomes editable right away
+          _pickupCoordinates = coords;
+
+          // Only set controller if it's empty or still has placeholder text
           if (fromController.text.isEmpty ||
-              fromController.text == 'Current location') {
+              fromController.text == 'Current location' ||
+              fromController.text == 'Loading...') {
             fromController.text = currentAddress;
-            _pickupCoordinates = LatLng(position.latitude, position.longitude);
             _isFromFieldEditable = true;
           }
         });
-        AppLogger.log(
-          '📍 Current user location: ${position.latitude}, ${position.longitude}',
-        );
 
-        // Check for nearby drivers immediately after getting location
-        _checkNearbyDrivers();
+        // Move camera to current location
+        _mapController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: coords, zoom: 16.0),
+          ),
+        );
       }
+
+      // Check nearby drivers after location is confirmed
+      _checkNearbyDrivers();
     } catch (e) {
-      AppLogger.log('Error getting location: $e');
+      AppLogger.error('Error getting location: $e', tag: 'LOCATION');
+      // Set editable even on error so user isn't stuck
+      if (mounted) {
+        setState(() {
+          _isFromFieldEditable = true;
+        });
+      }
     }
   }
 
@@ -2462,18 +2534,50 @@ class _HomeScreenState extends State<HomeScreen> {
     await profileProvider.fetchUserProfile();
   }
 
+  // Future<void> _forceUpdateLocation() async {
+  //   try {
+  //     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  //     if (!serviceEnabled) return;
+
+  //     LocationPermission permission = await Geolocator.checkPermission();
+  //     if (permission == LocationPermission.denied) {
+  //       permission = await Geolocator.requestPermission();
+  //       if (permission == LocationPermission.denied) return;
+  //     }
+
+  //     if (permission == LocationPermission.deniedForever) return;
+
+  //     Position position = await Geolocator.getCurrentPosition(
+  //       desiredAccuracy: LocationAccuracy.high,
+  //     );
+
+  //     if (mounted) {
+  //       setState(() {
+  //         _currentLocation = LatLng(position.latitude, position.longitude);
+  //         _userCurrentLocation = position;
+  //       });
+
+  //       _mapController?.animateCamera(
+  //         CameraUpdate.newCameraPosition(
+  //           CameraPosition(target: _currentLocation, zoom: 16.0),
+  //         ),
+  //       );
+  //       AppLogger.log('📍 Map centered to: $_currentLocation', tag: 'LOCATION');
+  //     }
+  //   } catch (e) {
+  //     AppLogger.error('Error getting location: $e', tag: 'LOCATION');
+  //   }
+  // }
+
   Future<void> _forceUpdateLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
 
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
-      }
-
-      if (permission == LocationPermission.deniedForever) return;
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever)
+        return;
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -2483,17 +2587,22 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _userCurrentLocation = position;
+          // Only update coordinates, never touch fromController here
+          // _getCurrentLocation() is the sole owner of the address text
         });
 
+        // Only move camera, don't touch controllers
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(target: _currentLocation, zoom: 16.0),
+            CameraPosition(
+              target: LatLng(position.latitude, position.longitude),
+              zoom: 16.0,
+            ),
           ),
         );
-        AppLogger.log('📍 Map centered to: $_currentLocation', tag: 'LOCATION');
       }
     } catch (e) {
-      AppLogger.error('Error getting location: $e', tag: 'LOCATION');
+      AppLogger.error('Error in forceUpdateLocation: $e', tag: 'LOCATION');
     }
   }
 

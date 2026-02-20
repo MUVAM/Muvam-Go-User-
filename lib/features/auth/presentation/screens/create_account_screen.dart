@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
@@ -584,7 +585,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
                   // Convert to Map
                   final requestMap = request.toJson();
-                  AppLogger.log('Registration request: $requestMap');
+                 log('Registration request: $requestMap');
 
                   // Pass the Map directly to the provider
                   final success = await authProvider.registerUserWithJson(

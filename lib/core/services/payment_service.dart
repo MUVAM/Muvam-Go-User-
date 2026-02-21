@@ -32,20 +32,20 @@ class PaymentService {
     }
   }
 
-  String generateReference() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = Random().nextInt(999999).toString().padLeft(6, '0');
-    final reference = 'MUV-$timestamp-$random';
-    AppLogger.log('Generated payment reference: $reference', tag: 'PAYMENT');
-    return reference;
-  }
+  // String generateReference() {
+  //   final timestamp = DateTime.now().millisecondsSinceEpoch;
+  //   final random = Random().nextInt(999999).toString().padLeft(6, '0');
+  //   final reference = 'MUV-$timestamp-$random';
+  //   AppLogger.log('Generated payment reference: $reference', tag: 'PAYMENT');
+  //   return reference;
+  // }
 
   Future<Map<String, dynamic>> initializePayment({
     required int rideId,
     required double amount,
     String? reference,
   }) async {
-    final paymentReference = reference ?? generateReference();
+    final paymentReference = reference ;
 
     AppLogger.log(
       'Initializing payment for ride $rideId, amount: ₦$amount, reference: $paymentReference',

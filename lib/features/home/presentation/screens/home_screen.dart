@@ -5320,25 +5320,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 SizedBox(height: 20.h),
-                Container(
-                  width: 353.w,
-                  height: 48.h,
-                  decoration: BoxDecoration(
-                    color: noteController.text.isNotEmpty
-                        ? Color(ConstColors.mainColor)
-                        : Color(ConstColors.fieldColor),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: GestureDetector(
-                    onTap: noteController.text.isNotEmpty
-                        ? () {
-                            // Call the callback to update parent sheet
-                            if (onNoteChanged != null) {
-                              onNoteChanged();
-                            }
-                            Navigator.pop(context);
+                GestureDetector(
+                  onTap: noteController.text.isNotEmpty
+                      ? () {
+                          // Call the callback to update parent sheet
+                          if (onNoteChanged != null) {
+                            onNoteChanged();
                           }
-                        : null,
+                          Navigator.pop(context);
+                        }
+                      : null,
+                  child: Container(
+                    width: 353.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: noteController.text.isNotEmpty
+                          ? Color(ConstColors.mainColor)
+                          : Color(ConstColors.fieldColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
                     child: Center(
                       child: Text(
                         'Submit',
@@ -7375,23 +7375,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.pop(context);
                         _sheetController.animateTo(
-                          0.2,
+                          0.4,
                           duration: Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
-                        _showEditPrebookingSheet();
+                        // _showEditPrebookingSheet();
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.edit_outlined,
+                            Icons.refresh_outlined,
                             size: 20.sp,
                             color: Colors.black,
                           ),
                           SizedBox(width: 8.w),
                           Text(
-                            'Modify trip',
+                            'Book Again',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
@@ -7741,23 +7741,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Spacer(),
-            Container(
-              width: 353.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _sheetController.animateTo(
-                    0.2,
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                  _showEditPrebookingSheet();
-                },
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                _sheetController.animateTo(
+                  0.2,
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+                _showEditPrebookingSheet();
+              },
+              child: Container(
+                width: 353.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Color(ConstColors.mainColor),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
                 child: Center(
                   child: Text(
                     'Edit prebooking',
@@ -7843,16 +7843,16 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    final scheduledDateTime = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-      selectedTime.hour,
-      selectedTime.minute,
-    );
+    // final scheduledDateTime = DateTime(
+    //   selectedDate.year,
+    //   selectedDate.month,
+    //   selectedDate.day,
+    //   selectedTime.hour,
+    //   selectedTime.minute,
+    // );
 
-    final formattedDate =
-        '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
+    // final formattedDate =
+    //     '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
 
     showModalBottomSheet(
       context: context,
@@ -7863,6 +7863,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
+          final scheduledDateTime = DateTime(
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            selectedTime.hour,
+            selectedTime.minute,
+          );
+          final formattedDate =
+              '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, '
+              '${scheduledDateTime.year} at ${selectedTime.format(context)}';
           return Container(
             height: 852.h,
             padding: EdgeInsets.all(20.w),
@@ -8611,19 +8621,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Spacer(),
                   Column(
                     children: [
-                      Container(
-                        width: 353.w,
-                        height: 48.h,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.red),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                            _showTripCanceledSheet();
-                          },
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showTripCanceledSheet();
+                        },
+                        child: Container(
+                          width: 353.w,
+                          height: 48.h,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.red),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
                           child: Center(
                             child: Text(
                               'Cancel prebooking',
@@ -8637,104 +8647,150 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       SizedBox(height: 15.h),
-                      Container(
-                        width: 353.w,
-                        height: 48.h,
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: GestureDetector(
-                          onTap: () async {
-                            // Get ride ID
-                            final rideId =
-                                _currentRideResponse?.id ??
-                                (_activeRide?['ID'] is int
-                                    ? _activeRide!['ID']
-                                    : int.parse(
-                                        _activeRide?['ID']?.toString() ?? '0',
-                                      ));
+                      GestureDetector(
+                        onTap: () async {
+                          // Get ride ID
+                          final rideId =
+                              _currentRideResponse?.id ??
+                              (_activeRide?['ID'] is int
+                                  ? _activeRide!['ID']
+                                  : int.parse(
+                                      _activeRide?['ID']?.toString() ?? '0',
+                                    ));
 
-                            // Get pickup coordinates
-                            final pickupCoords =
-                                _pickupCoordinates ?? _currentLocation;
-                            final pickup =
-                                'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
+                          // Get pickup coordinates
+                          final pickupCoords =
+                              _pickupCoordinates ?? _currentLocation;
+                          final pickup =
+                              'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
 
-                            // Get destination coordinates
-                            final destCoords = _destinationCoordinates;
-                            if (destCoords == null) {
-                              CustomFlushbar.showError(
-                                context: context,
-                                message: 'Please select a destination',
-                              );
-                              return;
-                            }
-                            final dest =
-                                'POINT(${destCoords.longitude} ${destCoords.latitude})';
-
-                            final pickupAddress = fromController.text.isNotEmpty
-                                ? fromController.text
-                                : 'Current location';
-                            final destAddress = toController.text;
-                            if (destAddress.isEmpty) {
-                              CustomFlushbar.showError(
-                                context: context,
-                                message: 'Please enter a destination',
-                              );
-                              return;
-                            }
-
-                            final scheduledDateTime = DateTime(
-                              selectedDate.year,
-                              selectedDate.month,
-                              selectedDate.day,
-                              selectedTime.hour,
-                              selectedTime.minute,
+                          // Get destination coordinates
+                          final destCoords = _destinationCoordinates;
+                          if (destCoords == null) {
+                            CustomFlushbar.showError(
+                              context: context,
+                              message: 'Please select a destination',
                             );
-                            final scheduledAt = scheduledDateTime
-                                .toUtc()
-                                .toIso8601String();
-                            final stopAddress = stopController.text.isNotEmpty
-                                ? stopController.text
-                                : null;
-                            final vehicleType = selectedVehicle != null
-                                ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
-                                : [
-                                    'Bicycle',
-                                    'Vehicle',
-                                    'Motor bike',
-                                  ][selectedDelivery!];
+                            return;
+                          }
+                          final dest =
+                              'POINT(${destCoords.longitude} ${destCoords.latitude})';
 
-                            // Close the sheet
-                            Navigator.pop(context);
+                          final pickupAddress = fromController.text.isNotEmpty
+                              ? fromController.text
+                              : 'Current location';
+                          final destAddress = toController.text;
+                          if (destAddress.isEmpty) {
+                            CustomFlushbar.showError(
+                              context: context,
+                              message: 'Please enter a destination',
+                            );
+                            return;
+                          }
 
-                            // Show loading
-                            showDialog(
-                              context: this.context,
-                              barrierDismissible: false,
-                              builder: (context) => Center(
-                                child: CircularProgressIndicator(
-                                  color: Color(ConstColors.mainColor),
-                                ),
+                          final scheduledDateTime = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            selectedTime.hour,
+                            selectedTime.minute,
+                          );
+                          final scheduledAt = scheduledDateTime
+                              .toUtc()
+                              .toIso8601String();
+                          final stopAddress = stopController.text.isNotEmpty
+                              ? stopController.text
+                              : null;
+                          final vehicleType = selectedVehicle != null
+                              ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
+                              : [
+                                  'Bicycle',
+                                  'Vehicle',
+                                  'Motor bike',
+                                ][selectedDelivery!];
+
+                          // Close the sheet
+                          Navigator.pop(context);
+
+                          // Show loading
+                          showDialog(
+                            context: this.context,
+                            barrierDismissible: false,
+                            builder: (context) => Center(
+                              child: CircularProgressIndicator(
+                                color: Color(ConstColors.mainColor),
                               ),
+                            ),
+                          );
+
+                          try {
+                            // First update the prebooked ride
+                            final result = await _rideService
+                                .updatePrebookedRide(
+                                  rideId: rideId,
+                                  dest: dest,
+                                  destAddress: destAddress,
+                                  pickup: pickup,
+                                  pickupAddress: pickupAddress,
+                                  scheduledAt: scheduledAt,
+                                  stopAddress: stopAddress,
+                                  vehicleType: vehicleType,
+                                );
+
+                            if (result['success'] != true) {
+                              if (mounted &&
+                                  Navigator.of(
+                                    this.context,
+                                    rootNavigator: true,
+                                  ).canPop()) {
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).pop();
+                              }
+                              if (mounted) {
+                                CustomFlushbar.showError(
+                                  context: this.context,
+                                  message:
+                                      result['message'] ??
+                                      'Failed to update ride',
+                                );
+                              }
+                              return;
+                            }
+
+                            AppLogger.log(
+                              '✅ Prebooked ride updated: ${result['data']}',
+                              tag: 'UPDATE_PREBOOKED',
                             );
 
-                            try {
-                              // First update the prebooked ride
-                              final result = await _rideService
-                                  .updatePrebookedRide(
+                            // Now handle payment based on selected method
+                            if (selectedPaymentMethod == 'Pay with card') {
+                              final price =
+                                  _currentRideResponse?.price ??
+                                  (_activeRide?['Price'] is double
+                                      ? _activeRide!['Price']
+                                      : double.tryParse(
+                                              _activeRide?['Price']
+                                                      ?.toString() ??
+                                                  '0',
+                                            ) ??
+                                            0.0);
+
+                              final paymentData = await _paymentService
+                                  .initializePayment(
                                     rideId: rideId,
-                                    dest: dest,
-                                    destAddress: destAddress,
-                                    pickup: pickup,
-                                    pickupAddress: pickupAddress,
-                                    scheduledAt: scheduledAt,
-                                    stopAddress: stopAddress,
-                                    vehicleType: vehicleType,
+                                    amount: price,
                                   );
 
-                              if (result['success'] != true) {
+                              AppLogger.log(
+                                '💳 Payment data: $paymentData',
+                                tag: 'UPDATE_PREBOOKED',
+                              );
+
+                              if (selectedPaymentMethod == 'Pay with card' &&
+                                  paymentData['authorization_url'] != null) {
+                                // Close loading
                                 if (mounted &&
                                     Navigator.of(
                                       this.context,
@@ -8745,129 +8801,60 @@ class _HomeScreenState extends State<HomeScreen> {
                                     rootNavigator: true,
                                   ).pop();
                                 }
-                                if (mounted) {
-                                  CustomFlushbar.showError(
-                                    context: this.context,
-                                    message:
-                                        result['message'] ??
-                                        'Failed to update ride',
-                                  );
-                                }
-                                return;
-                              }
 
-                              AppLogger.log(
-                                '✅ Prebooked ride updated: ${result['data']}',
-                                tag: 'UPDATE_PREBOOKED',
-                              );
-
-                              // Now handle payment based on selected method
-                              if (selectedPaymentMethod == 'Pay with card') {
-                                final price =
-                                    _currentRideResponse?.price ??
-                                    (_activeRide?['Price'] is double
-                                        ? _activeRide!['Price']
-                                        : double.tryParse(
-                                                _activeRide?['Price']
-                                                        ?.toString() ??
-                                                    '0',
-                                              ) ??
-                                              0.0);
-
-                                final paymentData = await _paymentService
-                                    .initializePayment(
-                                      rideId: rideId,
-                                      amount: price,
-                                    );
-
-                                AppLogger.log(
-                                  '💳 Payment data: $paymentData',
-                                  tag: 'UPDATE_PREBOOKED',
+                                final paymentResult = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PaymentWebViewScreen(
+                                      authorizationUrl:
+                                          paymentData['authorization_url'],
+                                      reference: paymentData['reference'],
+                                      onPaymentSuccess: () {},
+                                    ),
+                                  ),
                                 );
 
-                                if (selectedPaymentMethod == 'Pay with card' &&
-                                    paymentData['authorization_url'] != null) {
-                                  // Close loading
-                                  if (mounted &&
-                                      Navigator.of(
-                                        this.context,
-                                        rootNavigator: true,
-                                      ).canPop()) {
-                                    Navigator.of(
-                                      this.context,
-                                      rootNavigator: true,
-                                    ).pop();
-                                  }
+                                // Replace the result handling with:
+                                if (paymentResult == true) {
+                                  // Verify payment before showing success
+                                  try {
+                                    final verifyResult = await _paymentService
+                                        .verifyPayment(
+                                          paymentData['reference'],
+                                        );
 
-                                  final paymentResult = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => PaymentWebViewScreen(
-                                        authorizationUrl:
-                                            paymentData['authorization_url'],
-                                        reference: paymentData['reference'],
-                                        onPaymentSuccess: () {},
-                                      ),
-                                    ),
-                                  );
+                                    if (!mounted) return;
 
-                                  // Replace the result handling with:
-                                  if (paymentResult == true) {
-                                    // Verify payment before showing success
-                                    try {
-                                      final verifyResult = await _paymentService
-                                          .verifyPayment(
-                                            paymentData['reference'],
-                                          );
+                                    if (verifyResult['success'] == true ||
+                                        verifyResult['status'] == 'success') {
+                                      fromController.clear();
+                                      toController.clear();
+                                      setState(() {
+                                        _showDestinationField = false;
+                                      });
+                                      Navigator.pop(context);
 
-                                      if (!mounted) return;
-
-                                      if (verifyResult['success'] == true ||
-                                          verifyResult['status'] == 'success') {
-                                        fromController.clear();
-                                        toController.clear();
+                                      if (isScheduledRide) {
+                                        final pickupAddress =
+                                            _currentRideResponse!.pickupAddress;
+                                        final destAddress =
+                                            _currentRideResponse!.destAddress;
+                                        _showTripScheduledSheet(
+                                          pickupAddress: pickupAddress,
+                                          destAddress: destAddress,
+                                        );
                                         setState(() {
-                                          _showDestinationField = false;
+                                          isScheduledRide = false;
                                         });
-                                        Navigator.pop(context);
-
-                                        if (isScheduledRide) {
-                                          final pickupAddress =
-                                              _currentRideResponse!
-                                                  .pickupAddress;
-                                          final destAddress =
-                                              _currentRideResponse!.destAddress;
-                                          _showTripScheduledSheet(
-                                            pickupAddress: pickupAddress,
-                                            destAddress: destAddress,
-                                          );
-                                          setState(() {
-                                            isScheduledRide = false;
-                                          });
-                                        } else {
-                                          _sheetController.animateTo(
-                                            0.2,
-                                            duration: Duration(
-                                              milliseconds: 300,
-                                            ),
-                                            curve: Curves.easeInOut,
-                                          );
-                                          _showBookSuccessfulSheet();
-                                        }
                                       } else {
-                                        if (mounted) {
-                                          setState(() {
-                                            _isBookingRide = false;
-                                          });
-                                          CustomFlushbar.showError(
-                                            context: context,
-                                            message:
-                                                verifyResult['message'] ??
-                                                'Payment verification failed. Please try again.',
-                                          );
-                                        }
+                                        _sheetController.animateTo(
+                                          0.2,
+                                          duration: Duration(milliseconds: 300),
+                                          curve: Curves.easeInOut,
+                                        );
+                                        _showBookSuccessfulSheet();
                                       }
-                                    } catch (e) {
+                                    } else {
                                       if (mounted) {
                                         setState(() {
                                           _isBookingRide = false;
@@ -8875,102 +8862,121 @@ class _HomeScreenState extends State<HomeScreen> {
                                         CustomFlushbar.showError(
                                           context: context,
                                           message:
-                                              'Error verifying payment: $e',
+                                              verifyResult['message'] ??
+                                              'Payment verification failed. Please try again.',
                                         );
                                       }
                                     }
-                                  } else {
+                                  } catch (e) {
                                     if (mounted) {
                                       setState(() {
                                         _isBookingRide = false;
                                       });
                                       CustomFlushbar.showError(
                                         context: context,
-                                        message: 'Payment was not completed.',
+                                        message: 'Error verifying payment: $e',
                                       );
                                     }
                                   }
-                                  return;
+                                } else {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isBookingRide = false;
+                                    });
+                                    CustomFlushbar.showError(
+                                      context: context,
+                                      message: 'Payment was not completed.',
+                                    );
+                                  }
                                 }
-
-                                // Wallet payment
-                                // if (selectedPaymentMethod ==
-                                //     'Pay with wallet') {
-                                // if (mounted &&
-                                //     Navigator.of(
-                                //       this.context,
-                                //       rootNavigator: true,
-                                //     ).canPop()) {
-                                //   Navigator.of(
-                                //     this.context,
-                                //     rootNavigator: true,
-                                //   ).pop();
-                                // }
-
-                                // if (paymentData['success'] == true ||
-                                //     paymentData['status'] == true) {
-                                //   if (mounted) {
-                                //     CustomFlushbar.showSuccess(
-                                //       context: this.context,
-                                //       message:
-                                //           'Prebooking saved and wallet charged successfully!',
-                                //     );
-                                //   }
-                                // } else {
-                                //   if (mounted) {
-                                //     CustomFlushbar.showError(
-                                //       context: this.context,
-                                //       message:
-                                //           paymentData['message'] ??
-                                //           'Wallet payment failed.',
-                                //     );
-                                //   }
-                                // }
-                                // return;
-                                // }
+                                return;
                               }
 
-                              // For Pay in car / pay4me - no payment initialization needed
-                              if (mounted &&
-                                  Navigator.of(
-                                    this.context,
-                                    rootNavigator: true,
-                                  ).canPop()) {
-                                Navigator.of(
-                                  this.context,
-                                  rootNavigator: true,
-                                ).pop();
-                              }
-                              if (mounted) {
-                                CustomFlushbar.showSuccess(
-                                  context: this.context,
-                                  message: 'Prebooking saved successfully!',
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted &&
-                                  Navigator.of(
-                                    this.context,
-                                    rootNavigator: true,
-                                  ).canPop()) {
-                                Navigator.of(
-                                  this.context,
-                                  rootNavigator: true,
-                                ).pop();
-                              }
-                              AppLogger.error(
-                                'Save prebooked ride error',
-                                error: e,
-                                tag: 'UPDATE_PREBOOKED',
-                              );
-                              if (mounted) {
-                                CustomFlushbar.showError(
-                                  context: this.context,
-                                  message: 'Error saving prebooking: $e',
-                                );
-                              }
+                              // Wallet payment
+                              // if (selectedPaymentMethod ==
+                              //     'Pay with wallet') {
+                              // if (mounted &&
+                              //     Navigator.of(
+                              //       this.context,
+                              //       rootNavigator: true,
+                              //     ).canPop()) {
+                              //   Navigator.of(
+                              //     this.context,
+                              //     rootNavigator: true,
+                              //   ).pop();
+                              // }
+
+                              // if (paymentData['success'] == true ||
+                              //     paymentData['status'] == true) {
+                              //   if (mounted) {
+                              //     CustomFlushbar.showSuccess(
+                              //       context: this.context,
+                              //       message:
+                              //           'Prebooking saved and wallet charged successfully!',
+                              //     );
+                              //   }
+                              // } else {
+                              //   if (mounted) {
+                              //     CustomFlushbar.showError(
+                              //       context: this.context,
+                              //       message:
+                              //           paymentData['message'] ??
+                              //           'Wallet payment failed.',
+                              //     );
+                              //   }
+                              // }
+                              // return;
+                              // }
                             }
-                          },
+
+                            // For Pay in car / pay4me - no payment initialization needed
+                            if (mounted &&
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).canPop()) {
+                              Navigator.of(
+                                this.context,
+                                rootNavigator: true,
+                              ).pop();
+                            }
+                            if (mounted) {
+                              CustomFlushbar.showSuccess(
+                                context: this.context,
+                                message: 'Prebooking saved successfully!',
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted &&
+                                Navigator.of(
+                                  this.context,
+                                  rootNavigator: true,
+                                ).canPop()) {
+                              Navigator.of(
+                                this.context,
+                                rootNavigator: true,
+                              ).pop();
+                            }
+                            AppLogger.error(
+                              'Save prebooked ride error',
+                              error: e,
+                              tag: 'UPDATE_PREBOOKED',
+                            );
+                            if (mounted) {
+                              CustomFlushbar.showError(
+                                context: this.context,
+                                message: 'Error saving prebooking: $e',
+                              );
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: 353.w,
+                          height: 48.h,
+                          decoration: BoxDecoration(
+                            color: Color(ConstColors.mainColor),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
                           child: Center(
                             child: Text(
                               'Save prebooking',
@@ -9184,30 +9190,30 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(height: 10.h),
               _buildCancelReason(3, 'Others', setCancelState),
               Spacer(),
-              Container(
-                width: 353.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: selectedCancelReason != null
-                      ? Color(ConstColors.mainColor)
-                      : Color(ConstColors.fieldColor),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: GestureDetector(
-                  onTap: selectedCancelReason != null
-                      ? () {
-                          // Navigator.pop(context);
-                          // _showFeedbackSuccessSheet();
+              GestureDetector(
+                onTap: selectedCancelReason != null
+                    ? () {
+                        // Navigator.pop(context);
+                        // _showFeedbackSuccessSheet();
 
-                          if (selectedCancelReason == 3) {
-                            Navigator.pop(context);
-                            _showCancelRideDialog();
-                          } else {
-                            Navigator.pop(context);
-                            _showFeedbackSuccessSheet();
-                          }
+                        if (selectedCancelReason == 3) {
+                          Navigator.pop(context);
+                          _showCancelRideDialog();
+                        } else {
+                          Navigator.pop(context);
+                          _showFeedbackSuccessSheet();
                         }
-                      : null,
+                      }
+                    : null,
+                child: Container(
+                  width: 353.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: selectedCancelReason != null
+                        ? Color(ConstColors.mainColor)
+                        : Color(ConstColors.fieldColor),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
                   child: Center(
                     child: Text(
                       'Submit',
@@ -10032,139 +10038,139 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   SizedBox(height: 20.h),
-                  Container(
-                    width: 353.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: selectedRating > 0
-                          ? Color(ConstColors.mainColor)
-                          : Color(ConstColors.fieldColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: GestureDetector(
-                      onTap: selectedRating > 0 && !isSubmitting
-                          ? () async {
-                              AppLogger.log(
-                                '🔘 Submit button pressed',
-                                tag: 'RATING',
-                              );
-                              AppLogger.log(
-                                'Rating: $selectedRating',
-                                tag: 'RATING',
-                              );
-                              AppLogger.log(
-                                'Comment: ${reviewController.text}',
-                                tag: 'RATING',
-                              );
-                              AppLogger.log(
-                                'Current Ride ID: $currentRideId',
-                                tag: 'RATING',
-                              );
+                  GestureDetector(
+                    onTap: selectedRating > 0 && !isSubmitting
+                        ? () async {
+                            AppLogger.log(
+                              '🔘 Submit button pressed',
+                              tag: 'RATING',
+                            );
+                            AppLogger.log(
+                              'Rating: $selectedRating',
+                              tag: 'RATING',
+                            );
+                            AppLogger.log(
+                              'Comment: ${reviewController.text}',
+                              tag: 'RATING',
+                            );
+                            AppLogger.log(
+                              'Current Ride ID: $currentRideId',
+                              tag: 'RATING',
+                            );
 
-                              if (currentRideId == null) {
-                                AppLogger.log(
-                                  '❌ No ride ID available!',
-                                  tag: 'RATING',
+                            if (currentRideId == null) {
+                              AppLogger.log(
+                                '❌ No ride ID available!',
+                                tag: 'RATING',
+                              );
+                              if (mounted) {
+                                CustomFlushbar.showError(
+                                  context: context,
+                                  message: 'Error: No ride ID found',
                                 );
-                                if (mounted) {
-                                  CustomFlushbar.showError(
-                                    context: context,
-                                    message: 'Error: No ride ID found',
-                                  );
-                                }
-                                return;
                               }
+                              return;
+                            }
 
-                              setRatingState(() {
-                                isSubmitting = true;
-                              });
+                            setRatingState(() {
+                              isSubmitting = true;
+                            });
 
-                              try {
-                                AppLogger.log(
-                                  '📤 Calling rateRide API with ID: $currentRideId',
-                                  tag: 'RATING',
-                                );
+                            try {
+                              AppLogger.log(
+                                '📤 Calling rateRide API with ID: $currentRideId',
+                                tag: 'RATING',
+                              );
 
-                                final result = await _rideService.rateRide(
-                                  rideId: currentRideId,
-                                  score: selectedRating,
-                                  comment: reviewController.text,
-                                );
+                              final result = await _rideService.rateRide(
+                                rideId: currentRideId,
+                                score: selectedRating,
+                                comment: reviewController.text,
+                              );
 
-                                AppLogger.log(
-                                  '📥 API Response: $result',
-                                  tag: 'RATING',
-                                );
+                              AppLogger.log(
+                                '📥 API Response: $result',
+                                tag: 'RATING',
+                              );
 
-                                if (result['success'] == true) {
-                                  // Mark ride as rated
-                                  _dismissedRatingRides.add(currentRideId);
+                              if (result['success'] == true) {
+                                // Mark ride as rated
+                                _dismissedRatingRides.add(currentRideId);
 
-                                  // Schedule the navigation and state update properly
-                                  // First, close the dialog
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                  }
-
-                                  // Then schedule the state update for the next frame
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    if (mounted) {
-                                      setState(() {
-                                        _activeRide = null;
-                                        _isDriverAssigned = false;
-                                        _isRideAccepted = false;
-                                        _isInCar = false;
-                                        _assignedDriver = null;
-                                        _mapMarkers = {};
-                                        _mapPolylines = {};
-                                      });
-                                      // CustomFlushbar.
-                                      // showInfo(
-                                      //   context: context,
-                                      //   message: 'Thank you for your rating!',
-                                      // );
-
-                                      Flushbar(
-                                        title: "Success",
-                                        message: "Thank you for your rating!",
-                                        duration: Duration(seconds: 3),
-                                        backgroundColor: Colors.green,
-                                        margin: EdgeInsets.all(8),
-                                        borderRadius: BorderRadius.circular(8),
-                                        flushbarPosition: FlushbarPosition.TOP,
-                                      ).show(context);
-                                    }
-                                  });
-                                } else {
-                                  if (mounted) {
-                                    setRatingState(() {
-                                      isSubmitting = false;
-                                    });
-                                    CustomFlushbar.showError(
-                                      context: context,
-                                      message: 'Failed to submit rating',
-                                    );
-                                  }
+                                // Schedule the navigation and state update properly
+                                // First, close the dialog
+                                if (mounted) {
+                                  Navigator.pop(context);
                                 }
-                              } catch (e) {
-                                AppLogger.log(
-                                  '❌ Error submitting rating: $e',
-                                  tag: 'RATING',
-                                );
+
+                                // Then schedule the state update for the next frame
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _activeRide = null;
+                                      _isDriverAssigned = false;
+                                      _isRideAccepted = false;
+                                      _isInCar = false;
+                                      _assignedDriver = null;
+                                      _mapMarkers = {};
+                                      _mapPolylines = {};
+                                    });
+                                    // CustomFlushbar.
+                                    // showInfo(
+                                    //   context: context,
+                                    //   message: 'Thank you for your rating!',
+                                    // );
+
+                                    Flushbar(
+                                      title: "Success",
+                                      message: "Thank you for your rating!",
+                                      duration: Duration(seconds: 3),
+                                      backgroundColor: Colors.green,
+                                      margin: EdgeInsets.all(8),
+                                      borderRadius: BorderRadius.circular(8),
+                                      flushbarPosition: FlushbarPosition.TOP,
+                                    ).show(context);
+                                  }
+                                });
+                              } else {
                                 if (mounted) {
                                   setRatingState(() {
                                     isSubmitting = false;
                                   });
                                   CustomFlushbar.showError(
                                     context: context,
-                                    message: 'Error: $e',
+                                    message: 'Failed to submit rating',
                                   );
                                 }
                               }
+                            } catch (e) {
+                              AppLogger.log(
+                                '❌ Error submitting rating: $e',
+                                tag: 'RATING',
+                              );
+                              if (mounted) {
+                                setRatingState(() {
+                                  isSubmitting = false;
+                                });
+                                CustomFlushbar.showError(
+                                  context: context,
+                                  message: 'Error: $e',
+                                );
+                              }
                             }
-                          : null,
+                          }
+                        : null,
+                    child: Container(
+                      width: 353.w,
+                      height: 48.h,
+                      decoration: BoxDecoration(
+                        color: selectedRating > 0
+                            ? Color(ConstColors.mainColor)
+                            : Color(ConstColors.fieldColor),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
                       child: Center(
                         child: isSubmitting
                             ? SizedBox(

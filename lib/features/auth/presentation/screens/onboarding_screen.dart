@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/constants/text_styles.dart';
-import 'package:muvam/features/otp/presentation/screens/otp_screen.dart';
+import 'package:muvam/features/auth/presentation/screens/otp_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});

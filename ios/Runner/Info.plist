@@ -13,6 +13,13 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>We need microphone access for voice calls</string>
 
+    <!-- Photo Library Permissions -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>We need access to your photo library</string>
+
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We need access to save your receipt</string>
+
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
@@ -39,12 +46,14 @@
     <string>LaunchScreen</string>
     <key>UIMainStoryboardFile</key>
     <string>Main</string>
+
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+
     <key>UISupportedInterfaceOrientations~ipad</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
@@ -52,6 +61,7 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
     <key>UIApplicationSupportsIndirectInputEvents</key>

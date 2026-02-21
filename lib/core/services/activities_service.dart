@@ -99,6 +99,7 @@ class ActivitiesService {
 
       AppLogger.log('Response Status: ${response.statusCode}');
       AppLogger.log('Response Headers: ${response.headers}');
+      AppLogger.log('Response boyyyyyyyyyyyyy: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

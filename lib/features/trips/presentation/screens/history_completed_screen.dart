@@ -1,11 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
+import 'package:muvam/features/trips/presentation/widgets/receipt_generator.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HistoryCompletedScreen extends StatefulWidget {
   final int rideId;
@@ -17,6 +23,8 @@ class HistoryCompletedScreen extends StatefulWidget {
 }
 
 class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
+  File? _generatedReceipt;
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +33,39 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
       if (provider.selectedRide?.id != widget.rideId) {
         provider.fetchRideDetails(widget.rideId);
       }
+      _preGenerateReceipt();
     });
+  }
+
+  Future<void> _preGenerateReceipt() async {
+    try {
+      final provider = context.read<ActivitiesTabsProvider>();
+      final ride =
+          provider.selectedRide ??
+          provider.historyRides.firstWhere(
+            (r) => r.id == widget.rideId,
+            orElse: () => provider.historyRides.isNotEmpty
+                ? provider.historyRides.first
+                : null as dynamic,
+          );
+
+      final file = await ReceiptGenerator.generateReceipt(
+        tripId: ride.id,
+        driverName: ride.driver!.fullName,
+        passengerName: ride.passenger!.fullName,
+        paymentMethod: ride.paymentMethod,
+        amount: ride.price + 500,
+        completionTime: ride.createdAt,
+      );
+
+      if (mounted) {
+        setState(() {
+          _generatedReceipt = file;
+        });
+      }
+    } catch (e) {
+      // Silent fail, user can try again by tapping button
+    }
   }
 
   String _formatTime(String dateTimeStr) {
@@ -43,6 +83,66 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
       return DateFormat('MMMM d, yyyy').format(dateTime);
     } catch (e) {
       return '';
+    }
+  }
+
+  Future<void> _downloadReceipt() async {
+    try {
+      // If receipt is already generated, use it
+      if (_generatedReceipt != null) {
+        await Share.shareXFiles([
+          XFile(_generatedReceipt!.path),
+        ], text: 'Receipt for Trip #${widget.rideId}');
+
+        if (mounted) {
+          CustomFlushbar.showInfo(
+            context: context,
+            message: 'Receipt generated successfully!',
+          );
+        }
+        return;
+      }
+
+      final provider = context.read<ActivitiesTabsProvider>();
+      final ride =
+          provider.selectedRide ??
+          provider.historyRides.firstWhere(
+            (r) => r.id == widget.rideId,
+            orElse: () => provider.historyRides.isNotEmpty
+                ? provider.historyRides.first
+                : null as dynamic,
+          );
+
+      if (await Permission.storage.isDenied) {
+        await Permission.storage.request();
+      }
+
+      final file = await ReceiptGenerator.generateReceipt(
+        tripId: ride.id,
+        driverName: ride.driver!.fullName,
+        passengerName: ride.passenger!.fullName,
+        paymentMethod: ride.paymentMethod,
+        amount: ride.price + 500,
+        completionTime: ride.createdAt,
+      );
+
+      if (mounted) {
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Receipt for Trip #${ride.id}');
+
+        CustomFlushbar.showInfo(
+          context: context,
+          message: 'Receipt generated successfully!',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomFlushbar.showError(
+          context: context,
+          message: 'Failed to download receipt. Please try again.',
+        );
+      }
     }
   }
 
@@ -293,7 +393,7 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                                 ),
                               ),
                               Text(
-                                '₦500',
+                                '',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 14.sp,
@@ -372,13 +472,16 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                   ),
                   SizedBox(height: 30.h),
                   Center(
-                    child: Text(
-                      'Download receipt',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2A8359),
+                    child: GestureDetector(
+                      onTap: _downloadReceipt,
+                      child: Text(
+                        'Download receipt',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2A8359),
+                        ),
                       ),
                     ),
                   ),

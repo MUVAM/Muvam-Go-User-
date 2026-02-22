@@ -62,7 +62,7 @@ class _TipScreenState extends State<TipScreen> {
 
       AppLogger.log('Tip response: ${response.body}', tag: 'TIP');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         if (mounted) {
           CustomFlushbar.showSuccess(
             context: context,

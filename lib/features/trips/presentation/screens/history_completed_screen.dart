@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
@@ -374,38 +373,38 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                           ),
                         ),
                         SizedBox(height: 15.h),
-                        Container(
-                          padding: EdgeInsets.all(14.sp),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2.r),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Tip',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              Text(
-                                '',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w400,
-                                  height: 22 / 18,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // Container(
+                        //   padding: EdgeInsets.all(14.sp),
+                        //   decoration: BoxDecoration(
+                        //     color: Colors.white,
+                        //     borderRadius: BorderRadius.circular(2.r),
+                        //   ),
+                        //   child: Row(
+                        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //     children: [
+                        //       Text(
+                        //         'Tip',
+                        //         style: TextStyle(
+                        //           fontFamily: 'Inter',
+                        //           fontSize: 12.sp,
+                        //           fontWeight: FontWeight.w500,
+                        //           color: Colors.black,
+                        //         ),
+                        //       ),
+                        //       Text(
+                        //         '',
+                        //         style: TextStyle(
+                        //           fontFamily: 'Inter',
+                        //           fontSize: 14.sp,
+                        //           fontWeight: FontWeight.w400,
+                        //           height: 22 / 18,
+                        //           letterSpacing: -0.41,
+                        //           color: Colors.black,
+                        //         ),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                         SizedBox(height: 10.h),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -438,7 +437,7 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
                               ],
                             ),
                             Text(
-                              provider.formatPrice(ride.price + 500),
+                              provider.formatPrice(ride.price),
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 14.sp,

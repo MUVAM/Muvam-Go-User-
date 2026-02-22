@@ -50,6 +50,7 @@ dependencies:
   internet_connection_checker_plus: ^2.7.2
   pdf: ^3.11.3
   path_provider: ^2.1.5
+  sliding_up_panel: ^2.0.0+1
 
 dev_dependencies:
   flutter_lints: ^5.0.0

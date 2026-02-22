@@ -44,6 +44,7 @@ import 'package:muvam/shared/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'add_home_screen.dart';
 import 'map_selection_screen.dart';
@@ -72,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController toController = TextEditingController();
   final TextEditingController stopController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
+  final PanelController _panelController = PanelController();
   DateTime selectedDate = DateTime.now().add(Duration(days: 1));
   TimeOfDay selectedTime = TimeOfDay.now();
   int? selectedCancelReason;
@@ -139,12 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Get WebSocket instance
     _webSocketService = WebSocketService.instance;
-
-    // Initialize sheet controller
-    _sheetController = DraggableScrollableController();
-    _sheetController.addListener(_onSheetChanged);
 
     fromController.addListener(_onTextFieldChanged);
     toController.addListener(_onTextFieldChanged);
@@ -160,22 +157,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfile();
-
       Provider.of<LocationProvider>(
         context,
         listen: false,
       ).loadFavouriteLocations();
       _loadFavouriteLocations();
 
-      // Set up call handler BEFORE connecting
-      // _setupCallHandler();
+      // Animate panel to default 42% position on load
+      final screenHeight = MediaQuery.of(context).size.height;
+      final targetPosition =
+          (screenHeight * 0.42 - 80.h) / (screenHeight * 0.85 - 80.h);
+      _panelController.animatePanelToPosition(
+        targetPosition.clamp(0.0, 1.0),
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
 
       AppLogger.log(
         '✅ Call handler set BEFORE connect: ${_webSocketService.onIncomingCall != null}',
         tag: 'HOME_INIT',
       );
-
-      // NOW connect WebSocket - handler is already set
       AppLogger.log(
         '🔌 Connecting WebSocket from HomeScreen...',
         tag: 'HOME_INIT',
@@ -183,8 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _webSocketService.connect().then((_) {
         AppLogger.log('✅ WebSocket connected', tag: 'HOME_INIT');
-
-        // Set up OTHER message listeners (not call handler!)
         _setupOtherWebSocketListeners();
       });
 
@@ -194,25 +193,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _onSheetChanged() {
-    if (_sheetController.isAttached) {
-      final newSize = _sheetController.size;
+  void _onPanelSlide(double position) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final panelHeight = 80.h + position * (screenHeight * 0.85 - 80.h);
+    final sheetSize = panelHeight / screenHeight;
 
-      // Only update if size changed significantly
-      if ((newSize - _currentSheetSize).abs() > 0.01) {
-        setState(() {
-          _currentSheetSize = newSize;
-
-          // Show destination field when dragged up beyond threshold (0.45)
-          // Hide when dragged down to near default height (0.3)
-          if (newSize > 0.45 && !_showDestinationField) {
-            _showDestinationField = true;
-          } else if (newSize <= 0.3 && _showDestinationField) {
-            // Hide when dragged back down
-            _showDestinationField = false;
-          }
-        });
-      }
+    if (sheetSize > 0.45 && !_showDestinationField) {
+      setState(() => _showDestinationField = true);
+    } else if (sheetSize <= 0.3 && _showDestinationField) {
+      setState(() => _showDestinationField = false);
     }
   }
 
@@ -2607,28 +2596,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onTextFieldChanged() {
-    if (_sheetController.isAttached) {
-      final currentSize = _sheetController.size;
-
-      if (currentSize < 0.6) {
-        final hasContent =
-            // fromController.text.isNotEmpty ||
-            toController.text.isNotEmpty || stopController.text.isNotEmpty;
-
-        if (hasContent) {
-          _sheetController.animateTo(
-            0.9,
-            duration: Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-
-          // Also show destination field if typing in 'from' field
-          if (fromController.text.isNotEmpty && !_showDestinationField) {
-            setState(() {
-              _showDestinationField = true;
-            });
-          }
-        }
+    final hasContent =
+        toController.text.isNotEmpty || stopController.text.isNotEmpty;
+    if (hasContent) {
+      final screenHeight = MediaQuery.of(context).size.height;
+      final targetPosition =
+          (screenHeight * 0.9 - 80.h) / (screenHeight * 0.85 - 80.h);
+      _panelController.animatePanelToPosition(
+        targetPosition.clamp(0.0, 1.0),
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      if (fromController.text.isNotEmpty && !_showDestinationField) {
+        setState(() => _showDestinationField = true);
       }
     }
   }
@@ -2745,8 +2725,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         _showDestinationField = true;
                         _isFromFieldFocused = false;
                       });
-                      _sheetController.animateTo(
-                        0.9,
+                      _panelController.animatePanelToPosition(
+                        0.0,
                         duration: Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                       );
@@ -2874,8 +2854,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: GestureDetector(
                       onTap: () {
                         if (_sheetController.isAttached) {
-                          _sheetController.animateTo(
-                            0.4,
+                          _panelController.animatePanelToPosition(
+                            0.0,
                             duration: Duration(milliseconds: 300),
                             curve: Curves.easeInOut,
                           );
@@ -2893,12 +2873,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               if (_isBottomSheetVisible)
-                DraggableScrollableSheet(
-                  controller: _sheetController,
-                  initialChildSize: 0.4,
-                  minChildSize: 0.2,
-                  maxChildSize: 0.9,
-                  builder: (BuildContext context, ScrollController scrollController) {
+                SlidingUpPanel(
+                  controller: _panelController,
+                  minHeight: 80.h,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                  panelSnapping: false,
+                  onPanelSlide: _onPanelSlide,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(20.r),
+                  ),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                  panelBuilder: (ScrollController scrollController) {
                     return Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -2906,13 +2898,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           topLeft: Radius.circular(20.r),
                           topRight: Radius.circular(20.r),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: Offset(0, -2),
-                          ),
-                        ],
                       ),
                       child: Column(
                         children: [
@@ -3046,10 +3031,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           true;
                                                     });
                                                   } else {
-                                                    setState(() {
-                                                      _isFromFieldFocused =
-                                                          true;
-                                                    });
+                                                    setState(
+                                                      () =>
+                                                          _isFromFieldFocused =
+                                                              true,
+                                                    );
                                                   }
                                                 },
                                                 onChanged: (value) {
@@ -3145,9 +3131,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   });
                                                                   if (toController
                                                                       .text
-                                                                      .isNotEmpty) {
+                                                                      .isNotEmpty)
                                                                     _checkBothFields();
-                                                                  }
                                                                 }
                                                               },
                                                               child: Container(
@@ -3182,12 +3167,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                           ),
                                           GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _showStopField =
-                                                    !_showStopField;
-                                              });
-                                            },
+                                            onTap: () => setState(
+                                              () => _showStopField =
+                                                  !_showStopField,
+                                            ),
                                             child: Icon(
                                               Icons.add,
                                               size: 24.sp,
@@ -3212,15 +3195,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                             child: TextField(
                                               controller: stopController,
-                                              onTap: () {
-                                                setState(() {
-                                                  _isFromFieldFocused = false;
-                                                });
-                                              },
+                                              onTap: () => setState(
+                                                () =>
+                                                    _isFromFieldFocused = false,
+                                              ),
                                               onChanged: (value) {
-                                                if (!_isFromFieldFocused) {
+                                                if (!_isFromFieldFocused)
                                                   _searchLocations(value);
-                                                }
                                               },
                                               decoration: InputDecoration(
                                                 hintText: 'Add stop',
@@ -3254,12 +3235,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         .text
                                                         .isNotEmpty)
                                                       GestureDetector(
-                                                        onTap: () {
-                                                          setState(() {
-                                                            stopController
-                                                                .clear();
-                                                          });
-                                                        },
+                                                        onTap: () => setState(
+                                                          () => stopController
+                                                              .clear(),
+                                                        ),
                                                         child: Container(
                                                           width: 24.w,
                                                           height: 24.h,
@@ -3288,7 +3267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 ),
                                                           ),
                                                         );
-                                                        if (result != null) {
+                                                        if (result != null)
                                                           setState(() {
                                                             stopController
                                                                     .text =
@@ -3296,7 +3275,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             _stopCoordinates =
                                                                 result['location'];
                                                           });
-                                                        }
                                                       },
                                                       child: Container(
                                                         width: 24.w,
@@ -3339,15 +3317,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                           child: TextField(
                                             controller: toController,
-                                            onTap: () {
-                                              setState(() {
-                                                _isFromFieldFocused = false;
-                                              });
-                                            },
+                                            onTap: () => setState(
+                                              () => _isFromFieldFocused = false,
+                                            ),
                                             onChanged: (value) {
-                                              if (!_isFromFieldFocused) {
+                                              if (!_isFromFieldFocused)
                                                 _searchLocations(value);
-                                              }
                                             },
                                             decoration: InputDecoration(
                                               hintText: 'Where to',
@@ -3380,11 +3355,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       .text
                                                       .isNotEmpty)
                                                     GestureDetector(
-                                                      onTap: () {
-                                                        setState(() {
-                                                          toController.clear();
-                                                        });
-                                                      },
+                                                      onTap: () => setState(
+                                                        () => toController
+                                                            .clear(),
+                                                      ),
                                                       child: Container(
                                                         width: 24.w,
                                                         height: 24.h,
@@ -3421,9 +3395,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         });
                                                         if (fromController
                                                             .text
-                                                            .isNotEmpty) {
+                                                            .isNotEmpty)
                                                           _checkBothFields();
-                                                        }
                                                       }
                                                     },
                                                     child: Container(
@@ -3874,8 +3847,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       _updateMapWithRoute();
-      _sheetController.animateTo(
-        0.2,
+      _panelController.animatePanelToPosition(
+        0.0,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
@@ -4543,8 +4516,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? () async {
                                 // Don't reset isScheduledRide here - it should persist until after booking
 
-                                _sheetController.animateTo(
-                                  0.2,
+                                _panelController.animatePanelToPosition(
+                                  0.0,
                                   duration: Duration(milliseconds: 300),
                                   curve: Curves.easeInOut,
                                 );
@@ -4648,13 +4621,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               });
                                             } else {
                                               // _showBookingRequestSheet();
-                                              _sheetController.animateTo(
-                                                0.2,
-                                                duration: Duration(
-                                                  milliseconds: 300,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                              );
+                                              _panelController
+                                                  .animatePanelToPosition(
+                                                    0.0,
+                                                    duration: Duration(
+                                                      milliseconds: 300,
+                                                    ),
+                                                    curve: Curves.easeInOut,
+                                                  );
                                               _showBookSuccessfulSheet();
                                             }
                                           }
@@ -4889,13 +4863,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               isScheduledRide = false;
                                             });
                                           } else {
-                                            _sheetController.animateTo(
-                                              0.2,
-                                              duration: Duration(
-                                                milliseconds: 300,
-                                              ),
-                                              curve: Curves.easeInOut,
-                                            );
+                                            _panelController
+                                                .animatePanelToPosition(
+                                                  0.0,
+                                                  duration: Duration(
+                                                    milliseconds: 300,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
                                             _showBookSuccessfulSheet();
                                           }
                                         }
@@ -4924,13 +4899,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               isScheduledRide = false;
                                             });
                                           } else {
-                                            _sheetController.animateTo(
-                                              0.2,
-                                              duration: Duration(
-                                                milliseconds: 300,
-                                              ),
-                                              curve: Curves.easeInOut,
-                                            );
+                                            _panelController
+                                                .animatePanelToPosition(
+                                                  0.0,
+                                                  duration: Duration(
+                                                    milliseconds: 300,
+                                                  ),
+                                                  curve: Curves.easeInOut,
+                                                );
                                             _showBookSuccessfulSheet();
                                           }
                                         }
@@ -7021,8 +6997,8 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 20.h),
             GestureDetector(
               onTap: () {
-                _sheetController.animateTo(
-                  0.2,
+                _panelController.animatePanelToPosition(
+                  0.0,
                   duration: Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
                 );
@@ -7374,8 +7350,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: GestureDetector(
                       onTap: () {
                         Navigator.pop(context);
-                        _sheetController.animateTo(
-                          0.4,
+                        _panelController.animatePanelToPosition(
+                          0.0,
                           duration: Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
@@ -7744,8 +7720,8 @@ class _HomeScreenState extends State<HomeScreen> {
             GestureDetector(
               onTap: () {
                 Navigator.pop(context);
-                _sheetController.animateTo(
-                  0.2,
+                _panelController.animatePanelToPosition(
+                  0.0,
                   duration: Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
                 );
@@ -8024,8 +8000,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     fromController.text =
                                         result['address'] as String;
                                   });
-                                  _sheetController.animateTo(
-                                    0.2,
+                                  _panelController.animatePanelToPosition(
+                                    0.0,
                                     duration: Duration(milliseconds: 300),
                                     curve: Curves.easeInOut,
                                   );
@@ -8224,8 +8200,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     toController.text =
                                         result['address'] as String;
                                   });
-                                  _sheetController.animateTo(
-                                    0.2,
+                                  _panelController.animatePanelToPosition(
+                                    0.0,
                                     duration: Duration(milliseconds: 300),
                                     curve: Curves.easeInOut,
                                   );
@@ -8847,8 +8823,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           isScheduledRide = false;
                                         });
                                       } else {
-                                        _sheetController.animateTo(
-                                          0.2,
+                                        _panelController.animatePanelToPosition(
+                                          0.0,
                                           duration: Duration(milliseconds: 300),
                                           curve: Curves.easeInOut,
                                         );
@@ -10970,30 +10946,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    // Stop all timers
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
     _activeRideCheckTimer?.cancel();
     _nearbyDriversTimer?.cancel();
     _webSocketService.disconnect();
-    _activeRideCheckTimer?.cancel();
-
-    _callService.dispose(); // Add this line
-
+    _callService.dispose();
     fromController.removeListener(_onTextFieldChanged);
     toController.removeListener(_onTextFieldChanged);
     stopController.removeListener(_onTextFieldChanged);
-
-    // Dispose controllers
     fromController.dispose();
     toController.dispose();
     stopController.dispose();
     noteController.dispose();
-
-    // Dispose sheet controller
-    _sheetController.removeListener(_onSheetChanged);
-    _sheetController.dispose();
-
     super.dispose();
   }
 }

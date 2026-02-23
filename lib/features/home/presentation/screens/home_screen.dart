@@ -2725,8 +2725,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         _showDestinationField = true;
                         _isFromFieldFocused = false;
                       });
+                      final screenHeight = MediaQuery.of(context).size.height;
+                      final targetPosition =
+                          (screenHeight * 0.9 - 80.h) /
+                          (screenHeight * 0.85 - 80.h);
                       _panelController.animatePanelToPosition(
-                        0.0,
+                        targetPosition.clamp(0.0, 1.0),
                         duration: Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                       );

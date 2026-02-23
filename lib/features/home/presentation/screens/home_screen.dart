@@ -9666,8 +9666,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: GestureDetector(
                         onTap: () async {
                           Navigator.pop(context);
+                                                                              final sheetContext = context; // capture BEFORE await
+
                           // Delete the location
                           try {
+
                             await _favouriteService.deleteFavouriteLocation(
                               locationId,
                             );
@@ -9845,14 +9848,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TipScreen(rideId: rideId),
-                          ),
-                        );
-                      },
+                      onPressed: () async{
+                        final sheetContext = context; // capture BEFORE await
+
+                            final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TipScreen(rideId: rideId),
+      ),
+    );
+    
+    // Show success toast when returning from tip screen
+    if (result == true && sheetContext.mounted) {
+      CustomFlushbar.showSuccess(
+        context: sheetContext,
+        message: 'Tip sent successfully! 🎉',
+      );
+    }
+  },
+
                       child: Text(
                         'Tip Driver',
                         style: TextStyle(

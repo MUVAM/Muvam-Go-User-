@@ -53,7 +53,7 @@ class _HistoryCompletedScreenState extends State<HistoryCompletedScreen> {
         driverName: ride.driver!.fullName,
         passengerName: ride.passenger!.fullName,
         paymentMethod: ride.paymentMethod,
-        amount: ride.price + 500,
+        amount: ride.price ,
         completionTime: ride.createdAt,
       );
 

@@ -61,16 +61,11 @@ class _TipScreenState extends State<TipScreen> {
       );
 
       AppLogger.log('Tip response: ${response.body}', tag: 'TIP');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          CustomFlushbar.showSuccess(
-            context: context,
-            message: 'Tip sent successfully!',
-          );
-          Navigator.pop(context);
-        }
-      } else {
+if (response.statusCode == 200 || response.statusCode == 201) {
+  if (mounted) {
+    Navigator.pop(context, true); // Return true to caller
+  }
+} {
         throw Exception('Failed to send tip');
       }
     } catch (e) {

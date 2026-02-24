@@ -45,7 +45,7 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
   final List<String> _paymentMethods = [
     'Pay with wallet',
     'Pay with card',
-    'pay4me',
+    // 'pay4me',
     'Pay in car',
   ];
 

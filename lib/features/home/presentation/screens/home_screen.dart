@@ -38,6 +38,7 @@ import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
+import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
 import 'package:muvam/shared/providers/location_provider.dart';
@@ -100,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentLocationAddress = "Current location"; // Store actual address
   LatLng? _driverLocation;
   Timer? _driverLocationTimer;
+  Timer? _nearbyDriverTrackingTimer;
   BitmapDescriptor? _carIcon;
   final RideService _rideService = RideService();
   final PaymentService _paymentService = PaymentService();
@@ -1013,7 +1015,13 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         // Add driver marker on map
-        _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
+_updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
+  
+  // ADD THIS - start smooth tracking
+  if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
+    _startNearbyDriverTracking();
+  }
+
       } else {
         AppLogger.log('No nearby drivers found', tag: 'NEARBY_DRIVER');
         setState(() {
@@ -1036,20 +1044,145 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _updateNearbyDriverMarker(LatLng driverLocation, String eta) {
-    if (_carIcon == null) return;
+  void _startNearbyDriverTracking() {
+  _nearbyDriverTrackingTimer?.cancel();
+  _nearbyDriverTrackingTimer = Timer.periodic(
+    Duration(seconds: 5),
+    (timer) async {
+      // Stop if ride is now active
+      if (_activeRide != null || _isDriverAssigned) {
+        timer.cancel();
+        return;
+      }
 
-    // Check if we already have this driver marker to avoid unnecessary rebuilds
-    // Or just update it.
+      try {
+        final driverData = await _rideService.getNearbyDrivers(
+          latitude: _currentLocation.latitude,
+          longitude: _currentLocation.longitude,
+        );
+
+        if (driverData != null && mounted) {
+          final locationData = driverData['location'];
+          final latitude = locationData['latitude'] is double
+              ? locationData['latitude']
+              : double.tryParse(
+                      locationData['latitude'].toString()) ??
+                  0.0;
+          final longitude = locationData['longitude'] is double
+              ? locationData['longitude']
+              : double.tryParse(
+                      locationData['longitude'].toString()) ??
+                  0.0;
+
+          final eta = driverData['eta_minutes']?.toString() ?? '1';
+          double etaValue = double.tryParse(eta) ?? 1.0;
+          int roundedEta = etaValue.round();
+
+          final newLocation = LatLng(latitude, longitude);
+
+          setState(() {
+            _driverArrivalTime = roundedEta.toString();
+            _nearbyDriverLocation = newLocation;
+          });
+
+          _updateNearbyDriverMarker(newLocation, roundedEta.toString());
+  
+  // ADD THIS - start smooth tracking
+  if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
+    _startNearbyDriverTracking();
+  }
+        } else if (mounted) {
+          // Driver gone — remove marker
+          setState(() {
+            _hasNearbyDriver = false;
+            _nearbyDriverData = null;
+            _nearbyDriverLocation = null;
+            _mapMarkers.removeWhere(
+              (m) => m.markerId.value == 'nearby_driver',
+            );
+          });
+          timer.cancel();
+        }
+      } catch (e) {
+        AppLogger.log(
+          'Error tracking nearby driver: $e',
+          tag: 'NEARBY_DRIVER',
+        );
+      }
+    },
+  );
+}
+  void _animateDriverMarker({
+  required String markerId,
+  required LatLng from,
+  required LatLng to,
+  String eta = '',
+}) {
+  const int steps = 20;
+  const duration = Duration(milliseconds: 1500);
+  final stepDuration = Duration(
+    milliseconds: duration.inMilliseconds ~/ steps,
+  );
+
+  int step = 0;
+  Timer.periodic(stepDuration, (timer) {
+    if (!mounted) {
+      timer.cancel();
+      return;
+    }
+
+    step++;
+    final t = step / steps;
+
+    // Interpolate position
+    final lat = from.latitude + (to.latitude - from.latitude) * t;
+    final lng = from.longitude + (to.longitude - from.longitude) * t;
+    final interpolated = LatLng(lat, lng);
 
     setState(() {
-      // Remove old driver marker
-      _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+      _mapMarkers.removeWhere((m) => m.markerId.value == markerId);
+      _mapMarkers.add(
+        Marker(
+          markerId: MarkerId(markerId),
+          position: interpolated,
+          icon: _carIcon!,
+          anchor: Offset(0.5, 0.5),
+          infoWindow: InfoWindow(
+            title: 'Nearby Driver',
+            snippet: '$eta min away',
+          ),
+        ),
+      );
+    });
 
+    if (step >= steps) {
+      timer.cancel();
+    }
+  });
+}
+void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
+  if (_carIcon == null) return;
+
+  final oldMarker = _mapMarkers
+      .where((m) => m.markerId.value == 'nearby_driver')
+      .firstOrNull;
+
+  if (oldMarker != null) {
+    // Animate smoothly from old position to new position
+    _animateDriverMarker(
+      markerId: 'nearby_driver',
+      from: oldMarker.position,
+      to: newLocation,
+      eta: eta,
+    );
+  } else {
+    // First time — just place it
+    setState(() {
+      _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
       _mapMarkers.add(
         Marker(
           markerId: MarkerId('nearby_driver'),
-          position: driverLocation,
+          position: newLocation,
           icon: _carIcon!,
           anchor: Offset(0.5, 0.5),
           infoWindow: InfoWindow(
@@ -1060,7 +1193,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     });
   }
-
+}
   Future<void> _checkActiveRides() async {
     AppLogger.log('=== CHECKING ACTIVE RIDES ===');
     try {
@@ -4929,7 +5062,170 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                       // Check if error is about active ride
                                       final errorMessage = e.toString();
-                                      if (errorMessage.contains(
+
+                                      // final errorMessage = e.toString();
+
+                                      // Check for insufficient balance error
+                                      if (errorMessage.toLowerCase().contains(
+                                            'insufficient',
+                                          ) ||
+                                          errorMessage.toLowerCase().contains(
+                                            'balance',
+                                          )) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (BuildContext dialogContext) {
+                                            return Dialog(
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(16.r),
+                                              ),
+                                              child: Container(
+                                                padding: EdgeInsets.all(24.w),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        16.r,
+                                                      ),
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'Insufficient Wallet Balance',
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 18.sp,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 8.h),
+                                                    Text(
+                                                      'You do not have enough balance in your wallet. Would you like to top up your wallet or choose another payment method?',
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontFamily: 'Inter',
+                                                        fontSize: 14.sp,
+                                                        fontWeight:
+                                                            FontWeight.w400,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 24.h),
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: GestureDetector(
+                                                            onTap: () {
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              );
+                                                              // Reopen payment methods sheet
+                                                              _showPaymentMethods(
+                                                                onPaymentChanged:
+                                                                    () {
+                                                                      setBookingState(
+                                                                        () {},
+                                                                      );
+                                                                    },
+                                                              );
+                                                            },
+                                                            child: Container(
+                                                              height: 48.h,
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                    color: Color(
+                                                                      0xffB1B1B1,
+                                                                    ),
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                          8.r,
+                                                                        ),
+                                                                  ),
+                                                              child: Center(
+                                                                child: Text(
+                                                                  'Change Method',
+                                                                  style: TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        14.sp,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        SizedBox(width: 12.w),
+                                                        Expanded(
+                                                          child: GestureDetector(
+                                                            onTap: () {
+                                                              Navigator.pop(
+                                                                dialogContext,
+                                                              );
+                                                              Navigator.pop(
+                                                                context,
+                                                              ); // close booking sheet
+                                                              // Navigate to wallet screen
+                                                              Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder:
+                                                                      (
+                                                                        context,
+                                                                      ) =>
+                                                                          WalletScreen(),
+                                                                ),
+                                                              );
+                                                            },
+                                                            child: Container(
+                                                              height: 48.h,
+                                                              decoration: BoxDecoration(
+                                                                color: Color(
+                                                                  ConstColors
+                                                                      .mainColor,
+                                                                ),
+                                                                borderRadius:
+                                                                    BorderRadius.circular(
+                                                                      8.r,
+                                                                    ),
+                                                              ),
+                                                              child: Center(
+                                                                child: Text(
+                                                                  'Go to Wallet',
+                                                                  style: TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontSize:
+                                                                        14.sp,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      } else if (errorMessage.contains(
                                             'active ride',
                                           ) ||
                                           errorMessage.contains(
@@ -9670,11 +9966,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: GestureDetector(
                         onTap: () async {
                           Navigator.pop(context);
-                                                                              final sheetContext = context; // capture BEFORE await
+                          final sheetContext = context; // capture BEFORE await
 
                           // Delete the location
                           try {
-
                             await _favouriteService.deleteFavouriteLocation(
                               locationId,
                             );
@@ -9852,24 +10147,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: TextButton(
-                      onPressed: () async{
+                      onPressed: () async {
                         final sheetContext = context; // capture BEFORE await
 
-                            final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TipScreen(rideId: rideId),
-      ),
-    );
-    
-    // Show success toast when returning from tip screen
-    if (result == true && sheetContext.mounted) {
-      CustomFlushbar.showSuccess(
-        context: sheetContext,
-        message: 'Tip sent successfully! 🎉',
-      );
-    }
-  },
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TipScreen(rideId: rideId),
+                          ),
+                        );
+
+                        // Show success toast when returning from tip screen
+                        if (result == true && sheetContext.mounted) {
+                          CustomFlushbar.showSuccess(
+                            context: sheetContext,
+                            message: 'Tip sent successfully! 🎉',
+                          );
+                        }
+                      },
 
                       child: Text(
                         'Tip Driver',
@@ -10976,6 +11271,8 @@ class _HomeScreenState extends State<HomeScreen> {
     fromController.dispose();
     toController.dispose();
     stopController.dispose();
+     _nearbyDriverTrackingTimer?.cancel(); // ADD THIS
+
     noteController.dispose();
     super.dispose();
   }

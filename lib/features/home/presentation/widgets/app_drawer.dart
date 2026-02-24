@@ -61,7 +61,9 @@ class _AppDrawerState extends State<AppDrawer> {
 
     if (!mounted) return;
 
-    Navigator.pop(context);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
 
     if (hasAccount) {
       Navigator.push(

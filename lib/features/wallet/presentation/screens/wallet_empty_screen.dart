@@ -3,19 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 import 'package:muvam/features/wallet/presentation/screens/get_account_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/utils/custom_flushbar.dart';
-import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
-import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dart';
-import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
-import 'package:muvam/features/wallet/presentation/widgets/wallet_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,7 +17,7 @@ class WalletEmptyScreen extends StatefulWidget {
 }
 
 class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
- @override
+  @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -71,7 +61,11 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                    },
                     child: Image.asset(
                       ConstImages.back,
                       width: 33.w,

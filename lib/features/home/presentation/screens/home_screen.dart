@@ -38,6 +38,8 @@ import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
 import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
+import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
+import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
 import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
 import 'package:muvam/shared/presentation/screens/tip_screen.dart';
@@ -380,6 +382,27 @@ class _HomeScreenState extends State<HomeScreen> {
       '🔍 Final handler check: ${_webSocketService.onIncomingCall != null}',
       tag: 'HOME_WEBSOCKET',
     );
+  }
+
+  void _navigateToWallet() async {
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    final hasAccount = await walletProvider.checkVirtualAccount();
+
+    if (!mounted) return;
+
+    Navigator.pop(context);
+
+    if (hasAccount) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const WalletScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
+      );
+    }
   }
 
   Future<void> _initializeCallService() async {
@@ -1015,13 +1038,12 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         // Add driver marker on map
-_updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
-  
-  // ADD THIS - start smooth tracking
-  if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
-    _startNearbyDriverTracking();
-  }
+        _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
 
+        // ADD THIS - start smooth tracking
+        if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
+          _startNearbyDriverTracking();
+        }
       } else {
         AppLogger.log('No nearby drivers found', tag: 'NEARBY_DRIVER');
         setState(() {
@@ -1045,10 +1067,10 @@ _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
   }
 
   void _startNearbyDriverTracking() {
-  _nearbyDriverTrackingTimer?.cancel();
-  _nearbyDriverTrackingTimer = Timer.periodic(
-    Duration(seconds: 5),
-    (timer) async {
+    _nearbyDriverTrackingTimer?.cancel();
+    _nearbyDriverTrackingTimer = Timer.periodic(Duration(seconds: 5), (
+      timer,
+    ) async {
       // Stop if ride is now active
       if (_activeRide != null || _isDriverAssigned) {
         timer.cancel();
@@ -1065,14 +1087,10 @@ _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
           final locationData = driverData['location'];
           final latitude = locationData['latitude'] is double
               ? locationData['latitude']
-              : double.tryParse(
-                      locationData['latitude'].toString()) ??
-                  0.0;
+              : double.tryParse(locationData['latitude'].toString()) ?? 0.0;
           final longitude = locationData['longitude'] is double
               ? locationData['longitude']
-              : double.tryParse(
-                      locationData['longitude'].toString()) ??
-                  0.0;
+              : double.tryParse(locationData['longitude'].toString()) ?? 0.0;
 
           final eta = driverData['eta_minutes']?.toString() ?? '1';
           double etaValue = double.tryParse(eta) ?? 1.0;
@@ -1086,114 +1104,111 @@ _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
           });
 
           _updateNearbyDriverMarker(newLocation, roundedEta.toString());
-  
-  // ADD THIS - start smooth tracking
-  if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
-    _startNearbyDriverTracking();
-  }
+
+          // ADD THIS - start smooth tracking
+          if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
+            _startNearbyDriverTracking();
+          }
         } else if (mounted) {
           // Driver gone — remove marker
           setState(() {
             _hasNearbyDriver = false;
             _nearbyDriverData = null;
             _nearbyDriverLocation = null;
-            _mapMarkers.removeWhere(
-              (m) => m.markerId.value == 'nearby_driver',
-            );
+            _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
           });
           timer.cancel();
         }
       } catch (e) {
-        AppLogger.log(
-          'Error tracking nearby driver: $e',
-          tag: 'NEARBY_DRIVER',
-        );
+        AppLogger.log('Error tracking nearby driver: $e', tag: 'NEARBY_DRIVER');
       }
-    },
-  );
-}
-  void _animateDriverMarker({
-  required String markerId,
-  required LatLng from,
-  required LatLng to,
-  String eta = '',
-}) {
-  const int steps = 20;
-  const duration = Duration(milliseconds: 1500);
-  final stepDuration = Duration(
-    milliseconds: duration.inMilliseconds ~/ steps,
-  );
-
-  int step = 0;
-  Timer.periodic(stepDuration, (timer) {
-    if (!mounted) {
-      timer.cancel();
-      return;
-    }
-
-    step++;
-    final t = step / steps;
-
-    // Interpolate position
-    final lat = from.latitude + (to.latitude - from.latitude) * t;
-    final lng = from.longitude + (to.longitude - from.longitude) * t;
-    final interpolated = LatLng(lat, lng);
-
-    setState(() {
-      _mapMarkers.removeWhere((m) => m.markerId.value == markerId);
-      _mapMarkers.add(
-        Marker(
-          markerId: MarkerId(markerId),
-          position: interpolated,
-          icon: _carIcon!,
-          anchor: Offset(0.5, 0.5),
-          infoWindow: InfoWindow(
-            title: 'Nearby Driver',
-            snippet: '$eta min away',
-          ),
-        ),
-      );
-    });
-
-    if (step >= steps) {
-      timer.cancel();
-    }
-  });
-}
-void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
-  if (_carIcon == null) return;
-
-  final oldMarker = _mapMarkers
-      .where((m) => m.markerId.value == 'nearby_driver')
-      .firstOrNull;
-
-  if (oldMarker != null) {
-    // Animate smoothly from old position to new position
-    _animateDriverMarker(
-      markerId: 'nearby_driver',
-      from: oldMarker.position,
-      to: newLocation,
-      eta: eta,
-    );
-  } else {
-    // First time — just place it
-    setState(() {
-      _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
-      _mapMarkers.add(
-        Marker(
-          markerId: MarkerId('nearby_driver'),
-          position: newLocation,
-          icon: _carIcon!,
-          anchor: Offset(0.5, 0.5),
-          infoWindow: InfoWindow(
-            title: 'Nearby Driver',
-            snippet: '$eta min away',
-          ),
-        ),
-      );
     });
   }
-}
+
+  void _animateDriverMarker({
+    required String markerId,
+    required LatLng from,
+    required LatLng to,
+    String eta = '',
+  }) {
+    const int steps = 20;
+    const duration = Duration(milliseconds: 1500);
+    final stepDuration = Duration(
+      milliseconds: duration.inMilliseconds ~/ steps,
+    );
+
+    int step = 0;
+    Timer.periodic(stepDuration, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      step++;
+      final t = step / steps;
+
+      // Interpolate position
+      final lat = from.latitude + (to.latitude - from.latitude) * t;
+      final lng = from.longitude + (to.longitude - from.longitude) * t;
+      final interpolated = LatLng(lat, lng);
+
+      setState(() {
+        _mapMarkers.removeWhere((m) => m.markerId.value == markerId);
+        _mapMarkers.add(
+          Marker(
+            markerId: MarkerId(markerId),
+            position: interpolated,
+            icon: _carIcon!,
+            anchor: Offset(0.5, 0.5),
+            infoWindow: InfoWindow(
+              title: 'Nearby Driver',
+              snippet: '$eta min away',
+            ),
+          ),
+        );
+      });
+
+      if (step >= steps) {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
+    if (_carIcon == null) return;
+
+    final oldMarker = _mapMarkers
+        .where((m) => m.markerId.value == 'nearby_driver')
+        .firstOrNull;
+
+    if (oldMarker != null) {
+      // Animate smoothly from old position to new position
+      _animateDriverMarker(
+        markerId: 'nearby_driver',
+        from: oldMarker.position,
+        to: newLocation,
+        eta: eta,
+      );
+    } else {
+      // First time — just place it
+      setState(() {
+        _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
+        _mapMarkers.add(
+          Marker(
+            markerId: MarkerId('nearby_driver'),
+            position: newLocation,
+            icon: _carIcon!,
+            anchor: Offset(0.5, 0.5),
+            infoWindow: InfoWindow(
+              title: 'Nearby Driver',
+              snippet: '$eta min away',
+            ),
+          ),
+        );
+      });
+    }
+  }
+
   Future<void> _checkActiveRides() async {
     AppLogger.log('=== CHECKING ACTIVE RIDES ===');
     try {
@@ -1849,7 +1864,7 @@ void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
         position.longitude,
       );
 
-   String currentAddress = '';
+      String currentAddress = '';
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
 
@@ -5201,16 +5216,19 @@ void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
                                                                 context,
                                                               ); // close booking sheet
                                                               // Navigate to wallet screen
-                                                              Navigator.push(
-                                                                context,
-                                                                MaterialPageRoute(
-                                                                  builder:
-                                                                      (
-                                                                        context,
-                                                                      ) =>
-                                                                          WalletScreen(),
-                                                                ),
-                                                              );
+                                                              // Navigator.push(
+                                                              //   context,
+                                                              //   MaterialPageRoute(
+                                                              //     builder:
+                                                              //         (
+                                                              //           context,
+                                                              //         ) =>
+                                                              //             WalletScreen(),
+                                                              //   ),
+
+                                                              // );
+
+                                                              _navigateToWallet;
                                                             },
                                                             child: Container(
                                                               height: 48.h,
@@ -11295,7 +11313,7 @@ void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
     fromController.dispose();
     toController.dispose();
     stopController.dispose();
-     _nearbyDriverTrackingTimer?.cancel(); // ADD THIS
+    _nearbyDriverTrackingTimer?.cancel(); // ADD THIS
 
     noteController.dispose();
     super.dispose();

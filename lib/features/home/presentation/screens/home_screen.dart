@@ -1849,17 +1849,41 @@ void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
         position.longitude,
       );
 
-      String currentAddress = 'Current location';
+   String currentAddress = '';
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
-            .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
-        if (currentAddress.trim().isEmpty || currentAddress.trim() == ',') {
-          currentAddress =
-              place.locality ?? place.administrativeArea ?? 'Current location';
+
+        // Try street + locality first
+        final street = place.street?.trim() ?? '';
+        final locality = place.locality?.trim() ?? '';
+        final subLocality = place.subLocality?.trim() ?? '';
+        final adminArea = place.administrativeArea?.trim() ?? '';
+
+        if (street.isNotEmpty && street != locality) {
+          currentAddress = locality.isNotEmpty ? '$street, $locality' : street;
+        } else if (locality.isNotEmpty) {
+          currentAddress = adminArea.isNotEmpty
+              ? '$locality, $adminArea'
+              : locality;
+        } else if (subLocality.isNotEmpty) {
+          currentAddress = adminArea.isNotEmpty
+              ? '$subLocality, $adminArea'
+              : subLocality;
+        } else if (adminArea.isNotEmpty) {
+          currentAddress = adminArea;
         }
+
+        // Clean up
+        currentAddress = currentAddress
+            .replaceAll(RegExp(r'^,\s*|,\s*$'), '')
+            .trim();
       }
 
+      // If STILL empty, use coordinates as last resort (never "Current location")
+      if (currentAddress.isEmpty) {
+        currentAddress =
+            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+      }
       final coords = LatLng(position.latitude, position.longitude);
 
       if (mounted) {
@@ -1874,7 +1898,7 @@ void _updateNearbyDriverMarker(LatLng newLocation, String eta) {
           if (fromController.text.isEmpty ||
               fromController.text == 'Current location' ||
               fromController.text == 'Loading...') {
-            fromController.text = currentAddress;
+            // fromController.text = currentAddress;
             _isFromFieldEditable = true;
           }
         });

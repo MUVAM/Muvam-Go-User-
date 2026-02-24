@@ -5132,10 +5132,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   mainAxisSize:
                                                       MainAxisSize.min,
                                                   children: [
-                                                    Image.asset("assets/images/error.png", height:80.h, width:80.w, fit:BoxFit.contain),
-                                                    SizedBox(height:10.h),
+                                                    Image.asset(
+                                                      "assets/images/error.png",
+                                                      height: 80.h,
+                                                      width: 80.w,
+                                                      fit: BoxFit.contain,
+                                                    ),
+                                                    SizedBox(height: 10.h),
                                                     Text(
-                                                      'Insufficient Wallet Balance',
+                                                      'Insufficient Balance',
                                                       textAlign:
                                                           TextAlign.center,
                                                       style: TextStyle(
@@ -5148,7 +5153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                     SizedBox(height: 8.h),
                                                     Text(
-                                                      'You do not have enough balance in your wallet. Would you like to top up your wallet or choose another payment method?',
+                                                      'Your wallet balance isn\'t enough to request this ride. Please add funds to continue',
                                                       textAlign:
                                                           TextAlign.center,
                                                       style: TextStyle(
@@ -5192,7 +5197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                   ),
                                                               child: Center(
                                                                 child: Text(
-                                                                  'Change Method',
+                                                                  'Other Payment',
                                                                   style: TextStyle(
                                                                     color: Colors
                                                                         .white,
@@ -5246,7 +5251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               ),
                                                               child: Center(
                                                                 child: Text(
-                                                                  'Go to Wallet',
+                                                                  'Top Up Wallet',
                                                                   style: TextStyle(
                                                                     color: Colors
                                                                         .white,

@@ -1,41 +1,28 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
 import 'package:muvam/features/trips/data/models/ride_user.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class RideService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  final _client = ApiClient();
 
   Future<RideEstimateResponse> estimateRide(RideEstimateRequest request) async {
-    final token = await _getToken();
     final requestBody = request.toJson();
 
     AppLogger.log('=== RIDE ESTIMATE REQUEST ===');
     AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideEstimate}');
-    AppLogger.log(
-      'Headers: {"Content-Type": "application/json", "Authorization": "Bearer ${token?.substring(0, 20)}..."}',
-    );
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}');
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideEstimate}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
     AppLogger.log('=== RIDE ESTIMATE RESPONSE ===');
     AppLogger.log('Response Status: ${response.statusCode}');
-    AppLogger.log('Response Headers: ${response.headers}');
     AppLogger.log('Response Body: ${response.body}');
     AppLogger.log('=== END RIDE ESTIMATE ===');
 
@@ -47,16 +34,12 @@ class RideService {
   }
 
   Future<RideResponse> requestRide(RideRequest request) async {
-    final token = await _getToken();
     final requestBody = request.toJson();
 
     AppLogger.log('=== RIDE REQUEST DEBUG ===');
     AppLogger.log('=== RIDE REQUEST BODY $requestBody ===');
     AppLogger.log(
       'Request URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}',
-    );
-    AppLogger.log(
-      'Request Headers: {"Content-Type": "application/json", "Authorization": "Bearer ${token?.substring(0, 20)}..."}',
     );
     AppLogger.log('PAYMENT METHOD IN REQUEST: ${request.paymentMethod}');
     AppLogger.log('FULL REQUEST BODY: ${jsonEncode(requestBody)}');
@@ -65,18 +48,13 @@ class RideService {
       AppLogger.log('  $key: $value');
     });
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rideRequest}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
     AppLogger.log('=== RIDE REQUEST RESPONSE ===');
     AppLogger.log('Response Status: ${response.statusCode}');
-    AppLogger.log('Response Headers: ${response.headers}');
     log('FULL RESPONSE BODY: ${response.body}');
 
     if (response.body.isNotEmpty) {
@@ -102,14 +80,8 @@ class RideService {
   }
 
   Future<List<dynamic>> getNearbyRides() async {
-    final token = await _getToken();
-    AppLogger.log(
-      'Using token for nearby rides: ${token?.substring(0, 20)}...',
-    );
-
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.nearbyRides}'),
-      headers: {'Authorization': 'Bearer $token'},
     );
 
     AppLogger.log('Nearby Rides Response Status: ${response.statusCode}');
@@ -126,20 +98,13 @@ class RideService {
     required double latitude,
     required double longitude,
   }) async {
-    final token = await _getToken();
     final url =
         '${UrlConstants.baseUrl}${UrlConstants.nearbyDrivers}?longitude=$longitude&latitude=$latitude';
 
     AppLogger.log('Getting nearby drivers: $url');
 
     try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await _client.get(Uri.parse(url));
 
       AppLogger.log('Nearby drivers response: ${response.statusCode}');
       AppLogger.log('Nearby drivers body: ${response.body}');
@@ -157,16 +122,10 @@ class RideService {
   }
 
   Future<Map<String, dynamic>> getActiveRides() async {
-    final token = await _getToken();
     AppLogger.log('=== CHECKING ACTIVE RIDES ===');
-    AppLogger.log('Token: ${token?.substring(0, 20)}...');
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.activeRides}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode({'status': 'active'}),
     );
 
@@ -185,14 +144,8 @@ class RideService {
   }
 
   Future<Map<String, dynamic>> getRideDetails(int rideId) async {
-    final token = await _getToken();
-
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('${UrlConstants.baseUrl}/rides/$rideId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
     );
 
     if (response.statusCode == 200) {
@@ -210,7 +163,6 @@ class RideService {
     required int score,
     required String comment,
   }) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/$rideId/rate';
     final requestBody = {'comment': comment, 'score': score};
 
@@ -218,12 +170,8 @@ class RideService {
     AppLogger.log('URL: $url', tag: 'RATING');
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'RATING');
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
@@ -242,26 +190,16 @@ class RideService {
   }
 
   Future<List<Ride>> getRides({String? status}) async {
-    final token = await _getToken();
-
     final url = '${UrlConstants.baseUrl}${UrlConstants.rides}';
 
     AppLogger.log('Getting rides: $url');
 
     final Map<String, dynamic> body = {};
-
     if (status != null) {
       body['status'] = status;
     }
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(body),
-    );
+    final response = await _client.post(Uri.parse(url), body: jsonEncode(body));
 
     AppLogger.log('OMOOOOO =======: ${response.statusCode}');
     AppLogger.log('OMOOOOOOO RIDE HEREEEE: ${response.body}');
@@ -286,19 +224,11 @@ class RideService {
   }
 
   Future<Ride> getRideById(int rideId) async {
-    final token = await _getToken();
-
     final url = '${UrlConstants.baseUrl}/rides/$rideId';
 
     AppLogger.log('Getting ride details: $url');
 
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await _client.get(Uri.parse(url));
 
     AppLogger.log('Ride details response: ${response.statusCode}');
     AppLogger.log('Ride details body: ${response.body}');
@@ -313,19 +243,12 @@ class RideService {
   }
 
   Future<void> dismissRide(int rideId) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/dismiss/$rideId';
 
     AppLogger.log('=== DISMISS RIDE REQUEST ===', tag: 'DISMISS');
     AppLogger.log('URL: $url', tag: 'DISMISS');
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await _client.post(Uri.parse(url));
 
     AppLogger.log('Response Status: ${response.statusCode}', tag: 'DISMISS');
     AppLogger.log('Response Body: ${response.body}', tag: 'DISMISS');
@@ -341,7 +264,6 @@ class RideService {
     required String locationAddress,
     required int rideId,
   }) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}${UrlConstants.sos}';
     final requestBody = {
       'location': location,
@@ -351,18 +273,10 @@ class RideService {
 
     AppLogger.log('=== SOS REQUEST ===', tag: 'SOS');
     AppLogger.log('URL: $url', tag: 'SOS');
-    AppLogger.log(
-      'Token: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}',
-      tag: 'SOS',
-    );
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'SOS');
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
@@ -380,8 +294,6 @@ class RideService {
     }
   }
 
-  // Add this method to your existing RideService class
-
   Future<Map<String, dynamic>> updateRide({
     required int rideId,
     required String pickup,
@@ -392,7 +304,6 @@ class RideService {
     required String vehicleType,
     required String serviceType,
   }) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/update/$rideId';
     final requestBody = {
       'pickup': pickup,
@@ -411,12 +322,8 @@ class RideService {
       tag: 'UPDATE_RIDE',
     );
 
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
@@ -441,7 +348,6 @@ class RideService {
     required int rideId,
     required String reason,
   }) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/cancel/$rideId';
     final requestBody = {'reason': reason};
 
@@ -449,12 +355,8 @@ class RideService {
     AppLogger.log('URL: $url', tag: 'CANCEL');
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'CANCEL');
 
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 
@@ -482,7 +384,6 @@ class RideService {
     String? stopAddress,
     required String vehicleType,
   }) async {
-    final token = await _getToken();
     final url = '${UrlConstants.baseUrl}/rides/update/$rideId';
 
     final requestBody = {
@@ -494,7 +395,6 @@ class RideService {
       'vehicle_type': vehicleType,
     };
 
-    // Only add stop_address if it's not null or empty
     if (stopAddress != null && stopAddress.isNotEmpty) {
       requestBody['stop_address'] = stopAddress;
     }
@@ -503,12 +403,8 @@ class RideService {
     AppLogger.log('URL: $url', tag: 'PREBOOKED');
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'PREBOOKED');
 
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(requestBody),
     );
 

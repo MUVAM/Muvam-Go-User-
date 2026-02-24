@@ -1,25 +1,14 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import '../constants/url_constants.dart';
-import 'auth_service.dart';
 
 class ProfileService {
-  final AuthService _authService = AuthService();
+  final _client = ApiClient();
 
   Future<Map<String, dynamic>> getUserProfile() async {
-    final token = await _authService.getToken();
-
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.userProfile}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
     );
 
     AppLogger.log('Profile Response Status: ${response.statusCode}');
@@ -33,18 +22,8 @@ class ProfileService {
   }
 
   Future<void> updateTip(int tip) async {
-    final token = await _authService.getToken();
-
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.userTip}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode({'tip': tip}),
     );
 

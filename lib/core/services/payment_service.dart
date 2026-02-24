@@ -1,65 +1,26 @@
 import 'dart:convert';
 import 'dart:developer' as log;
-import 'dart:math';
-import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentService {
-  Future<String?> _getToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token != null) {
-        AppLogger.log('Auth token retrieved successfully', tag: 'PAYMENT');
-      } else {
-        AppLogger.warning(
-          'No auth token found in SharedPreferences',
-          tag: 'PAYMENT',
-        );
-      }
-
-      return token;
-    } catch (e) {
-      AppLogger.error(
-        'Failed to retrieve auth token',
-        error: e,
-        tag: 'PAYMENT',
-      );
-      return null;
-    }
-  }
-
-  // String generateReference() {
-  //   final timestamp = DateTime.now().millisecondsSinceEpoch;
-  //   final random = Random().nextInt(999999).toString().padLeft(6, '0');
-  //   final reference = 'MUV-$timestamp-$random';
-  //   AppLogger.log('Generated payment reference: $reference', tag: 'PAYMENT');
-  //   return reference;
-  // }
+  final _client = ApiClient();
 
   Future<Map<String, dynamic>> initializePayment({
     required int rideId,
     required double amount,
     String? reference,
   }) async {
-    final paymentReference = reference ;
+    final paymentReference = reference;
 
     AppLogger.log(
       'Initializing payment for ride $rideId, amount: ₦$amount, reference: $paymentReference',
       tag: 'PAYMENT',
     );
 
-    final token = await _getToken();
-
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.paymentInitialize}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
       body: jsonEncode({
         'ride_id': rideId,
         'amount': amount,
@@ -87,16 +48,10 @@ class PaymentService {
       tag: 'PAYMENT',
     );
 
-    final token = await _getToken();
-
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse(
         '${UrlConstants.baseUrl}${UrlConstants.paymentVerify}/$reference',
       ),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
     );
 
     AppLogger.log(

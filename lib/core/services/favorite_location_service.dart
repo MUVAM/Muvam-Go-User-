@@ -1,24 +1,11 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/home/data/models/favorite_location_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class FavoriteLocationService {
-  Future<String?> _getToken() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('auth_token');
-    } catch (e) {
-      AppLogger.error(
-        'Failed to retrieve auth token',
-        error: e,
-        tag: 'FAV_LOCATION',
-      );
-      return null;
-    }
-  }
+  final _client = ApiClient();
 
   // Save a favorite location (home, work, or favourite)
   Future<FavoriteLocationResponse> saveFavoriteLocation({
@@ -27,8 +14,6 @@ class FavoriteLocationService {
     required String destAddress,
   }) async {
     AppLogger.log('Saving favorite location: $name', tag: 'FAV_LOCATION');
-
-    final token = await _getToken();
 
     final requestBody = {
       'name': name,
@@ -42,12 +27,8 @@ class FavoriteLocationService {
     );
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(requestBody),
       );
 
@@ -79,15 +60,9 @@ class FavoriteLocationService {
   Future<List<FavoriteLocation>> getFavoriteLocations() async {
     AppLogger.log('Fetching favorite locations', tag: 'FAV_LOCATION');
 
-    final token = await _getToken();
-
     try {
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       AppLogger.log(
@@ -102,7 +77,6 @@ class FavoriteLocationService {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
 
-        // Handle different response formats
         if (responseData is Map<String, dynamic>) {
           if (responseData.containsKey('data')) {
             final data = responseData['data'];
@@ -136,17 +110,11 @@ class FavoriteLocationService {
   Future<bool> deleteFavoriteLocation(int id) async {
     AppLogger.log('Deleting favorite location: $id', tag: 'FAV_LOCATION');
 
-    final token = await _getToken();
-
     try {
-      final response = await http.delete(
+      final response = await _client.delete(
         Uri.parse(
           '${UrlConstants.baseUrl}${UrlConstants.favouriteLocation}/$id',
         ),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       AppLogger.log(

@@ -1,48 +1,29 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ActivitiesService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  final _client = ApiClient();
 
   Future<Map<String, dynamic>> getRides({
     String? status,
     int? limit,
     int? offset,
   }) async {
-    final token = await _getToken();
-
-    if (token == null) {
-      AppLogger.log('No auth token found');
-      return {'success': false, 'message': 'No authentication token'};
-    }
-
     final requestBody = <String, dynamic>{};
     if (status != null) requestBody['status'] = status;
-    // Uncomment these if you need pagination later
-    // if (limit != null) requestBody['limit'] = limit;
-    // if (offset != null) requestBody['offset'] = offset;
 
     AppLogger.log('FETCHING RIDES');
     AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rides}');
     AppLogger.log('Method: POST');
     AppLogger.log('Status filter: ${status ?? "all"}');
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}');
-    AppLogger.log('Token: ${token.substring(0, 20)}...');
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('${UrlConstants.baseUrl}${UrlConstants.rides}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(requestBody),
       );
 
@@ -73,29 +54,15 @@ class ActivitiesService {
   }
 
   Future<Map<String, dynamic>> getRideDetails(int rideId) async {
-    final token = await _getToken();
-
-    if (token == null) {
-      AppLogger.log('No auth token found');
-      return {'success': false, 'message': 'No authentication token'};
-    }
-
     final url = '${UrlConstants.baseUrl}${UrlConstants.rides}/$rideId';
 
     AppLogger.log('FETCHING RIDE DETAILS');
     AppLogger.log('URL: $url');
     AppLogger.log('Method: GET');
     AppLogger.log('Ride ID: $rideId');
-    AppLogger.log('Token: ${token.substring(0, 20)}...');
 
     try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await _client.get(Uri.parse(url));
 
       AppLogger.log('Response Status: ${response.statusCode}');
       AppLogger.log('Response Headers: ${response.headers}');

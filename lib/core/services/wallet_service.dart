@@ -1,32 +1,21 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/wallet/data/models/wallet_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:muvam/core/constants/url_constants.dart';
 
 class WalletService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  final _client = ApiClient();
 
   Future<CreateVirtualAccountResponse> createVirtualAccount(
     CreateVirtualAccountRequest request,
   ) async {
-    final token = await _getToken();
+    AppLogger.log('Creating virtual account…');
 
-    AppLogger.log(
-      'Creating virtual account with token: ${token != null ? "Present" : "Missing"}',
-    );
-
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.createVirtualAccount}'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
       body: jsonEncode(request.toJson()),
     );
 
@@ -98,22 +87,13 @@ class WalletService {
   Future<WalletSummaryResponse> getWalletSummary() async {
     debugPrint('🟢 WalletService.getWalletSummary called');
     try {
-      final token = await _getToken();
-      debugPrint('🟢 Token: ${token != null ? "EXISTS" : "NULL"}');
-
       final url = '${UrlConstants.baseUrl}${UrlConstants.walletSummary}';
       debugPrint('🟢 URL: $url');
 
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token != null) 'Authorization': 'Bearer $token',
-            },
-          )
+      final response = await _client
+          .get(Uri.parse(url))
           .timeout(
-            Duration(seconds: 30),
+            const Duration(seconds: 30),
             onTimeout: () {
               debugPrint('🔴 Request TIMED OUT after 30 seconds');
               throw Exception('Request timed out');
@@ -140,21 +120,13 @@ class WalletService {
   }
 
   Future<VirtualAccountInfo?> getVirtualAccount() async {
-    final token = await _getToken();
-
-    AppLogger.log(
-      'Getting virtual account with token: ${token != null ? "Present" : "Missing"}',
-    );
+    AppLogger.log('Getting virtual account…');
     AppLogger.log(
       'URL: ${UrlConstants.baseUrl}${UrlConstants.getVirtualAccount}',
     );
 
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('${UrlConstants.baseUrl}${UrlConstants.getVirtualAccount}'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
     );
 
     AppLogger.log('Get virtual account response: ${response.body}');

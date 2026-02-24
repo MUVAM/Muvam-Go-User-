@@ -1,25 +1,13 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class PromoCodeService {
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
+  final _client = ApiClient();
 
   Future<Map<String, dynamic>> validatePromoCode(String code) async {
-    final token = await _getToken();
-
-    if (token == null) {
-      AppLogger.log('No auth token found');
-      return {'success': false, 'message': 'No authentication token'};
-    }
-
     final url = '${UrlConstants.baseUrl}/promo-codes/validate';
-
     final requestBody = {'code': code};
 
     AppLogger.log('URL: $url');
@@ -27,12 +15,8 @@ class PromoCodeService {
     AppLogger.log('Request Body: ${jsonEncode(requestBody)}');
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(requestBody),
       );
 

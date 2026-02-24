@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/constants/url_constants.dart';
+import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/profile/data/models/profile_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProfileService {
+  final _client = ApiClient();
+
   Future<Map<String, dynamic>> updateUserProfile({
     required String firstName,
     required String lastName,
@@ -16,19 +19,11 @@ class UserProfileService {
     String? profilePhotoPath,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        return {'success': false, 'message': 'No authentication token found'};
-      }
-
       final url = '${UrlConstants.baseUrl}/users/profile/complete';
 
       if (profilePhotoPath != null && profilePhotoPath.isNotEmpty) {
         return await _updateProfileWithPhoto(
           url: url,
-          token: token,
           firstName: firstName,
           lastName: lastName,
           email: email,
@@ -39,7 +34,6 @@ class UserProfileService {
       } else {
         return await _updateProfileWithoutPhoto(
           url: url,
-          token: token,
           firstName: firstName,
           lastName: lastName,
           email: email,
@@ -55,7 +49,6 @@ class UserProfileService {
 
   Future<Map<String, dynamic>> _updateProfileWithPhoto({
     required String url,
-    required String token,
     required String firstName,
     required String lastName,
     required String email,
@@ -64,35 +57,35 @@ class UserProfileService {
     required String profilePhotoPath,
   }) async {
     try {
-      final multipartRequest = http.MultipartRequest('PUT', Uri.parse(url));
-
-      multipartRequest.headers['Authorization'] = 'Bearer $token';
-      multipartRequest.fields['first_name'] = firstName;
-      multipartRequest.fields['last_name'] = lastName;
-      multipartRequest.fields['email'] = email;
-      multipartRequest.fields['date_of_birth'] = dateOfBirth;
-
-      if (city != null && city.isNotEmpty) {
-        multipartRequest.fields['city'] = city;
-        AppLogger.log('Adding city to multipart update: $city', tag: 'PROFILE');
-      }
-
-      // Add profile photo
-      final file = File(profilePhotoPath);
-      multipartRequest.files.add(
-        await http.MultipartFile.fromPath('profile_photo', file.path),
-      );
-
       AppLogger.log(
         '=== UPDATE PROFILE WITH PHOTO REQUEST ===',
         tag: 'PROFILE',
       );
       AppLogger.log('URL: $url', tag: 'PROFILE');
-      AppLogger.log('Fields: ${multipartRequest.fields}', tag: 'PROFILE');
       AppLogger.log('Photo: $profilePhotoPath', tag: 'PROFILE');
 
-      final streamedResponse = await multipartRequest.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await _client.sendMultipart((token) async {
+        final req = http.MultipartRequest('PUT', Uri.parse(url));
+        if (token != null) req.headers['Authorization'] = 'Bearer $token';
+        req.fields['first_name'] = firstName;
+        req.fields['last_name'] = lastName;
+        req.fields['email'] = email;
+        req.fields['date_of_birth'] = dateOfBirth;
+        if (city != null && city.isNotEmpty) {
+          req.fields['city'] = city;
+          AppLogger.log(
+            'Adding city to multipart update: $city',
+            tag: 'PROFILE',
+          );
+        }
+        req.files.add(
+          await http.MultipartFile.fromPath(
+            'profile_photo',
+            File(profilePhotoPath).path,
+          ),
+        );
+        return req;
+      });
 
       AppLogger.log('Response Status: ${response.statusCode}', tag: 'PROFILE');
       AppLogger.log('Response Body: ${response.body}', tag: 'PROFILE');
@@ -100,12 +93,10 @@ class UserProfileService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-
         if (data['user'] != null) {
           final updatedUser = UserProfile.fromJson(data['user']);
           await _cacheUserData(updatedUser);
         }
-
         return {'success': true, 'data': data};
       } else {
         return {
@@ -121,7 +112,6 @@ class UserProfileService {
 
   Future<Map<String, dynamic>> _updateProfileWithoutPhoto({
     required String url,
-    required String token,
     required String firstName,
     required String lastName,
     required String email,
@@ -136,7 +126,6 @@ class UserProfileService {
         'date_of_birth': dateOfBirth,
       };
 
-      // Add city if provided
       if (city != null && city.isNotEmpty) {
         requestBody['city'] = city;
         AppLogger.log('Adding city to update: $city', tag: 'PROFILE');
@@ -146,12 +135,8 @@ class UserProfileService {
       AppLogger.log('URL: $url', tag: 'PROFILE');
       AppLogger.log('Request Body: ${jsonEncode(requestBody)}', tag: 'PROFILE');
 
-      final response = await http.put(
+      final response = await _client.put(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(requestBody),
       );
 
@@ -161,12 +146,10 @@ class UserProfileService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-
         if (data['user'] != null) {
           final updatedUser = UserProfile.fromJson(data['user']);
           await _cacheUserData(updatedUser);
         }
-
         return {'success': true, 'data': data};
       } else {
         return {
@@ -182,24 +165,10 @@ class UserProfileService {
 
   Future<ProfileResponse?> getUserProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        AppLogger.log('No auth token found');
-        return null;
-      }
-
       final url = '${UrlConstants.baseUrl}${UrlConstants.userProfile}';
       AppLogger.log('Fetching user profile from: $url');
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await _client.get(Uri.parse(url));
 
       AppLogger.log('Profile Response Status: ${response.statusCode}');
       AppLogger.log('Profile Response Body: ${response.body}');

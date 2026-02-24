@@ -5235,7 +5235,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                                               // );
 
-                                                              _navigateToWallet;
+                                                              _navigateToWallet();
                                                             },
                                                             child: Container(
                                                               height: 48.h,

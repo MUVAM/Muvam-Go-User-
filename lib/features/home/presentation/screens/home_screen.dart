@@ -5132,6 +5132,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   mainAxisSize:
                                                       MainAxisSize.min,
                                                   children: [
+                                                    Image.asset("assets/images/error.png", height:80.h, width:80.w, fit:BoxFit.contain),
+                                                    SizedBox(height:10.h),
                                                     Text(
                                                       'Insufficient Wallet Balance',
                                                       textAlign:

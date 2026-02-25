@@ -2789,6 +2789,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final targetPosition =
+        (screenHeight * 0.42 - 80.h) / (screenHeight * 0.85 - 80.h);
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
@@ -2896,6 +2899,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       setState(() {
                         fromController.text = _currentLocationAddress;
+                        _pickupCoordinates = _currentLocation;
+                        _isFromFieldEditable = true;
                         _showDestinationField = true;
                         _isFromFieldFocused = false;
                       });
@@ -3199,6 +3204,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       _isFromFieldFocused =
                                                           true;
                                                       _showSuggestions = false;
+                                                      fromController.text =
+                                                          _currentLocationAddress;
+                                                      _panelController
+                                                          .animatePanelToPosition(
+                                                            targetPosition
+                                                                .clamp(
+                                                                  0.0,
+                                                                  1.0,
+                                                                ),
+                                                            duration: Duration(
+                                                              milliseconds: 300,
+                                                            ),
+                                                            curve: Curves
+                                                                .easeInOut,
+                                                          );
                                                     });
                                                   } else if (!_isFromFieldEditable &&
                                                       _isLocationLoaded) {
@@ -3350,7 +3370,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   !_showStopField,
                                             ),
                                             child: Icon(
-                                              Icons.add,
+                                              _showStopField
+                                                  ? Icons.close
+                                                  : Icons.add,
                                               size: 24.sp,
                                               color: Color(
                                                 ConstColors.mainColor,
@@ -5223,7 +5245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               );
                                                               // Navigator.pop(
                                                               //   context,
-                                                              // ); 
+                                                              // );
                                                               // close booking sheet
                                                               // Navigate to wallet screen
                                                               // Navigator.push(

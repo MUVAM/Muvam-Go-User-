@@ -390,9 +390,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
 
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
+    // if (Navigator.canPop(context)) {
+    //   Navigator.pop(context);
+    // }
 
     if (hasAccount) {
       Navigator.push(
@@ -5221,9 +5221,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               Navigator.pop(
                                                                 dialogContext,
                                                               );
-                                                              Navigator.pop(
-                                                                context,
-                                                              ); // close booking sheet
+                                                              // Navigator.pop(
+                                                              //   context,
+                                                              // ); 
+                                                              // close booking sheet
                                                               // Navigate to wallet screen
                                                               // Navigator.push(
                                                               //   context,

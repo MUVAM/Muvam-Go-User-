@@ -300,14 +300,18 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   ),
                   Spacer(),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              EditPrebookingScreen(ride: ride),
-                        ),
-                      );
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            EditPrebookingScreen(
+              ride: ride,
+              initialScheduledAt: ride.createdAt,
+            ),
+      ),
+    );
+  
                     },
                     child: Container(
                       width: 353.w,

@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/services/payment_service.dart';
 import 'package:muvam/core/services/places_service.dart';
+import 'package:muvam/core/services/ride_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/activities/data/models/ride_data.dart';
@@ -15,8 +16,13 @@ import 'package:provider/provider.dart';
 
 class EditPrebookingScreen extends StatefulWidget {
   final RideData ride;
+  final String? initialScheduledAt;
 
-  const EditPrebookingScreen({super.key, required this.ride});
+  const EditPrebookingScreen({
+    super.key,
+    required this.ride,
+    this.initialScheduledAt,
+  });
 
   @override
   State<EditPrebookingScreen> createState() => _EditPrebookingScreenState();
@@ -28,6 +34,8 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
 
   final PlacesService _placesService = PlacesService();
   final PaymentService _paymentService = PaymentService();
+  final RideService _rideService = RideService();
+  int? _selectedCancelReason;
   List<PlacePrediction> _predictions = [];
   bool _showPredictions = false;
   String? _sessionToken;
@@ -48,6 +56,405 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
     // 'pay4me',
     'Pay in car',
   ];
+  void _showTripCanceledSheet() {
+    showModalBottomSheet(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.2),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setCancelState) => Container(
+          height: 450.h,
+          padding: EdgeInsets.all(20.w),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 69.w,
+                height: 5.h,
+                margin: EdgeInsets.only(bottom: 20.h),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2.5.r),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Trip Canceled',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 10.h),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Help us improve by sharing why you are canceling',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              SizedBox(height: 30.h),
+              _buildCancelReason(
+                0,
+                'I am taking alternative transport',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(
+                1,
+                'It is taking too long to get a driver',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(
+                2,
+                'I have to attend to something',
+                setCancelState,
+              ),
+              SizedBox(height: 10.h),
+              _buildCancelReason(3, 'Others', setCancelState),
+              Spacer(),
+              GestureDetector(
+                onTap: _selectedCancelReason != null
+                    ? () {
+                        if (_selectedCancelReason == 3) {
+                          Navigator.pop(context);
+                          _showCancelRideDialog();
+                        } else {
+                          Navigator.pop(context);
+                          _showFeedbackSuccessSheet();
+                        }
+                      }
+                    : null,
+                child: Container(
+                  width: double.infinity,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: _selectedCancelReason != null
+                        ? Color(ConstColors.mainColor)
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Submit',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCancelReason(
+    int index,
+    String reason,
+    StateSetter setCancelState,
+  ) {
+    final isSelected = _selectedCancelReason == index;
+    return GestureDetector(
+      onTap: () {
+        setCancelState(() {
+          _selectedCancelReason = index;
+        });
+        setState(() {
+          _selectedCancelReason = index;
+        });
+      },
+      child: Container(
+        width: double.infinity,
+        height: 40.h,
+        padding: EdgeInsets.all(10.w),
+        decoration: BoxDecoration(
+          color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
+          border: Border.all(color: Color(ConstColors.mainColor)),
+          borderRadius: BorderRadius.circular(15.r),
+        ),
+        child: Center(
+          child: Text(
+            reason,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w400,
+              color: isSelected ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCancelRideDialog() {
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          title: Text(
+            'Cancel Ride',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '⚠️ Please note that charges may apply if you cancel the ride now.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  color: Colors.red[700],
+                ),
+              ),
+              SizedBox(height: 20.h),
+              Text(
+                'Please tell us why you want to cancel:',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 12.h),
+              TextField(
+                controller: reasonController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Enter your reason here...',
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: Color(ConstColors.mainColor),
+                      width: 1.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(
+                      color: Color(ConstColors.mainColor),
+                      width: 2,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                reasonController.dispose();
+              },
+              child: Text(
+                'Back',
+                style: TextStyle(color: Colors.grey[600], fontSize: 16.sp),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  CustomFlushbar.showError(
+                    context: context,
+                    message: 'Please provide a reason for cancellation',
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop();
+                await _executeCancelRide(reason);
+                reasonController.dispose();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(ConstColors.mainColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+              child: Text(
+                'Submit',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFeedbackSuccessSheet() {
+    final reasons = [
+      'I am taking alternative transport',
+      'It is taking too long to get a driver',
+      'I have to attend to something',
+      'Others',
+    ];
+    final reason = _selectedCancelReason != null
+        ? reasons[_selectedCancelReason!]
+        : 'Cancelled by passenger';
+
+    () async {
+      await _executeCancelRide(reason);
+    }();
+  }
+
+  Future<void> _executeCancelRide(String reason) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+      ),
+    );
+
+    try {
+      final result = await _rideService.cancelRide(
+        rideId: widget.ride.id,
+        reason: reason,
+      );
+
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (result['success'] == true) {
+        if (!mounted) return;
+        // Show feedback success sheet
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          barrierColor: Colors.black.withOpacity(0.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          builder: (context) => Container(
+            height: 400.h,
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100.sp,
+                  height: 100.sp,
+                  decoration: BoxDecoration(
+                    color: Color(0xff34B869),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check, color: Colors.white, size: 40.sp),
+                ),
+                SizedBox(height: 10.h),
+                Text(
+                  "Feedback Sent",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 28.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "We've received your answer\nand we hope we see you next\ntime.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: 30.h),
+                GestureDetector(
+                  onTap: () {
+                    // Pop feedback sheet + edit screen + trip details screen
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: Color(ConstColors.mainColor),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'GO HOME',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          CustomFlushbar.showError(
+            context: context,
+            message: result['message'] ?? 'Failed to cancel ride',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      if (mounted) {
+        CustomFlushbar.showError(context: context, message: 'Error: $e');
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -59,12 +466,18 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
     _sessionToken = DateTime.now().millisecondsSinceEpoch.toString();
 
     // Parse scheduled date
+    // Parse scheduled date — prefer passed-in initialScheduledAt
     try {
       final dt = DateTime.parse(
-        widget.ride.scheduledAt ?? widget.ride.createdAt,
+        widget.initialScheduledAt ??
+            widget.ride.scheduledAt ??
+            widget.ride.createdAt,
       ).toLocal();
       _selectedDate = dt;
       _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+      print('scheduledAt: ${widget.ride.scheduledAt}');
+print('initialScheduledAt: ${widget.initialScheduledAt}');
+print('resolved date: $_selectedDate');
     } catch (e) {
       _selectedDate = DateTime.now().add(Duration(days: 1));
       _selectedTime = TimeOfDay.now();
@@ -194,7 +607,7 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
   void _showPaymentMethodSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Color(0xFF2C9BE0),
+      backgroundColor: Color(ConstColors.mainColor),
       barrierColor: Colors.black.withOpacity(0.2),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
@@ -211,7 +624,7 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
             },
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Color(0xFF2C9BE0),
+                color: Color(ConstColors.mainColor),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
               ),
               child: Padding(
@@ -931,7 +1344,7 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
                       GestureDetector(
                         onTap: provider.isUpdating
                             ? null
-                            : () => Navigator.pop(context),
+                            : _showTripCanceledSheet,
                         child: Container(
                           width: double.infinity,
                           height: 48.h,

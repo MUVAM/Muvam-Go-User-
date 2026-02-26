@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
@@ -55,6 +56,12 @@ class AuthService {
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
       final result = VerifyOtpResponse.fromJson(responseData);
+      log(
+        "this is the refrsh token i am getting from verufy otp ${result.token?.refreshToken}",
+      );
+      log(
+        "this is the  token i am getting from verufy otp ${result.token?.accessToken}",
+      );
 
       if (result.token != null) {
         await _saveTokenData(result.token!);
@@ -263,18 +270,22 @@ class AuthService {
   Future<bool> refreshToken() async {
     try {
       final refreshToken = await getRefreshToken();
-
+      log("this is the refreshtoken i want to send $refreshToken");
       if (refreshToken == null) {
         AppLogger.log('❌ No refresh token available', tag: 'AUTH');
         return false;
       }
 
       AppLogger.log('🔄 Attempting to refresh token...', tag: 'AUTH');
+      final token = await getToken();
 
       final response = await http
           .post(
             Uri.parse('${UrlConstants.baseUrl}${UrlConstants.refreshToken}'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json ',
+              'Authorization': 'Bearer $token',
+            },
             body: jsonEncode({'refresh_token': refreshToken}),
           )
           .timeout(

@@ -304,8 +304,8 @@ class AuthService {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
 
-        if (responseData['token'] != null) {
-          final tokenData = TokenData.fromJson(responseData['token']);
+        if (responseData['access_token'] != null) {
+          final tokenData = TokenData.fromJson(responseData['access_token']);
           await _saveTokenData(tokenData);
 
           AppLogger.log('✅ Token refreshed successfully!', tag: 'AUTH');

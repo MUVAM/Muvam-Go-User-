@@ -5219,9 +5219,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               Navigator.pop(
                                                                 dialogContext,
                                                               );
-                                                              Navigator.pop(
-                                                                context,
-                                                              ); // close booking sheet
+                                                              // Navigator.pop(
+                                                              //   context,
+                                                              // ); // close booking sheet
                                                               // Navigate to wallet screen
                                                               // Navigator.push(
                                                               //   context,
@@ -10880,11 +10880,10 @@ class _HomeScreenState extends State<HomeScreen> {
     String convertedPaymentMethod;
     if (selectedPaymentMethod == 'Pay in car') {
       convertedPaymentMethod = 'in_car';
+    } else if (selectedPaymentMethod == 'Pay with wallet') {
+      convertedPaymentMethod = 'wallet';
     } else {
-      convertedPaymentMethod = selectedPaymentMethod.toLowerCase().replaceAll(
-        ' ',
-        '_',
-      );
+      convertedPaymentMethod = 'gateway';
     }
 
     AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');

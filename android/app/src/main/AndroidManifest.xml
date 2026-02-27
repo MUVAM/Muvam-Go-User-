@@ -26,7 +26,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
-        android:label="muvam"
+        android:label="MuvamGo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

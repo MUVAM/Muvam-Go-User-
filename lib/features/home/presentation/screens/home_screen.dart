@@ -97,7 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isDriverAssigned = false;
   String _driverArrivalTime = "5";
   bool _isInCar = false;
-  final String _driverDistance = "5 min";
   String _pickupLocation = "Your current location";
   String _dropoffLocation = "Destination";
   String _currentLocationAddress = "Current location"; // Store actual address
@@ -577,7 +576,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          roundedArrivalTime,
+                          // roundedArrivalTime,
+                          _driverArrivalTime,
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
@@ -9824,9 +9824,7 @@ class _HomeScreenState extends State<HomeScreen> {
               '₦${_activeRide?['Price']?.toStringAsFixed(0) ?? '0'}',
             ),
 
-            
             SizedBox(height: 10.h),
-
 
             _buildDriverDetail(
               'Tip:',

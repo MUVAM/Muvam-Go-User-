@@ -739,7 +739,7 @@ class EnhancedNotificationService {
         ?.createNotificationChannel(callChannel);
 
     var androidInitialize = const AndroidInitializationSettings(
-      '@drawable/ic_notification',
+      '@mipmap/ic_launcher',
     );
     var iosInitialize = const DarwinInitializationSettings(
       requestAlertPermission: true,

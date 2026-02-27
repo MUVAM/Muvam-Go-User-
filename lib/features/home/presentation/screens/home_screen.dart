@@ -9823,12 +9823,17 @@ class _HomeScreenState extends State<HomeScreen> {
               'Fare:',
               '₦${_activeRide?['Price']?.toStringAsFixed(0) ?? '0'}',
             ),
+
+            
             SizedBox(height: 10.h),
+
+
             _buildDriverDetail(
               'Tip:',
               '₦${_activeRide?['Tip']?.toStringAsFixed(0) ?? '0'}',
             ),
             SizedBox(height: 10.h),
+
             _buildDriverDetail(
               'Total:',
               '₦${((_activeRide?['Price'] ?? 0) + (_activeRide?['Tip'] ?? 0)).toStringAsFixed(0)}',

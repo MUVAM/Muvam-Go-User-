@@ -571,6 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   : Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Center(
+
               child: (_isDriverAssigned || _hasNearbyDriver)
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,

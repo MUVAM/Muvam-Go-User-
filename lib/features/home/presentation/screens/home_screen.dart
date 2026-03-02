@@ -571,7 +571,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   : Border.all(color: Colors.grey.shade300, width: 1),
             ),
             child: Center(
-
               child: (_isDriverAssigned || _hasNearbyDriver)
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -6880,7 +6879,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (mounted) {
                       CustomFlushbar.showError(
                         context: this.context,
-                        message: result['message'] ?? 'Failed to cancel ride',
+                        message:
+                            result['message']["error"] ??
+                            'Failed to cancel ride',
                       );
                     }
                   }

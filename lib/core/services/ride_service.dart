@@ -360,17 +360,10 @@ class RideService {
       body: jsonEncode(requestBody),
     );
 
-    AppLogger.log('Response Status: ${response.statusCode}', tag: 'CANCEL');
-    AppLogger.log('Response Body: ${response.body}', tag: 'CANCEL');
-    AppLogger.log('=== END CANCEL RIDE ===', tag: 'CANCEL');
-
     if (response.statusCode == 200 || response.statusCode == 201) {
       return {'success': true, 'data': jsonDecode(response.body)};
     } else {
-      return {
-        'success': false,
-        'message': 'Failed to cancel ride: ${response.body}',
-      };
+      return {'success': false, 'message': jsonDecode(response.body)["error"]};
     }
   }
 

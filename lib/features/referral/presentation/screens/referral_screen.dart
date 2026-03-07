@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
+import 'package:muvam/features/referral/presentation/widgets/code_card.dart';
+import 'package:muvam/features/referral/presentation/widgets/error_card.dart';
+import 'package:muvam/features/referral/presentation/widgets/total_invites_card.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 import 'package:provider/provider.dart';
-import 'referral_rules_screen.dart';
 
 class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
@@ -29,52 +35,42 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
   void _fetchData() async {
     final referralProvider = context.read<ReferralProvider>();
-
-    // Check if we already have cached data
     final hasData = referralProvider.referralData != null;
 
     if (hasData && !_hasLoadedOnce) {
-      // We have cached data, show it immediately
-      setState(() {
-        _hasLoadedOnce = true;
-      });
-
-      // Refresh in background (silently)
+      setState(() => _hasLoadedOnce = true);
       referralProvider.fetchReferralCode();
     } else if (!hasData) {
-      // No cached data, show loader and fetch
       await referralProvider.fetchReferralCode();
-
-      if (mounted) {
-        setState(() {
-          _hasLoadedOnce = true;
-        });
-      }
+      if (mounted) setState(() => _hasLoadedOnce = true);
     } else {
-      // Already loaded before, just refresh in background
       referralProvider.fetchReferralCode();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(ConstColors.mainColor),
+    return AppScaffold(
+      backgroundColor: AppColors.kMainColor,
       body: SafeArea(
         child: Consumer<ReferralProvider>(
           builder: (context, referralProvider, child) {
-            // Only show loader if no data exists and haven't loaded once
             final shouldShowLoader =
                 !_hasLoadedOnce &&
                 referralProvider.referralData == null &&
                 referralProvider.isLoading;
 
             return shouldShowLoader
-                ? Center(child: CircularProgressIndicator(color: Colors.white))
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.kWhiteColor,
+                    ),
+                  )
                 : Padding(
-                    padding: EdgeInsets.all(20.w),
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacings.k20),
                     child: Column(
                       children: [
+                        SizedBox(height: 16.h),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -82,247 +78,74 @@ class _ReferralScreenState extends State<ReferralScreen> {
                               width: 35.w,
                               height: 35.h,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.kWhiteColor,
                                 borderRadius: BorderRadius.circular(100.r),
                               ),
                               padding: EdgeInsets.all(5.w),
                               child: GestureDetector(
-                                onTap: () => Navigator.pop(context),
+                                onTap: () => context.pop(),
                                 child: SvgPicture.asset(
                                   ConstImages.arrowLeftAlt,
                                   fit: BoxFit.contain,
-                                  color: Color(ConstColors.blackColor),
+                                  color: AppColors.kBlackColor,
                                 ),
                               ),
                             ),
-                            Text(
-                              'Referral',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 18.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                            MuvamTexts.titleLarge22(
+                              context,
+                              text: 'Referral',
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.kWhiteColor,
                             ),
                             GestureDetector(
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ReferralRulesScreen(),
-                                  ),
-                                );
+                                context.pushNamed(AppRoutes.referralRules.name);
                               },
-                              child: Text(
-                                'Rules',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
+                              child: MuvamTexts.bodyLarge16(
+                                context,
+                                text: 'Rules',
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.kWhiteColor,
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: 40.h),
-                        Text(
-                          'Invite new users and \nget a free ride',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 30.sp,
-                            fontWeight: FontWeight.w700,
-                            height: 1.0,
-                            letterSpacing: -0.41,
-                            color: Colors.white,
-                          ),
+                        MuvamTexts.headlineMedium28(
+                          context,
+                          text: 'Invite new users and \nget a free ride',
+                          isTextWidget: true,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          color: AppColors.kWhiteColor,
+                          center: true,
                         ),
                         SizedBox(height: 20.h),
-                        Text(
-                          'Refer up to 10 friends and as soon as they \nplace a ride order, you get free ride for a nweek',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w400,
-                            height: 1,
-                            letterSpacing: 0,
-                            color: Colors.white,
-                          ),
+                        MuvamTexts.bodyLarge16(
+                          context,
+                          text:
+                              'Refer up to 10 friends and as soon as they \nplace a ride order, you get free ride for a week',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
+                          center: true,
                         ),
                         SizedBox(height: 24.h),
                         if (referralProvider.errorMessage != null &&
                             referralProvider.referralData == null)
-                          Container(
-                            width: 350.w,
-                            height: 157.h,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(10.r),
-                            ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Failed to load referral code',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(height: 10.h),
-                                  GestureDetector(
-                                    onTap: () {
-                                      referralProvider.fetchReferralCode();
-                                    },
-                                    child: Text(
-                                      'Tap to retry',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
+                          ErrorCard(onRetry: referralProvider.fetchReferralCode)
                         else
-                          Container(
-                            width: 350.w,
-                            height: 157.h,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(10.r),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Invitation code',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.0,
-                                    letterSpacing: 0,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                SizedBox(height: 15.h),
-                                Container(
-                                  width: 320.w,
-                                  height: 1.h,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(height: 15.h),
-                                GestureDetector(
-                                  onLongPress: () {
-                                    _copyToClipboard(
-                                      context,
-                                      referralProvider.referralData?.code ?? '',
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        referralProvider.referralData?.code ??
-                                            'N/A',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 40.sp,
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.0,
-                                          letterSpacing: 0,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      GestureDetector(
-                                        onTap: () {
-                                          _copyToClipboard(
-                                            context,
-                                            referralProvider
-                                                    .referralData
-                                                    ?.code ??
-                                                '',
-                                          );
-                                        },
-                                        child: Icon(
-                                          Icons.copy,
-                                          color: Colors.white,
-                                          size: 24.sp,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(height: 15.h),
-                                Text(
-                                  'You are one step ahead of your friends 😎',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.0,
-                                    letterSpacing: 0,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          CodeCard(
+                            code: referralProvider.referralData?.code,
+                            onCopy: () {},
                           ),
                         SizedBox(height: 20.h),
-                        Container(
-                          width: 353.w,
-                          height: 154.h,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(10.r),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Total Invites',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(height: 10.h),
-                              Text(
-                                '${referralProvider.referralData?.totalUses ?? 0}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 80.sp,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
+                        TotalInvitesCard(
+                          totalInvites:
+                              referralProvider.referralData?.totalUses ?? 0,
                         ),
-                        Spacer(),
+                        const Spacer(),
                         GestureDetector(
                           onTap: () {
                             if (referralProvider.referralData != null) {
@@ -330,40 +153,29 @@ class _ReferralScreenState extends State<ReferralScreen> {
                             }
                           },
                           child: Container(
-                            width: 353.w,
+                            width: double.infinity,
                             height: 47.h,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: AppColors.kWhiteColor,
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: Center(
-                              child: Text(
-                                'Share link',
-                                style: TextStyle(
-                                  color: Color(ConstColors.mainColor),
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: MuvamTexts.button16(
+                                context,
+                                text: 'Share link',
+                                isTextWidget: true,
+                                color: AppColors.kMainColor,
                               ),
                             ),
                           ),
                         ),
+                        DeviceBottomPadding(),
                       ],
                     ),
                   );
           },
         ),
       ),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    if (text.isEmpty) return;
-
-    Clipboard.setData(ClipboardData(text: text));
-    CustomFlushbar.showSuccess(
-      context: context,
-      message: 'Referral code copied to clipboard',
     );
   }
 }

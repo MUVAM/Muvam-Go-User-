@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:muvam/features/activities/presentation/widgets/active_tab.dart';
 import 'package:muvam/features/activities/presentation/widgets/history_tab.dart';
 import 'package:muvam/features/activities/presentation/widgets/prebooking_tab.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 
 class ActivitiesScreen extends StatefulWidget {
@@ -22,7 +24,6 @@ class ActivitiesScreenState extends State<ActivitiesScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Start polling when screen is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ActivitiesTabsProvider>().startPolling();
     });
@@ -31,7 +32,6 @@ class ActivitiesScreenState extends State<ActivitiesScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Stop polling when screen is disposed
     context.read<ActivitiesTabsProvider>().stopPolling();
     super.dispose();
   }
@@ -45,11 +45,9 @@ class ActivitiesScreenState extends State<ActivitiesScreen>
 
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came to foreground - resume polling
         provider.resumePolling();
         break;
       case AppLifecycleState.paused:
-        // App went to background - pause polling to save battery
         provider.pausePolling();
         break;
       case AppLifecycleState.inactive:
@@ -61,12 +59,12 @@ class ActivitiesScreenState extends State<ActivitiesScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xffF7F9F8),
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: Stack(
         children: [
           Positioned(
-            top: 70.h,
+            top: 40.h,
             left: 20.w,
             child: Container(
               width: 353.w,

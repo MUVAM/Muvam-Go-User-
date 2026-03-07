@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class FundingStepWidget extends StatelessWidget {
   final String number;
@@ -16,26 +17,16 @@ class FundingStepWidget extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          number,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-            color: Colors.black,
-          ),
+        MuvamTexts.bodySmall12(
+          context,
+          text: number,
+          color: AppColors.kBlackColor,
         ),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w400,
-              height: 1.5,
-              color: Colors.black,
-            ),
+          child: MuvamTexts.bodySmall12(
+            context,
+            text: text,
+            color: AppColors.kBlackColor,
           ),
         ),
       ],

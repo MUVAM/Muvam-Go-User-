@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class ChatBubble extends StatelessWidget {
   final String text;
@@ -27,8 +28,8 @@ class ChatBubble extends StatelessWidget {
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
           color: isMe
-              ? Color(ConstColors.mainColor)
-              : Color(0xFFB1B1B1).withOpacity(0.5),
+              ? AppColors.kMainColor
+              : const Color(0xFFB1B1B1).withOpacity(0.5),
           borderRadius: BorderRadius.only(
             topLeft: isMe ? Radius.circular(5.r) : Radius.circular(0),
             topRight: isMe ? Radius.circular(0) : Radius.circular(5.r),
@@ -39,25 +40,21 @@ class ChatBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              text,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: isMe ? Colors.white : Colors.black,
-              ),
+            MuvamTexts.bodyMedium14(
+              context,
+              text: text,
+              isTextWidget: true,
+              color: isMe ? AppColors.kWhiteColor : AppColors.kBlackColor,
             ),
             SizedBox(height: 5.h),
             Text(
               time,
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 8.sp,
                 fontWeight: FontWeight.w500,
                 height: 1.0,
                 letterSpacing: -0.32,
-                color: Colors.black.withOpacity(0.5),
+                color: AppColors.kBlackColor.withOpacity(0.5),
               ),
             ),
           ],

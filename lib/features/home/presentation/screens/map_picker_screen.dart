@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 
 class MapPickerScreen extends StatefulWidget {
   const MapPickerScreen({super.key});
@@ -31,17 +34,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
       final location = LatLng(position.latitude, position.longitude);
-
       setState(() {
         _selectedLocation = location;
         _isLoadingLocation = false;
       });
-
       _updateMarker(location);
       _getAddressFromLatLng(location);
-
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(location, 15));
     } catch (e) {
       setState(() => _isLoadingLocation = false);
@@ -66,20 +65,16 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   Future<void> _getAddressFromLatLng(LatLng position) async {
     setState(() => _isLoadingAddress = true);
-
     try {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
-        final address =
-            '${place.street}, ${place.locality}, ${place.administrativeArea}';
-
         setState(() {
-          _selectedAddress = address;
+          _selectedAddress =
+              '${place.street}, ${place.locality}, ${place.administrativeArea}';
           _isLoadingAddress = false;
         });
       }
@@ -104,7 +99,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       body: Stack(
         children: [
           GoogleMap(
@@ -112,9 +107,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               target: _selectedLocation,
               zoom: 15,
             ),
-            onMapCreated: (controller) {
-              _mapController = controller;
-            },
+            onMapCreated: (controller) => _mapController = controller,
             markers: _markers,
             onTap: (position) {
               setState(() => _selectedLocation = position);
@@ -127,11 +120,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           ),
           if (_isLoadingLocation)
             Container(
-              color: Colors.white.withOpacity(0.8),
+              color: AppColors.kWhiteColor.withOpacity(0.8),
               child: Center(
-                child: CircularProgressIndicator(
-                  color: Color(ConstColors.mainColor),
-                ),
+                child: CircularProgressIndicator(color: AppColors.kMainColor),
               ),
             ),
           Positioned(
@@ -141,21 +132,20 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             child: SafeArea(
               child: Container(
                 padding: EdgeInsets.all(16.w),
-                color: Colors.white,
+                color: AppColors.kWhiteColor,
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => context.pop(),
                     ),
                     SizedBox(width: 10.w),
                     Expanded(
-                      child: Text(
-                        'Select Location',
-                        style: TextStyle(
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: MuvamTexts.titleMedium18(
+                        context,
+                        text: 'Select Location',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -170,13 +160,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             child: Container(
               padding: EdgeInsets.all(20.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.kWhiteColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: Offset(0, -5),
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
@@ -185,12 +175,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Selected Location',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    MuvamTexts.bodyLarge16(
+                      context,
+                      text: 'Selected Location',
+                      isTextWidget: true,
+                      fontWeight: FontWeight.w600,
                     ),
                     SizedBox(height: 10.h),
                     if (_isLoadingAddress)
@@ -201,11 +190,15 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                             height: 16.h,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Color(ConstColors.mainColor),
+                              color: AppColors.kMainColor,
                             ),
                           ),
                           SizedBox(width: 10.w),
-                          Text('Getting address...'),
+                          MuvamTexts.bodyMedium14(
+                            context,
+                            text: 'Getting address...',
+                            isTextWidget: true,
+                          ),
                         ],
                       )
                     else
@@ -213,19 +206,17 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         children: [
                           Icon(
                             Icons.location_on,
-                            color: Color(ConstColors.mainColor),
+                            color: AppColors.kMainColor,
                             size: 20.sp,
                           ),
                           SizedBox(width: 10.w),
                           Expanded(
-                            child: Text(
-                              _selectedAddress.isEmpty
+                            child: MuvamTexts.bodyMedium14(
+                              context,
+                              text: _selectedAddress.isEmpty
                                   ? 'Tap on map to select location'
                                   : _selectedAddress,
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                                color: Colors.black87,
-                              ),
+                              isTextWidget: true,
                             ),
                           ),
                         ],
@@ -233,24 +224,22 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     SizedBox(height: 20.h),
                     SizedBox(
                       width: double.infinity,
-                      height: 48.h,
+                      height: 47.h,
                       child: ElevatedButton(
                         onPressed: _selectedAddress.isEmpty
                             ? null
                             : _confirmLocation,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(ConstColors.mainColor),
+                          backgroundColor: AppColors.kMainColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                         ),
-                        child: Text(
-                          'Confirm Location',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Confirm Location',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                       ),
                     ),

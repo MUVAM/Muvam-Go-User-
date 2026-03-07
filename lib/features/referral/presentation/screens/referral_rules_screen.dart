@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/features/referral/presentation/widgets/rule_item.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 
 class ReferralRulesScreen extends StatelessWidget {
   const ReferralRulesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(20.w),
@@ -18,7 +22,7 @@ class ReferralRulesScreen extends StatelessWidget {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       ConstImages.back,
                       width: 33.w,
@@ -27,14 +31,11 @@ class ReferralRulesScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: Center(
-                      child: Text(
-                        'Referral',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
+                      child: MuvamTexts.titleMedium18(
+                        context,
+                        text: 'Referral',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -45,7 +46,7 @@ class ReferralRulesScreen extends StatelessWidget {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.kWhiteColor,
                   borderRadius: BorderRadius.circular(10.r),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
@@ -55,94 +56,26 @@ class ReferralRulesScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: Text(
-                        'How to get',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          height: 1.0,
-                          letterSpacing: -0.41,
-                          color: Color(ConstColors.mainColor),
-                        ),
+                      child: MuvamTexts.titleMedium18(
+                        context,
+                        text: 'How to get',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.kMainColor,
+                        center: true,
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 20.w,
-                          height: 20.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '1',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Expanded(
-                          child: Text(
-                            'Once your friend download the app, register with your referral code you get qualified for the reward',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w400,
-                              height: 1.0,
-                              letterSpacing: -0.41,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const RuleItem(
+                      number: '1',
+                      text:
+                          'Once your friend download the app, register with your referral code you get qualified for the reward',
                     ),
                     SizedBox(height: 15.h),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 20.w,
-                          height: 20.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '2',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10.w),
-                        Expanded(
-                          child: Text(
-                            'Once your friend placed a ride order, then you will be eligible for the 3days free ride',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w400,
-                              height: 1.0,
-                              letterSpacing: -0.41,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const RuleItem(
+                      number: '2',
+                      text:
+                          'Once your friend placed a ride order, then you will be eligible for the 3days free ride',
                     ),
                   ],
                 ),

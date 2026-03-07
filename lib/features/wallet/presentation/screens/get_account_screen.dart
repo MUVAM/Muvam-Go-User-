@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/account_created_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 import 'package:provider/provider.dart';
 
 class GetAccountScreen extends StatefulWidget {
@@ -23,15 +29,12 @@ class _GetAccountScreenState extends State<GetAccountScreen> {
     super.dispose();
   }
 
-  bool _isFormValid() {
-    return bvnController.text.length == 11;
-  }
+  bool _isFormValid() => bvnController.text.length == 11;
 
   void _handleVerify() async {
     if (!_isFormValid()) return;
 
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
-
     walletProvider.clearError();
 
     final success = await walletProvider.createVirtualAccount(
@@ -41,10 +44,7 @@ class _GetAccountScreenState extends State<GetAccountScreen> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AccountCreatedScreen()),
-      );
+      context.pushReplacementNamed(AppRoutes.accountCreated.name);
     } else {
       CustomFlushbar.showError(
         context: context,
@@ -58,223 +58,150 @@ class _GetAccountScreenState extends State<GetAccountScreen> {
   Widget build(BuildContext context) {
     return Consumer<WalletProvider>(
       builder: (context, walletProvider, child) {
-        return Stack(
-          children: [
-            Scaffold(
-              backgroundColor: Colors.white,
-              body: SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        return AppScaffold(
+          backgroundColor: AppColors.kWhiteColor,
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 20.h),
+                  Row(
                     children: [
-                      SizedBox(height: 20.h),
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Icon(
-                                Icons.arrow_back,
-                                size: 24.w,
-                                color: Colors.black,
-                              ),
-                            ),
+                      GestureDetector(
+                        onTap: () => context.pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(99),
                           ),
-                          const Spacer(),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Get an account',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 20.sp,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              Text(
-                                'Enter your BVN to create your \npersonal wallet',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                          child: SvgPicture.asset(
+                            ConstImages.arrowLeftAlt,
+                            fit: BoxFit.contain,
+                            color: AppColors.kBlackColor,
                           ),
-                          const Spacer(),
-                        ],
-                      ),
-                      SizedBox(height: 40.h),
-                      Text(
-                        'Bank Verification Number (BVN)',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: 12.h),
-                      TextField(
-                        controller: bvnController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 11,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        onChanged: (value) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Enter your BVN',
-                          hintStyle: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey[400],
-                          ),
-                          filled: true,
-                          fillColor: Color(ConstColors.formFieldColor),
-                          counterText: '',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.r),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.r),
-                            borderSide: BorderSide(
-                              color: Color(ConstColors.mainColor),
-                              width: 1.5,
-                            ),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.r),
-                            borderSide: const BorderSide(
-                              color: Colors.red,
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-                      Container(
-                        padding: EdgeInsets.all(12.w),
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Note: We only collect your BVN to generate a wallet account for you and it is totally optional.',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Color(ConstColors.mainColor),
-                              ),
-                            ),
-                            SizedBox(height: 8.h),
-                            Text(
-                              'Your bvn is totally safe and will never be disclosed.',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Color(ConstColors.mainColor),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
-                        onTap: _isFormValid() && !walletProvider.isLoading
-                            ? _handleVerify
-                            : null,
-                        child: Container(
-                          width: double.infinity,
-                          height: 48.h,
-                          decoration: BoxDecoration(
-                            color: _isFormValid() && !walletProvider.isLoading
-                                ? Color(ConstColors.mainColor)
-                                : Color(ConstColors.fieldColor),
-                            borderRadius: BorderRadius.circular(8.r),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          MuvamTexts.headlineSmall24(
+                            context,
+                            text: 'Get an account',
+                            isTextWidget: true,
+                            center: true,
                           ),
-                          child: Center(
-                            child: Text(
-                              'Verify',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text:
+                                'Enter your BVN to create your\npersonal wallet',
+                            center: true,
+                            isTextWidget: true,
+                            color: Colors.grey,
                           ),
-                        ),
+                        ],
                       ),
-                      SizedBox(height: 30.h),
+                      const Spacer(),
                     ],
                   ),
-                ),
+                  SizedBox(height: 40.h),
+                  MuvamTexts.titleSmall14(
+                    context,
+                    text: 'Bank Verification Number (BVN)',
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  SizedBox(height: 12.h),
+                  TextField(
+                    controller: bvnController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 11,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (value) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Enter your BVN',
+                      hintStyle: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey[400],
+                      ),
+                      filled: true,
+                      fillColor: AppColors.kFormFieldColor,
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                        borderSide: const BorderSide(
+                          color: AppColors.kMainColor,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.kMainColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        MuvamTexts.bodySmall12(
+                          context,
+                          text:
+                              'Note: We only collect your BVN to generate a wallet account for you and it is totally optional.',
+                          isTextWidget: true,
+                          color: AppColors.kMainColor,
+                        ),
+                        SizedBox(height: 8.h),
+                        MuvamTexts.bodySmall12(
+                          context,
+                          text:
+                              'Your BVN is totally safe and will never be disclosed.',
+                          isTextWidget: true,
+                          color: AppColors.kMainColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _isFormValid() && !walletProvider.isLoading
+                        ? _handleVerify
+                        : null,
+                    child: Container(
+                      width: double.infinity,
+                      height: 47.h,
+                      decoration: BoxDecoration(
+                        color: _isFormValid() && !walletProvider.isLoading
+                            ? AppColors.kMainColor
+                            : AppColors.kFieldColor,
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Center(
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Verify',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DeviceBottomPadding(),
+                ],
               ),
             ),
-            // if (walletProvider.isLoading)
-            //   Container(
-            //     color: Colors.black.withOpacity(0.5),
-            //     child: Center(
-            //       child: Container(
-            //         padding: EdgeInsets.all(24.w),
-            //         decoration: BoxDecoration(
-            //           color: Colors.white,
-            //           borderRadius: BorderRadius.circular(16.r),
-            //         ),
-            //         child: Column(
-            //           mainAxisSize: MainAxisSize.min,
-            //           children: [
-            //             SizedBox(
-            //               width: 48.w,
-            //               height: 48.h,
-            //               child: CircularProgressIndicator(
-            //                 color: Color(ConstColors.mainColor),
-            //                 strokeWidth: 4,
-            //               ),
-            //             ),
-            //             SizedBox(height: 20.h),
-            //             Text(
-            //               'Creating your account...',
-            //               style: TextStyle(
-            //                 fontFamily: 'Inter',
-            //                 fontSize: 16.sp,
-            //                 fontWeight: FontWeight.w600,
-            //                 color: Colors.black,
-            //               ),
-            //             ),
-            //             SizedBox(height: 8.h),
-            //             Text(
-            //               'Please wait a moment',
-            //               style: TextStyle(
-            //                 fontFamily: 'Inter',
-            //                 fontSize: 14.sp,
-            //                 fontWeight: FontWeight.w400,
-            //                 color: Colors.grey[600],
-            //               ),
-            //             ),
-            //           ],
-            //         ),
-            //       ),
-            //     ),
-            //   ),
-          ],
+          ),
         );
       },
     );

@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
-import 'package:muvam/features/home/presentation/screens/map_picker_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 
 class AddHomeScreen extends StatefulWidget {
   final String locationType;
@@ -70,13 +74,11 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
       });
       return;
     }
-
     try {
       final predictions = await _placesService.getPlacePredictions(
         query,
         sessionToken: _sessionToken,
       );
-
       setState(() {
         _predictions = predictions;
         _showPredictions = true;
@@ -92,7 +94,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
         prediction.placeId,
         sessionToken: _sessionToken,
       );
-
       if (placeDetails != null) {
         setState(() {
           _addressController.text = prediction.description;
@@ -102,7 +103,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
           );
           _showPredictions = false;
         });
-
         _sessionToken = DateTime.now().millisecondsSinceEpoch.toString();
       }
     } catch (e) {
@@ -114,11 +114,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
   }
 
   Future<void> _openMapPicker() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const MapPickerScreen()),
-    );
-
+    final result = await context.pushNamed(AppRoutes.mapPicker.name);
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _addressController.text = result['address'];
@@ -135,7 +131,6 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
       );
       return;
     }
-
     if (_selectedLocation == null) {
       CustomFlushbar.showError(
         context: context,
@@ -145,33 +140,25 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
     }
 
     setState(() => _isSaving = true);
-
     try {
       final destLocation =
           'POINT(${_selectedLocation!.longitude} ${_selectedLocation!.latitude})';
-
       final request = FavouriteLocationRequest(
         name: _locationName,
         destLocation: destLocation,
         destAddress: _addressController.text,
       );
-
       await _favouriteService.addFavouriteLocation(request);
-
       if (!mounted) return;
-
-      Navigator.pop(context, true);
+      context.pop(true);
     } catch (e) {
       if (!mounted) return;
-
       CustomFlushbar.showError(
         context: context,
         message: 'Failed to save location: $e',
       );
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -183,8 +170,8 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +182,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       ConstImages.back,
                       width: 33.w,
@@ -205,16 +192,24 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 15.h),
-            Text('    $_title', style: ConstTextStyles.addHomeTitle),
-            SizedBox(height: 30.h),
+            SizedBox(height: 18.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
+              child: MuvamTexts.titleLarge22(
+                context,
+                text: _title,
+                isTextWidget: true,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: 30.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacings.k20),
               child: Container(
                 width: double.infinity,
                 height: 50.h,
                 decoration: BoxDecoration(
-                  color: Color(ConstColors.fieldColor).withOpacity(0.12),
+                  color: AppColors.kFieldColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 alignment: Alignment.center,
@@ -234,10 +229,7 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                       child: Icon(Icons.map, size: 20.sp),
                     ),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 10.w,
-                      vertical: 8.h,
-                    ),
+                    contentPadding: EdgeInsets.symmetric(vertical: 14.h),
                   ),
                   onChanged: _searchPlaces,
                 ),
@@ -248,26 +240,30 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
               Expanded(
                 child: ListView.separated(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 20.w,
+                    horizontal: AppSpacings.k20,
                     vertical: 5.h,
                   ),
                   itemCount: _predictions.length,
-                  separatorBuilder: (context, index) =>
+                  separatorBuilder: (_, __) =>
                       Divider(thickness: 1, color: Colors.grey.shade300),
                   itemBuilder: (context, index) {
                     final prediction = _predictions[index];
                     return ListTile(
                       leading: Icon(
                         Icons.location_on,
-                        color: Color(ConstColors.mainColor),
+                        color: AppColors.kMainColor,
                       ),
-                      title: Text(
-                        prediction.mainText,
-                        style: ConstTextStyles.drawerItem1,
+                      title: MuvamTexts.bodyMedium14(
+                        context,
+                        text: prediction.mainText,
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
-                      subtitle: Text(
-                        prediction.secondaryText,
-                        style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+                      subtitle: MuvamTexts.bodySmall12(
+                        context,
+                        text: prediction.secondaryText,
+                        isTextWidget: true,
+                        color: Colors.grey,
                       ),
                       onTap: () => _selectPrediction(prediction),
                     );
@@ -275,16 +271,16 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                 ),
               )
             else
-              Spacer(),
+              const Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: SizedBox(
                 width: double.infinity,
-                height: 48.h,
+                height: 47.h,
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveLocation,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(ConstColors.mainColor),
+                    backgroundColor: AppColors.kMainColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.r),
                     ),
@@ -294,22 +290,20 @@ class _AddHomeScreenState extends State<AddHomeScreen> {
                           width: 20.w,
                           height: 20.h,
                           child: CircularProgressIndicator(
-                            color: Colors.white,
+                            color: AppColors.kWhiteColor,
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(
-                          'Save Location',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      : MuvamTexts.button16(
+                          context,
+                          text: 'Save Location',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                 ),
               ),
             ),
-            SizedBox(height: 20.h),
+            DeviceBottomPadding(),
           ],
         ),
       ),

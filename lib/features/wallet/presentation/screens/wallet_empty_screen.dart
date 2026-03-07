@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/get_account_screen.dart';
-import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,35 +24,21 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        debugPrint('🔵 WalletScreen initState called');
-
-        // Check if provider exists
         final provider = context.read<WalletProvider>();
-        debugPrint('🔵 WalletProvider found: $provider');
-
-        // Check token directly
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('auth_token');
-        debugPrint(
-          '🔵 Auth token: ${token != null ? "EXISTS: $token" : "NULL - THIS IS THE PROBLEM"}',
-        );
-
-        debugPrint('🔵 Calling fetchWalletSummary...');
-        final result = await provider.fetchWalletSummary();
-        debugPrint('🔵 fetchWalletSummary result: $result');
-        debugPrint('🔵 Error message: ${provider.errorMessage}');
-        debugPrint('🔵 Wallet summary: ${provider.walletSummary}');
+        debugPrint('Auth token: ${token != null ? 'exists' : 'null'}');
+        await provider.fetchWalletSummary();
       } catch (e, stack) {
-        debugPrint('🔴 CRITICAL ERROR in WalletScreen initState: $e');
-        debugPrint('🔴 Stack trace: $stack');
+        debugPrint('Error in WalletEmptyScreen initState: $e\n$stack');
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(20.w),
@@ -62,9 +50,7 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
+                      if (context.canPop()) context.pop();
                     },
                     child: Image.asset(
                       ConstImages.back,
@@ -73,37 +59,22 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.push(
+                    onTap: () => context.pushNamed(AppRoutes.howToFund.name),
+                    child: MuvamTexts.bodyLarge16(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const HowToFundScreen(),
-                      ),
-                    ),
-                    child: Text(
-                      'How to fund?',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.0,
-                        letterSpacing: -0.32,
-                        color: Color(ConstColors.mainColor),
-                      ),
+                      text: 'How to fund?',
+                      isTextWidget: true,
+                      color: AppColors.kMainColor,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
               SizedBox(height: 20.h),
-              Text(
-                'Wallet',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 26.sp,
-                  fontWeight: FontWeight.w600,
-                  height: 1.0,
-                  letterSpacing: -0.32,
-                  color: Colors.black,
-                ),
+              MuvamTexts.headlineSmall24(
+                context,
+                text: 'Wallet',
+                isTextWidget: true,
               ),
               SizedBox(height: 20.h),
               Stack(
@@ -112,7 +83,7 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                     width: 353.w,
                     height: 120.h,
                     decoration: BoxDecoration(
-                      color: Color(ConstColors.mainColor),
+                      color: AppColors.kMainColor,
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: Padding(
@@ -124,44 +95,31 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Your balance',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.0,
-                                  letterSpacing: -0.32,
-                                  color: Colors.white,
-                                ),
+                              MuvamTexts.bodyMedium14(
+                                context,
+                                text: 'Your balance',
+                                isTextWidget: true,
+                                color: AppColors.kWhiteColor,
+                                fontWeight: FontWeight.w500,
                               ),
                               GestureDetector(
-                                onTap: () {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const GetAccountScreen(),
-                                    ),
-                                  );
-                                },
+                                onTap: () => context.pushNamed(
+                                  AppRoutes.getAccount.name,
+                                ),
                                 child: Container(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: 14.w,
                                     vertical: 8.h,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: AppColors.kWhiteColor,
                                     borderRadius: BorderRadius.circular(8.r),
                                   ),
-                                  child: Text(
-                                    'Get Account',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 12.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
+                                  child: MuvamTexts.bodySmall12(
+                                    context,
+                                    text: 'Get Account',
+                                    isTextWidget: true,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -171,16 +129,11 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
-                            child: Text(
-                              '₦0',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 32.sp,
-                                fontWeight: FontWeight.w600,
-                                height: 1.0,
-                                letterSpacing: -0.32,
-                                color: Colors.white,
-                              ),
+                            child: MuvamTexts.headlineLarge32(
+                              context,
+                              text: '₦0',
+                              isTextWidget: true,
+                              color: AppColors.kWhiteColor,
                             ),
                           ),
                         ],
@@ -194,7 +147,7 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                       width: 103.w,
                       height: 103.h,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
+                        color: AppColors.kWhiteColor.withOpacity(0.12),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -206,19 +159,7 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                       width: 79.w,
                       height: 79.h,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 40.h,
-                    left: 297.w,
-                    child: Container(
-                      width: 79.w,
-                      height: 79.h,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
+                        color: AppColors.kWhiteColor.withOpacity(0.12),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -226,29 +167,20 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                 ],
               ),
               SizedBox(height: 15.h),
-              Center(
-                child: Text(
-                  'Transfer to this account to instantly fund your Muvam wallet',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w500,
-                    height: 1.0,
-                    letterSpacing: -0.32,
-                    color: Colors.black,
-                  ),
-                ),
+              MuvamTexts.bodySmall12(
+                context,
+                text:
+                    'Transfer to this account to instantly fund your Muvam wallet',
+                center: true,
+                isTextWidget: true,
+                fontWeight: FontWeight.w500,
               ),
               SizedBox(height: 30.h),
-              Text(
-                'Transaction history',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
+              MuvamTexts.titleMedium18(
+                context,
+                text: 'Transaction history',
+                isTextWidget: true,
+                fontWeight: FontWeight.w600,
               ),
               SizedBox(height: 40.h),
               Center(
@@ -261,15 +193,13 @@ class _WalletEmptyScreenState extends State<WalletEmptyScreen> {
                       height: 120.h,
                     ),
                     SizedBox(height: 20.h),
-                    Text(
-                      'You don’t have any transaction yet. \nOnce you start funding, they’ll \nappear here',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey.shade500,
-                      ),
-                      textAlign: TextAlign.center,
+                    MuvamTexts.bodyMedium14(
+                      context,
+                      text:
+                          "You don't have any transaction yet.\nOnce you start funding, they'll\nappear here",
+                      center: true,
+                      isTextWidget: true,
+                      color: Colors.grey.shade500,
                     ),
                   ],
                 ),

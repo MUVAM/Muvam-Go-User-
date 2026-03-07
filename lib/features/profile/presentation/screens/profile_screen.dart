@@ -2,12 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/auth/presentation/screens/delete_account_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:muvam/features/profile/presentation/screens/app_lock_settings_screen.dart';
 import 'package:muvam/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 import '../widgets/profile_field.dart';
 
@@ -28,9 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadUserProfile();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserProfile());
   }
 
   void _loadUserProfile() async {
@@ -38,9 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       listen: false,
     );
-
     await profileProvider.fetchUserProfile();
-
     if (profileProvider.userProfile != null) {
       firstNameController.text = profileProvider.userFirstName;
       middleNameController.text = profileProvider.userMiddleName;
@@ -54,18 +54,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Consumer<UserProfileProvider>(
       builder: (context, profileProvider, child) {
         if (profileProvider.isLoading && profileProvider.userProfile == null) {
-          return Scaffold(
-            backgroundColor: Colors.white,
+          return AppScaffold(
+            backgroundColor: AppColors.kWhiteColor,
             body: Center(
-              child: CircularProgressIndicator(
-                color: Color(ConstColors.mainColor),
-              ),
+              child: CircularProgressIndicator(color: AppColors.kMainColor),
             ),
           );
         }
 
-        return Scaffold(
-          backgroundColor: Colors.white,
+        return AppScaffold(
+          backgroundColor: AppColors.kWhiteColor,
           body: SafeArea(
             child: Column(
               children: [
@@ -75,23 +73,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Image.asset(
-                          ConstImages.back,
-                          width: 33.w,
-                          height: 33.h,
+                        onTap: () => context.pop(),
+                        child: Container(
+                          width: 40.w,
+                          height: 40.h,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF5F5F5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: AppColors.kBlackColor,
+                            size: 20.sp,
+                          ),
                         ),
                       ),
                       Expanded(
                         child: Center(
-                          child: Text(
-                            'My account',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
+                          child: MuvamTexts.titleLarge22(
+                            context,
+                            text: 'My account',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -106,13 +109,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         GestureDetector(
-                          onTap: () => _navigateToEditProfile(context),
+                          onTap: () =>
+                              context.pushNamed(AppRoutes.editProfile.name),
                           child: Stack(
                             children: [
                               Container(
                                 width: 80.w,
                                 height: 80.h,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Color(0xFFE0E0E0),
                                 ),
@@ -132,12 +136,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         child: Image.network(
                                           profileProvider.userProfilePhoto,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Container(
-                                                  color: Color(0xFFE0E0E0),
-                                                );
-                                              },
+                                          errorBuilder: (_, __, ___) =>
+                                              Container(
+                                                color: const Color(0xFFE0E0E0),
+                                              ),
                                         ),
                                       )
                                     : Container(),
@@ -149,14 +151,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   width: 24.w,
                                   height: 24.h,
                                   decoration: BoxDecoration(
-                                    color: Color(
-                                      ConstColors.mainColor,
-                                    ).withValues(alpha: 0.8),
+                                    color: AppColors.kMainColor.withValues(
+                                      alpha: 0.8,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     Icons.add,
-                                    color: Colors.white,
+                                    color: AppColors.kWhiteColor,
                                     size: 20.sp,
                                   ),
                                 ),
@@ -166,7 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         SizedBox(height: 32.h),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppSpacings.k20,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -207,21 +211,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               SizedBox(height: 24.h),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const AppLockSettingsScreen(),
-                                    ),
+                                  context.pushNamed(
+                                    AppRoutes.appLockSettings.name,
                                   );
                                 },
                                 child: Container(
                                   padding: EdgeInsets.all(10.sp),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: AppColors.kWhiteColor,
                                     borderRadius: BorderRadius.circular(12.r),
                                     border: Border.all(
-                                      color: Color(0xFFE0E0E0),
+                                      color: const Color(0xFFE0E0E0),
                                       width: 1,
                                     ),
                                   ),
@@ -229,16 +229,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     children: [
                                       Container(
                                         width: 48.w,
-                                        height: 48.h,
+                                        height: 47.h,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Color(
-                                            ConstColors.mainColor,
-                                          ).withOpacity(0.1),
+                                          color: AppColors.kMainColor
+                                              .withOpacity(0.1),
                                         ),
                                         child: Icon(
                                           Icons.fingerprint,
-                                          color: Color(ConstColors.mainColor),
+                                          color: AppColors.kMainColor,
                                           size: 28.sp,
                                         ),
                                       ),
@@ -248,24 +247,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              'Set up biometrics',
-                                              style: TextStyle(
-                                                fontFamily: 'Inter',
-                                                fontSize: 14.sp,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.black,
-                                              ),
+                                            MuvamTexts.bodyMedium14(
+                                              context,
+                                              text: 'Set up biometrics',
+                                              isTextWidget: true,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                             SizedBox(height: 2.h),
-                                            Text(
-                                              'Secure your app with fingerprint \nor face unlock',
-                                              style: TextStyle(
-                                                fontFamily: 'Inter',
-                                                fontSize: 12.sp,
-                                                fontWeight: FontWeight.w400,
-                                                color: Color(0xFF9E9E9E),
-                                              ),
+                                            MuvamTexts.bodySmall12(
+                                              context,
+                                              text:
+                                                  'Secure your app with fingerprint \nor face unlock',
+                                              isTextWidget: true,
+                                              color: const Color(0xFF9E9E9E),
                                             ),
                                           ],
                                         ),
@@ -273,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       Icon(
                                         Icons.arrow_forward_ios,
                                         size: 16.sp,
-                                        color: Color(0xFF9E9E9E),
+                                        color: const Color(0xFF9E9E9E),
                                       ),
                                     ],
                                   ),
@@ -281,24 +275,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               SizedBox(height: 24.h),
                               GestureDetector(
-                                onTap: () => _navigateToEditProfile(context),
+                                onTap: () => context.pushNamed(
+                                  AppRoutes.editProfile.name,
+                                ),
                                 behavior: HitTestBehavior.opaque,
                                 child: Container(
                                   width: double.infinity,
                                   height: 47.h,
                                   decoration: BoxDecoration(
-                                    color: Color(ConstColors.mainColor),
+                                    color: AppColors.kMainColor,
                                     borderRadius: BorderRadius.circular(12.r),
                                   ),
                                   child: Center(
-                                    child: Text(
-                                      'Edit profile',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        color: Colors.white,
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                    child: MuvamTexts.button16(
+                                      context,
+                                      text: 'Edit profile',
+                                      isTextWidget: true,
+                                      color: AppColors.kWhiteColor,
                                     ),
                                   ),
                                 ),
@@ -306,12 +299,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               SizedBox(height: 5.h),
                               GestureDetector(
                                 onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          DeleteAccountScreen(),
-                                    ),
+                                  context.pushNamed(
+                                    AppRoutes.deleteAccount.name,
                                   );
                                 },
                                 child: Padding(
@@ -329,14 +318,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fit: BoxFit.contain,
                                       ),
                                       SizedBox(width: 16.w),
-                                      Text(
-                                        'Delete account',
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 18.sp,
-                                          fontWeight: FontWeight.w500,
-                                          color: Color(0xFFEF5350),
-                                        ),
+                                      MuvamTexts.titleMedium18(
+                                        context,
+                                        text: 'Delete account',
+                                        isTextWidget: true,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFFEF5350),
                                       ),
                                     ],
                                   ),
@@ -354,13 +341,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
-    );
-  }
-
-  void _navigateToEditProfile(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => EditProfileScreen()),
     );
   }
 }

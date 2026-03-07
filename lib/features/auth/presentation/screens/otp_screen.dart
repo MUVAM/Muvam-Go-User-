@@ -1,16 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
-import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
-import 'package:provider/provider.dart';
-import 'package:muvam/features/auth/presentation/screens/create_account_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 import 'package:pinput/pinput.dart';
-import 'dart:async';
+import 'package:provider/provider.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -29,18 +31,14 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-    startTimer();
-    pinController.addListener(() {
-      setState(() {});
-    });
+    _startTimer();
+    pinController.addListener(() => setState(() {}));
   }
 
-  void startTimer() {
+  void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdown > 0) {
-        setState(() {
-          _countdown--;
-        });
+        setState(() => _countdown--);
       } else {
         timer.cancel();
       }
@@ -55,14 +53,12 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  bool get isOtpComplete {
-    return pinController.text.length == 6;
-  }
+  bool get isOtpComplete => pinController.text.length == 6;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Stack(
@@ -95,16 +91,18 @@ class _OtpScreenState extends State<OtpScreen> {
                             width: 426.w,
                             height: 426.h,
                           ),
-                          Text(
-                            'Phone Verification',
-                            style: ConstTextStyles.boldTitle,
+                          MuvamTexts.titleLarge22(
+                            context,
+                            text: 'Phone Verification',
+                            isTextWidget: true,
                           ),
                           SizedBox(height: 5.h),
-                          Text(
-                            'Enter the 6 digit code sent to you',
-                            style: ConstTextStyles.lightSubtitle,
-                            textAlign: TextAlign.center,
-                            selectionColor: Color(ConstColors.blackColor),
+                          MuvamTexts.bodyMedium14(
+                            context,
+                            text: 'Enter the 6 digit code sent to you',
+                            center: true,
+                            fontSize: 14,
+                            isTextWidget: true,
                           ),
                           SizedBox(height: 42.h),
                           Pinput(
@@ -117,12 +115,12 @@ class _OtpScreenState extends State<OtpScreen> {
                               textStyle: TextStyle(
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: AppColors.kBlackColor,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: Color(ConstColors.blackColor),
+                                    color: AppColors.kBlackColor,
                                     width: 2,
                                   ),
                                 ),
@@ -134,12 +132,12 @@ class _OtpScreenState extends State<OtpScreen> {
                               textStyle: TextStyle(
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: AppColors.kBlackColor,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: Color(ConstColors.mainColor),
+                                    color: AppColors.kMainColor,
                                     width: 2,
                                   ),
                                 ),
@@ -151,21 +149,18 @@ class _OtpScreenState extends State<OtpScreen> {
                               textStyle: TextStyle(
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: AppColors.kBlackColor,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: Color(ConstColors.mainColor),
+                                    color: AppColors.kMainColor,
                                     width: 2,
                                   ),
                                 ),
                               ),
                             ),
                             hapticFeedbackType: HapticFeedbackType.lightImpact,
-                            onCompleted: (pin) {
-                              // Auto-submit when OTP is complete (optional)
-                            },
                             cursor: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
@@ -173,7 +168,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   margin: EdgeInsets.only(bottom: 9.h),
                                   width: 22.w,
                                   height: 1,
-                                  color: Color(ConstColors.mainColor),
+                                  color: AppColors.kMainColor,
                                 ),
                               ],
                             ),
@@ -188,21 +183,19 @@ class _OtpScreenState extends State<OtpScreen> {
                                         final success = await authProvider
                                             .resendOtp(widget.phoneNumber);
                                         if (success) {
-                                          setState(() {
-                                            _countdown = 20;
-                                          });
-                                          startTimer();
+                                          setState(() => _countdown = 20);
+                                          _startTimer();
                                         }
                                       }
                                     : null,
                                 child: RichText(
                                   text: TextSpan(
-                                    style: ConstTextStyles.lightSubtitle,
                                     children: [
                                       TextSpan(
-                                        text: 'Didn\'t receive code? ',
+                                        text: "Didn't receive code? ",
                                         style: TextStyle(
-                                          color: Color(ConstColors.blackColor),
+                                          fontFamily: 'Inter',
+                                          color: AppColors.kBlackColor,
                                           fontSize: 14.sp,
                                         ),
                                       ),
@@ -211,7 +204,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                           text:
                                               '0:${_countdown.toString().padLeft(2, '0')}',
                                           style: TextStyle(
-                                            color: Color(ConstColors.mainColor),
+                                            fontFamily: 'Inter',
+                                            color: AppColors.kMainColor,
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -220,7 +214,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                         TextSpan(
                                           text: 'Resend',
                                           style: TextStyle(
-                                            color: Color(ConstColors.mainColor),
+                                            fontFamily: 'Inter',
+                                            color: AppColors.kMainColor,
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -233,13 +228,12 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                           SizedBox(height: 20.h),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
+                            onTap: () => context.pop(),
                             child: Text(
                               'Edit my number',
                               style: TextStyle(
-                                color: Color(ConstColors.blackColor),
+                                fontFamily: 'Inter',
+                                color: AppColors.kBlackColor,
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w500,
                                 decoration: TextDecoration.underline,
@@ -256,20 +250,21 @@ class _OtpScreenState extends State<OtpScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
+                      final isEnabled =
+                          isOtpComplete && !authProvider.isLoading;
                       return GestureDetector(
-                        onTap: isOtpComplete && !authProvider.isLoading
+                        onTap: isEnabled
                             ? () async {
-                                final otpCode = pinController.text;
                                 final success = await authProvider.verifyOtp(
-                                  otpCode,
+                                  pinController.text,
                                   widget.phoneNumber,
                                 );
+                                if (!mounted) return;
 
                                 if (success) {
                                   final response =
                                       authProvider.verifyOtpResponse!;
                                   AppLogger.log('User data: ${response.user}');
-                                  AppLogger.log('Token: ${response.token}');
                                   AppLogger.log('IsNew: ${response.isNew}');
 
                                   final userRole =
@@ -279,27 +274,16 @@ class _OtpScreenState extends State<OtpScreen> {
                                     CustomFlushbar.showOtpResent(
                                       context: context,
                                       message:
-                                          'This phone number is registered on the driver app. Please use another number to log in to the passenger app.',
+                                          'This phone number is registered on the driver app.',
                                     );
                                     return;
                                   }
-
                                   if (response.isNew) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const CreateAccountScreen(),
-                                      ),
+                                    context.pushNamed(
+                                      AppRoutes.createAccount.name,
                                     );
                                   } else {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const MainNavigationScreen(),
-                                      ),
-                                    );
+                                    context.goNamed(AppRoutes.home.name);
                                   }
                                 } else {
                                   CustomFlushbar.showOtpResent(
@@ -313,11 +297,11 @@ class _OtpScreenState extends State<OtpScreen> {
                             : null,
                         child: Container(
                           width: double.infinity,
-                          height: 48.h,
+                          height: 47.h,
                           decoration: BoxDecoration(
-                            color: isOtpComplete && !authProvider.isLoading
-                                ? Color(ConstColors.mainColor)
-                                : Color(ConstColors.fieldColor),
+                            color: isEnabled
+                                ? AppColors.kMainColor
+                                : AppColors.kFieldColor,
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: Center(
@@ -325,18 +309,16 @@ class _OtpScreenState extends State<OtpScreen> {
                                 ? SizedBox(
                                     width: 20.w,
                                     height: 20.h,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
+                                    child: const CircularProgressIndicator(
+                                      color: AppColors.kWhiteColor,
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Text(
-                                    'Continue',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                : MuvamTexts.button16(
+                                    context,
+                                    text: 'Continue',
+                                    isTextWidget: true,
+                                    color: AppColors.kWhiteColor,
                                   ),
                           ),
                         ),
@@ -344,7 +326,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     },
                   ),
                 ),
-                SizedBox(height: 20.h),
+                DeviceBottomPadding(),
               ],
             ),
           ],

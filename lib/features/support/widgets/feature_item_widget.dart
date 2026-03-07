@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class FeatureItemWidget extends StatelessWidget {
   final IconData icon;
@@ -27,36 +28,30 @@ class FeatureItemWidget extends StatelessWidget {
         children: [
           Container(
             width: 48.w,
-            height: 48.h,
+            height: 47.h,
             decoration: BoxDecoration(
-              color: Color(ConstColors.mainColor).withOpacity(0.1),
+              color: AppColors.kMainColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(icon, color: Color(ConstColors.mainColor), size: 24.sp),
+            child: Icon(icon, color: AppColors.kMainColor, size: 24.sp),
           ),
           SizedBox(width: 16.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
+                MuvamTexts.bodyLarge16(
+                  context,
+                  text: title,
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w600,
                 ),
                 SizedBox(height: 4.h),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13.sp,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey[600],
-                  ),
+                MuvamTexts.bodySmall12(
+                  context,
+                  text: description,
+                  isTextWidget: true,
+                  color: Colors.grey[600]!,
                 ),
               ],
             ),

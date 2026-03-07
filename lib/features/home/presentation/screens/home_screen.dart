@@ -4,7 +4,6 @@ import 'dart:developer';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:another_flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -12,11 +11,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
 import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/directions_service.dart';
@@ -31,26 +31,30 @@ import 'package:muvam/core/utils/currency_formatter.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/chat/data/models/chat_model.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
-import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
-import 'package:muvam/features/chat/presentation/screens/chat_screen.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
+import 'package:muvam/features/home/presentation/widgets/active_ride_button.dart';
+import 'package:muvam/features/home/presentation/widgets/add_location_tile.dart';
+import 'package:muvam/features/home/presentation/widgets/active_ride_marker_helpers.dart';
+import 'package:muvam/features/home/presentation/widgets/cancel_reason_option.dart';
+import 'package:muvam/features/home/presentation/widgets/delete_location_dialog.dart';
+import 'package:muvam/features/home/presentation/widgets/driver_detail_row.dart';
+import 'package:muvam/features/home/presentation/widgets/dropoff_marker_widget.dart';
+import 'package:muvam/features/home/presentation/widgets/favorite_location_item.dart';
+import 'package:muvam/features/home/presentation/widgets/location_suggestions_list.dart';
+import 'package:muvam/features/home/presentation/widgets/pickup_marker_widget.dart';
+import 'package:muvam/features/home/presentation/widgets/quick_pickup_button.dart';
+import 'package:muvam/features/home/presentation/widgets/recent_location_item.dart';
+import 'package:muvam/features/home/presentation/widgets/stop_marker_widget.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
-import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
-import 'package:muvam/shared/presentation/screens/tip_screen.dart';
-import 'package:muvam/shared/providers/location_provider.dart';
+import 'package:muvam/layouts/providers/location_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'add_home_screen.dart';
-import 'map_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -63,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isBottomSheetVisible = true;
   bool _showDestinationField = false;
-  bool _showStopField = false; // Controls stop address visibility
+  bool _showStopField = false;
   String? _lastKnownRideStatus;
   Map<String, dynamic>? _incomingCall;
   final CallService _callService = CallService();
@@ -80,9 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime selectedDate = DateTime.now().add(Duration(days: 1));
   TimeOfDay selectedTime = TimeOfDay.now();
   int? selectedCancelReason;
-  bool isScheduledRide = false; // Track if booking is scheduled
+  bool isScheduledRide = false;
   GoogleMapController? _mapController;
-  LatLng _currentLocation = LatLng(6.8720015, 7.4069943); // Default location
+  LatLng _currentLocation = LatLng(6.8720015, 7.4069943);
   BitmapDescriptor? _driverIcon;
   BitmapDescriptor? _currentLocationIcon;
   BitmapDescriptor? _pickupIcon;
@@ -99,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isInCar = false;
   String _pickupLocation = "Your current location";
   String _dropoffLocation = "Destination";
-  String _currentLocationAddress = "Current location"; // Store actual address
+  String _currentLocationAddress = "Current location";
   LatLng? _driverLocation;
   Timer? _driverLocationTimer;
   Timer? _nearbyDriverTrackingTimer;
@@ -139,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasInitializedMapCamera = false;
   final bool _userIsInteractingWithMap = false;
   late DraggableScrollableController _sheetController;
-  double _currentSheetSize = 0.4; // Track current sheet size
+  double _currentSheetSize = 0.4;
 
   @override
   void initState() {
@@ -166,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ).loadFavouriteLocations();
       _loadFavouriteLocations();
 
-      // Animate panel to default 42% position on load
       final screenHeight = MediaQuery.of(context).size.height;
       final targetPosition =
           (screenHeight * 0.42 - 80.h) / (screenHeight * 0.85 - 80.h);
@@ -177,16 +180,16 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       AppLogger.log(
-        '✅ Call handler set BEFORE connect: ${_webSocketService.onIncomingCall != null}',
+        'Call handler set BEFORE connect: ${_webSocketService.onIncomingCall != null}',
         tag: 'HOME_INIT',
       );
       AppLogger.log(
-        '🔌 Connecting WebSocket from HomeScreen...',
+        'Connecting WebSocket from HomeScreen...',
         tag: 'HOME_INIT',
       );
 
       _webSocketService.connect().then((_) {
-        AppLogger.log('✅ WebSocket connected', tag: 'HOME_INIT');
+        AppLogger.log('WebSocket connected', tag: 'HOME_INIT');
         _setupOtherWebSocketListeners();
       });
 
@@ -208,38 +211,32 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Map<String, dynamic>?
-  _incomingOffer; // NEW: Store incoming offer for CallScreen
+  Map<String, dynamic>? _incomingOffer;
 
   void _setupOtherWebSocketListeners() {
     AppLogger.log(
-      '🎧 Setting up other WebSocket listeners...',
+      'Setting up other WebSocket listeners...',
       tag: 'HOME_WEBSOCKET',
     );
 
-    // Call handler is already set before connection - don't overwrite it!
     AppLogger.log(
-      '🔍 Verifying call handler still exists: ${_webSocketService.onIncomingCall != null}',
+      'Verifying call handler still exists: ${_webSocketService.onIncomingCall != null}',
       tag: 'HOME_WEBSOCKET',
     );
 
-    // Chat messages
     _webSocketService.onChatMessage = (chatData) {
-      AppLogger.log('💬 Global chat handler called in HomeScreen');
+      AppLogger.log('Global chat handler called in HomeScreen');
       _handleGlobalChatMessage(chatData);
     };
 
-    // Ride accepted
     _webSocketService.onRideAccepted = (data) {
-      AppLogger.log('🎉 Ride accepted callback triggered!');
+      AppLogger.log('Ride accepted callback triggered!');
 
-      // Close the driver found sheet if it's open
       if (_isDriverFoundSheetVisible && mounted) {
         Navigator.pop(context);
         _isDriverFoundSheetVisible = false;
       }
 
-      // Extract driver information from WebSocket data
       final driverData = data['driver'] ?? {};
       _assignedDriver = Driver(
         id: driverData['id']?.toString() ?? 'driver_123',
@@ -251,7 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
         plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
       );
 
-      // Round the driver arrival time
       final rawEta = data['estimated_arrival']?.toString() ?? '5';
       double etaValue = double.tryParse(rawEta) ?? 5.0;
       int roundedEta = etaValue.round();
@@ -278,10 +274,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _showDriverAcceptedSheet();
     };
 
-    // Ride completed
     _webSocketService.onRideCompleted = (data) {
       AppLogger.log(
-        '🏁 Ride completed callback triggered!',
+        'Ride completed callback triggered!',
         tag: 'RIDE_COMPLETED',
       );
 
@@ -307,14 +302,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _lastCompletedRideId = rideId;
 
           String price = '0.00';
-          // Try to get price from active ride if matches
           if (_activeRide != null &&
               (_activeRide!['ID'] == rideId ||
                   _activeRide!['ID'].toString() == rideId.toString())) {
             price = _activeRide!['Price']?.toString() ?? '0.00';
-          }
-          // Fallback to data payload
-          else if (data['amount'] != null) {
+          } else if (data['amount'] != null) {
             price = data['amount'].toString();
           } else if (data['data'] != null && data['data']['amount'] != null) {
             price = data['data']['amount'].toString();
@@ -325,14 +317,13 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } catch (e) {
-        AppLogger.log('❌ Error processing ride_completed message: $e');
+        AppLogger.log('Error processing ride_completed message: $e');
       }
     };
 
-    // Driver availability
     _webSocketService.onDriverAvailability = (data) {
       AppLogger.log(
-        '🚗 Driver availability callback triggered!',
+        'Driver availability callback triggered!',
         tag: 'DRIVER_AVAILABILITY',
       );
 
@@ -351,13 +342,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tag: 'DRIVER_AVAILABILITY',
           );
 
-          // If no drivers available, show the availability sheet
           if (!hasDrivers && driversFound == 0) {
             if (mounted) {
               _showDriverAvailabilitySheet();
             }
           } else {
-            // Drivers found and notified
             AppLogger.log(
               'Drivers available: $message',
               tag: 'DRIVER_AVAILABILITY',
@@ -374,11 +363,11 @@ class _HomeScreenState extends State<HomeScreen> {
     };
 
     AppLogger.log(
-      '✅ Non-call WebSocket listeners setup complete',
+      'Non-call WebSocket listeners setup complete',
       tag: 'HOME_WEBSOCKET',
     );
     AppLogger.log(
-      '🔍 Final handler check: ${_webSocketService.onIncomingCall != null}',
+      'Final handler check: ${_webSocketService.onIncomingCall != null}',
       tag: 'HOME_WEBSOCKET',
     );
   }
@@ -389,37 +378,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
 
-    // if (Navigator.canPop(context)) {
-    //   Navigator.pop(context);
-    // }
-
     if (hasAccount) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WalletScreen()),
-      );
+      context.pushNamed('wallet');
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
-      );
+      context.pushNamed('walletEmpty');
     }
-  }
-
-  Future<void> _initializeCallService() async {
-    AppLogger.log(
-      '🔧 Initializing call service for passenger...',
-      tag: 'PASSENGER_CALL',
-    );
-
-    // IMPORTANT: Don't set up duplicate call handlers here
-    // The global handler in main.dart will handle incoming calls
-    await _callService.initialize();
-
-    AppLogger.log(
-      '✅ Call service initialized for passenger (no duplicate handlers)',
-      tag: 'PASSENGER_CALL',
-    );
   }
 
   Future<void> _createDriverIcon() async {
@@ -431,16 +394,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _createCarIcon() async {
-    AppLogger.log('🚗 === CREATING CAR ICON ===', tag: 'CAR_ICON');
+    AppLogger.log('=== CREATING CAR ICON ===', tag: 'CAR_ICON');
     try {
       _carIcon = await BitmapDescriptor.fromAssetImage(
         ImageConfiguration(size: Size(150, 150)),
         'assets/images/car.png',
       );
-      AppLogger.log('✅ Car icon created successfully', tag: 'CAR_ICON');
+      AppLogger.log('Car icon created successfully', tag: 'CAR_ICON');
       setState(() {});
     } catch (e) {
-      AppLogger.error('❌ Failed to create car icon', error: e, tag: 'CAR_ICON');
+      AppLogger.error('Failed to create car icon', error: e, tag: 'CAR_ICON');
     }
   }
 
@@ -468,7 +431,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  // Method to convert widget to BitmapDescriptor
   Future<BitmapDescriptor> _createBitmapDescriptorFromWidget(
     Widget widget, {
     Size? size,
@@ -493,21 +455,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // Create a temporary overlay to render the widget
     late OverlayEntry overlayEntry;
     final Completer<BitmapDescriptor> completer = Completer<BitmapDescriptor>();
 
     overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: -1000, // Position off-screen
-        top: -1000,
-        child: wrappedWidget,
-      ),
+      builder: (context) =>
+          Positioned(left: -1000, top: -1000, child: wrappedWidget),
     );
 
     Overlay.of(context).insert(overlayEntry);
 
-    // Wait for the widget to be rendered
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await Future.delayed(Duration(milliseconds: 100));
@@ -516,8 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
             globalKey.currentContext!.findRenderObject()
                 as RenderRepaintBoundary;
 
-        final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-        final ByteData? byteData = await image.toByteData(
+        final ui.Image capturedImage = await boundary.toImage(pixelRatio: 2.0);
+        final ByteData? byteData = await capturedImage.toByteData(
           format: ui.ImageByteFormat.png,
         );
         final Uint8List pngBytes = byteData!.buffer.asUint8List();
@@ -533,368 +490,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return completer.future;
   }
 
-  // Widget for pickup marker
-  Widget _buildPickupMarkerWidget() {
-    String roundedArrivalTime = _driverArrivalTime;
-    if (_isDriverAssigned || _hasNearbyDriver) {
-      try {
-        double time = double.parse(_driverArrivalTime);
-        roundedArrivalTime = time.round().toString();
-      } catch (e) {
-        roundedArrivalTime = _driverArrivalTime;
-      }
-    }
-    return Container(
-      width: 247.w,
-      height: 50.h,
-      padding: EdgeInsets.only(right: 12.w, top: 4.h, bottom: 4.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50.w,
-            height: 50.h,
-            decoration: BoxDecoration(
-              color: (_isDriverAssigned || _hasNearbyDriver)
-                  ? Color(ConstColors.mainColor)
-                  : Colors.white,
-              shape: BoxShape.circle,
-              border: (_isDriverAssigned || _hasNearbyDriver)
-                  ? null
-                  : Border.all(color: Colors.grey.shade300, width: 1),
-            ),
-            child: Center(
-              child: (_isDriverAssigned || _hasNearbyDriver)
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          // roundedArrivalTime,
-                          _driverArrivalTime,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.0,
-                          ),
-                        ),
-                        Text(
-                          "MIN",
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Icon(
-                      Icons.location_on,
-                      color: Color(ConstColors.mainColor),
-                      size: 24.sp,
-                    ),
-            ),
-          ),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Pick up',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.41,
-                    color: Colors.black,
-                  ),
-                ),
-                Text(
-                  _activeRide?['PickupAddress']?.toString() ??
-                      (fromController.text.isNotEmpty
-                          ? fromController.text
-                          : _currentLocationAddress),
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.41,
-                    color: Colors.black,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget for drop-off marker
-  Widget _buildDropoffMarkerWidget() {
-    return Container(
-      width: 242.w,
-      height: 48.h,
-      padding: EdgeInsets.fromLTRB(10.w, 7.h, 10.w, 7.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 30.w,
-            height: 30.h,
-            decoration: BoxDecoration(
-              color: Color(ConstColors.mainColor),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.location_on, color: Colors.white, size: 20.sp),
-          ),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Drop off',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.41,
-                    color: Colors.black,
-                  ),
-                ),
-                Text(
-                  _activeRide?['DestAddress']?.toString() ??
-                      (toController.text.isNotEmpty
-                          ? toController.text
-                          : 'Destination'),
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.41,
-                    color: Colors.black,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget for stop marker
-  Widget _buildStopMarkerWidget() {
-    String stopText = _activeRide?['StopAddress']?.toString() ?? 'Stop';
-
-    return Container(
-      width: 200.w,
-      height: 40.h,
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
-      decoration: BoxDecoration(
-        color: Colors.orange,
-        borderRadius: BorderRadius.circular(8.r),
-        boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.stop_circle, color: Colors.white, size: 16.sp),
-          SizedBox(width: 4.w),
-          Expanded(
-            child: Text(
-              stopText,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _loadFavouriteLocations() async {
-    AppLogger.log('🔄 Loading favourite locations on home screen...');
+    AppLogger.log('Loading favourite locations on home screen...');
     try {
       _favouriteLocations = await _favouriteService.getFavouriteLocations();
       AppLogger.log(
-        '✅ Loaded ${_favouriteLocations.length} favourite locations:',
+        'Loaded ${_favouriteLocations.length} favourite locations:',
       );
       for (final fav in _favouriteLocations) {
         AppLogger.log('  - ${fav.name}: ${fav.destAddress}');
       }
       setState(() {});
     } catch (e) {
-      AppLogger.log('❌ Error loading favourite locations: $e');
+      AppLogger.log('Error loading favourite locations: $e');
     }
   }
 
-  void _listenToWebSocketMessages() {
-    // CRITICAL: Ensure WebSocket connects AFTER call handler is set up
-    AppLogger.log(
-      '🔌 Setting up WebSocket message listeners...',
-      tag: 'HOME_WEBSOCKET',
-    );
-
-    _webSocketService.onChatMessage = (chatData) {
-      AppLogger.log('💬 Global chat handler called in HomeScreen');
-      _handleGlobalChatMessage(chatData);
-    };
-
-    // NEW: Send "Hello" message to open WebSocket channel
-    if (_activeRide != null) {
-      AppLogger.log(
-        '📤 Sending initialization message to open WebSocket channel...',
-      );
-      Future.delayed(Duration(seconds: 3), () {
-        if (_webSocketService.isConnected) {
-          _webSocketService.sendMessage({
-            "type": "chat",
-            "data": {"ride_id": _activeRide!['ID'], "message": "Hello"},
-          });
-          AppLogger.log('✅ Initialization message sent');
-        }
-      });
-    }
-
-    _webSocketService.onRideAccepted = (data) {
-      AppLogger.log('🎉 Ride accepted callback triggered!');
-      AppLogger.log('Driver data: $data');
-
-      // Extract driver information from WebSocket data
-      final driverData = data['driver'] ?? {};
-      _assignedDriver = Driver(
-        id: driverData['id']?.toString() ?? 'driver_123',
-        name: driverData['name']?.toString() ?? 'Driver',
-        profilePicture: driverData['profile_picture']?.toString() ?? '',
-        phoneNumber: driverData['phone_number']?.toString() ?? '',
-        rating: (driverData['rating'] ?? 4.5).toDouble(),
-        vehicleModel: driverData['vehicle_model']?.toString() ?? 'Vehicle',
-        plateNumber: driverData['plate_number']?.toString() ?? 'N/A',
-      );
-
-      setState(() {
-        _isDriverAssigned = true;
-        _isRideAccepted = true;
-        _driverArrivalTime = data['estimated_arrival']?.toString() ?? '5';
-        _pickupLocation =
-            _currentRideResponse?.pickupAddress ?? "Your current location";
-        _dropoffLocation = _currentRideResponse?.destAddress ?? "Destination";
-
-        // Set driver location if provided
-        if (data['driver_location'] != null) {
-          final location = data['driver_location'];
-          _driverLocation = LatLng(
-            location['latitude']?.toDouble() ??
-                _currentLocation.latitude + 0.01,
-            location['longitude']?.toDouble() ??
-                _currentLocation.longitude + 0.01,
-          );
-        }
-      });
-
-      // Show driver accepted sheet
-      _showDriverAcceptedSheet();
-    };
-
-    // Listen for ride_completed message
-    _webSocketService.onRideCompleted = (data) {
-      AppLogger.log(
-        '🏁 Ride completed callback triggered!',
-        tag: 'RIDE_COMPLETED',
-      );
-      AppLogger.log(
-        'RAW MESSAGE AS STRING FOR PASSENGER: "${data.toString()}"',
-      );
-
-      try {
-        // Parse ride_id from the message (can be at root level or in data)
-        int? rideId;
-
-        // Try to get ride_id from root level first
-        if (data['ride_id'] != null) {
-          rideId = data['ride_id'] is int
-              ? data['ride_id']
-              : int.tryParse(data['ride_id'].toString());
-        }
-
-        // If not found, try from data object
-        if (rideId == null) {
-          final messageData = data['data'] as Map<String, dynamic>?;
-          if (messageData?['ride_id'] != null) {
-            rideId = messageData!['ride_id'] is int
-                ? messageData['ride_id']
-                : int.tryParse(messageData['ride_id'].toString());
-          }
-        }
-
-        AppLogger.log('Parsed Ride ID: $rideId');
-        AppLogger.log('Last completed ride ID: $_lastCompletedRideId');
-        AppLogger.log('Dismissed rides: $_dismissedRatingRides');
-
-        if (rideId != null && !_dismissedRatingRides.contains(rideId)) {
-          AppLogger.log('✅ Showing rating sheet for ride $rideId');
-
-          // Store the ride ID
-          _lastCompletedRideId = rideId;
-
-          // Show rating sheet
-          if (mounted) {
-            _showRatingSheet();
-          }
-        } else {
-          AppLogger.log(
-            '⚠️ Not showing rating - rideId: $rideId, already dismissed: ${_dismissedRatingRides.contains(rideId ?? -1)}',
-          );
-        }
-      } catch (e) {
-        AppLogger.log('❌ Error processing ride_completed message: $e');
-      }
-    };
-
-    AppLogger.log(
-      '✅ WebSocket message listeners setup complete',
-      tag: 'HOME_WEBSOCKET',
-    );
-  }
-
-  // Add this new method to handle global chat messages
   void _handleGlobalChatMessage(Map<String, dynamic> chatData) async {
     try {
-      AppLogger.log('📨 Processing global chat message');
+      AppLogger.log('Processing global chat message');
       final data = chatData['data'] ?? {};
       final messageText = data['message'] ?? '';
       final senderName = data['sender_name'] ?? 'Unknown User';
@@ -903,19 +517,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final rideId = data['ride_id'] ?? 0;
       final timestamp =
           chatData['timestamp'] ?? DateTime.now().toIso8601String();
-
       AppLogger.log('   Message: "$messageText"');
       AppLogger.log('   From: $senderName (ID: $senderId)');
       AppLogger.log('   Ride: $rideId');
-
-      // Get current user ID to check if this is our own message
       final prefs = await SharedPreferences.getInstance();
       final currentUserId = prefs.getString('user_id');
-
       AppLogger.log('   Current User ID: $currentUserId');
       AppLogger.log('   Sender ID: $senderId');
-
-      // Add message to ChatProvider so it's available when user opens ChatScreen
       if (mounted && rideId > 0) {
         final chatProvider = Provider.of<ChatProvider>(context, listen: false);
         final message = ChatMessageModel(
@@ -924,81 +532,65 @@ class _HomeScreenState extends State<HomeScreen> {
           rideId: rideId,
           userId: senderId,
         );
-
         chatProvider.addMessage(rideId, message);
-        AppLogger.log('✅ Message added to ChatProvider');
-
-        // Only show notification if the message is NOT from the current user
+        AppLogger.log('Message added to ChatProvider');
         if (senderId != currentUserId &&
             senderId.isNotEmpty &&
             currentUserId != null) {
-          AppLogger.log('📢 Showing notification (message from other user)');
-
-          // Show notification
+          AppLogger.log('Showing notification (message from other user)');
           ChatNotificationService.showChatNotification(
             context,
             senderName: senderName,
             message: messageText,
             senderImage: senderImage,
             onTap: () {
-              AppLogger.log('🔔 Notification tapped, navigating to chat');
-
-              // Navigate to chat screen
+              AppLogger.log('Notification tapped, navigating to chat');
               if (_activeRide != null) {
-                // final passenger = _activeRide!['Passenger'] ?? {};
                 final passengerName = _assignedDriver!.name;
                 final passengerImage = _assignedDriver!.profilePicture;
                 final passengerId = _assignedDriver!.id;
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      rideId: rideId,
-                      driverName: passengerName,
-                      driverImage: passengerImage,
-                      driverId: passengerId,
-                      driverPhone: _assignedDriver?.phoneNumber,
-                    ),
-                  ),
+                context.pushNamed(
+                  AppRoutes.chat.name,
+                  extra: {
+                    'rideId': rideId,
+                    'driverName': passengerName,
+                    'driverImage': passengerImage,
+                    'driverId': passengerId,
+                    'driverPhone': _assignedDriver?.phoneNumber,
+                  },
                 );
               } else {
-                // Fallback if no active ride
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      rideId: rideId,
-                      driverId: senderId,
-                      driverName: senderName,
-                      driverImage: senderImage,
-                      driverPhone: _assignedDriver?.phoneNumber,
-                    ),
-                  ),
+                context.pushNamed(
+                  AppRoutes.chat.name,
+                  extra: {
+                    'rideId': rideId,
+                    'driverId': senderId,
+                    'driverName': senderName,
+                    'driverImage': senderImage,
+                    'driverPhone': _assignedDriver?.phoneNumber,
+                  },
                 );
               }
             },
           );
         } else {
-          AppLogger.log('🔇 Skipping notification (message from current user)');
+          AppLogger.log('Skipping notification (message from current user)');
         }
       }
     } catch (e, stack) {
-      AppLogger.log('❌ Error handling global chat message: $e');
+      AppLogger.log('Error handling global chat message: $e');
       AppLogger.log('Stack: $stack');
     }
   }
 
   void _startNearbyDriverChecking() {
     _checkNearbyDrivers();
-    // Check for nearby drivers every 30 seconds
     _nearbyDriversTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       _checkNearbyDrivers();
     });
   }
 
   Future<void> _checkNearbyDrivers() async {
-    // Only check if no active ride
     if (_activeRide != null || _isDriverAssigned) {
       setState(() {
         _hasNearbyDriver = false;
@@ -1017,7 +609,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (driverData != null) {
         AppLogger.log('Nearby driver found: $driverData', tag: 'NEARBY_DRIVER');
-
         final locationData = driverData['location'];
         final latitude = locationData['latitude'] is double
             ? locationData['latitude']
@@ -1025,24 +616,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final longitude = locationData['longitude'] is double
             ? locationData['longitude']
             : double.tryParse(locationData['longitude'].toString()) ?? 0.0;
-
         final eta = driverData['eta_minutes']?.toString() ?? '1';
-
-        // Round the ETA before setting it
         double etaValue = double.tryParse(eta) ?? 1.0;
         int roundedEta = etaValue.round();
-
         setState(() {
           _driverArrivalTime = roundedEta.toString();
           _hasNearbyDriver = true;
           _nearbyDriverData = driverData;
           _nearbyDriverLocation = LatLng(latitude, longitude);
         });
-
-        // Add driver marker on map
         _updateNearbyDriverMarker(LatLng(latitude, longitude), eta);
-
-        // ADD THIS - start smooth tracking
         if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
           _startNearbyDriverTracking();
         }
@@ -1053,7 +636,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _nearbyDriverData = null;
           _nearbyDriverLocation = null;
         });
-        // Remove marker if no driver nearby
         setState(() {
           _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
         });
@@ -1073,7 +655,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _nearbyDriverTrackingTimer = Timer.periodic(Duration(seconds: 5), (
       timer,
     ) async {
-      // Stop if ride is now active
       if (_activeRide != null || _isDriverAssigned) {
         timer.cancel();
         return;
@@ -1093,26 +674,19 @@ class _HomeScreenState extends State<HomeScreen> {
           final longitude = locationData['longitude'] is double
               ? locationData['longitude']
               : double.tryParse(locationData['longitude'].toString()) ?? 0.0;
-
           final eta = driverData['eta_minutes']?.toString() ?? '1';
           double etaValue = double.tryParse(eta) ?? 1.0;
           int roundedEta = etaValue.round();
-
           final newLocation = LatLng(latitude, longitude);
-
           setState(() {
             _driverArrivalTime = roundedEta.toString();
             _nearbyDriverLocation = newLocation;
           });
-
           _updateNearbyDriverMarker(newLocation, roundedEta.toString());
-
-          // ADD THIS - start smooth tracking
           if (!(_nearbyDriverTrackingTimer?.isActive ?? false)) {
             _startNearbyDriverTracking();
           }
         } else if (mounted) {
-          // Driver gone — remove marker
           setState(() {
             _hasNearbyDriver = false;
             _nearbyDriverData = null;
@@ -1149,7 +723,6 @@ class _HomeScreenState extends State<HomeScreen> {
       step++;
       final t = step / steps;
 
-      // Interpolate position
       final lat = from.latitude + (to.latitude - from.latitude) * t;
       final lng = from.longitude + (to.longitude - from.longitude) * t;
       final interpolated = LatLng(lat, lng);
@@ -1184,7 +757,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .firstOrNull;
 
     if (oldMarker != null) {
-      // Animate smoothly from old position to new position
       _animateDriverMarker(
         markerId: 'nearby_driver',
         from: oldMarker.position,
@@ -1192,7 +764,6 @@ class _HomeScreenState extends State<HomeScreen> {
         eta: eta,
       );
     } else {
-      // First time — just place it
       setState(() {
         _mapMarkers.removeWhere((m) => m.markerId.value == 'nearby_driver');
         _mapMarkers.add(
@@ -1232,7 +803,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _activeRide = activeRide;
           });
 
-          // Show active ride UI based on status
           _handleActiveRideStatus(activeRide);
         } else {
           AppLogger.log('No active rides found');
@@ -1250,7 +820,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startActiveRideChecking() {
-    // Check for active rides every 8 seconds
     _activeRideCheckTimer = Timer.periodic(Duration(seconds: 8), (timer) {
       _checkActiveRides();
     });
@@ -1261,7 +830,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final rideId = ride['ID'] as int?;
     AppLogger.log('Handling active ride with status: $status');
 
-    // Store ride ID when active
     if (rideId != null &&
         (status == 'accepted' || status == 'arrived' || status == 'started')) {
       _lastCompletedRideId = rideId;
@@ -1271,22 +839,13 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'accepted':
       case 'arrived':
       case 'started':
-
-        //      if (_isActiveRideSheetVisible) {
-        //   Navigator.pop(context);
-        //   _isActiveRideSheetVisible = false;
-        // }
-
-        // Extract driver and ride information
         final driverData = ride['Driver'] ?? {};
         if (driverData.isNotEmpty) {
-          // Extract vehicle information from Vehicles array
           final vehicles = driverData['Vehicles'] as List?;
           final vehicleData = (vehicles != null && vehicles.isNotEmpty)
               ? vehicles[0]
               : null;
 
-          // Build vehicle model string from Make, ModelType, Year, and Color
           String vehicleModel = 'Vehicle';
           if (vehicleData != null) {
             final make = vehicleData['Make']?.toString().trim() ?? '';
@@ -1294,7 +853,6 @@ class _HomeScreenState extends State<HomeScreen> {
             final year = vehicleData['Year']?.toString() ?? '';
             final color = vehicleData['Color']?.toString().trim() ?? '';
 
-            // Combine: "Make ModelType Year Color" (e.g., "Honda Modelo 2024 White")
             vehicleModel = [
               make,
               modelType,
@@ -1307,7 +865,6 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
 
-          // Get license plate from vehicle data
           final licensePlate =
               vehicleData?['LicensePlate']?.toString() ?? 'N/A';
 
@@ -1333,51 +890,38 @@ class _HomeScreenState extends State<HomeScreen> {
             _isInCar = true;
           }
         });
-
-        // Parse PostGIS locations and add markers to map
-        AppLogger.log('📍 Parsing PostGIS locations...');
+        AppLogger.log('Parsing PostGIS locations...');
         AppLogger.log('PickupLocation: ${ride['PickupLocation']}');
         AppLogger.log('DestLocation: ${ride['DestLocation']}');
-
-        // Add pickup and drop-off markers to map
         _addActiveRideMarkers(ride);
-
-        // Start tracking driver location if ride is accepted
         AppLogger.log(
-          '🔍 Checking ride status for tracking: $status',
+          'Checking ride status for tracking: $status',
           tag: 'RIDE_STATUS',
         );
-
         if (status == 'accepted') {
           AppLogger.log(
-            '✅ Status is ACCEPTED - Starting driver location tracking',
+            'Status is ACCEPTED - Starting driver location tracking',
             tag: 'RIDE_STATUS',
           );
           _startDriverLocationTracking();
         } else if (status == 'arrived' || status == 'started') {
           AppLogger.log(
-            '🏁 Status is $status - Stopping driver location tracking',
+            'Status is $status - Stopping driver location tracking',
             tag: 'RIDE_STATUS',
           );
-          // Stop tracking when driver arrives or trip starts
           _stopDriverLocationTracking();
         } else {
           AppLogger.log(
-            '⚠️ Unexpected status: $status - No tracking action taken',
+            'Unexpected status: $status - No tracking action taken',
             tag: 'RIDE_STATUS',
           );
         }
-
         if (status != _lastKnownRideStatus) {
           AppLogger.log(
-            '🔄 Status changed from $_lastKnownRideStatus to $status',
+            'Status changed from $_lastKnownRideStatus to $status',
             tag: 'RIDE_STATUS',
           );
-
-          // Update the last known status
           _lastKnownRideStatus = status;
-
-          // Dismiss and reopen sheet with updated data
           if (_isActiveRideSheetVisible) {
             Navigator.pop(context);
             _isActiveRideSheetVisible = false;
@@ -1391,53 +935,23 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         } else {
           AppLogger.log(
-            '⏭️ Status unchanged ($status), skipping sheet update',
+            'Status unchanged ($status), skipping sheet update',
             tag: 'RIDE_STATUS',
           );
         }
         break;
-
-      // if (_isActiveRideSheetVisible) {
-      //     Navigator.pop(context);
-      //     _isActiveRideSheetVisible = false;
-      //     // Wait a moment then show updated sheet
-      //     Future.delayed(Duration(milliseconds: 300), () {
-      //       if (mounted) {
-      //         _showDriverAcceptedSheet();
-      //       }
-      //     });
-      //   } else if (!_hasUserDismissedSheet) {
-      //     _showDriverAcceptedSheet();
-      //   }
-      //       // Show appropriate UI only if not already visible and user hasn't dismissed
-      //       if (status == 'started') {
-      //         // Show in-car UI
-      //       } else if (!_isActiveRideSheetVisible && !_hasUserDismissedSheet) {
-      //         AppLogger.log('✅ Showing driver accepted sheet for status: $status');
-      //         _showDriverAcceptedSheet();
-      //       } else {
-      //         AppLogger.log(
-      //           '⚠️ Sheet not shown - Already visible: $_isActiveRideSheetVisible, User dismissed: $_hasUserDismissedSheet',
-      //         );
-      //       }
-      //       break;
-
       case 'completed':
-        // Check if passenger has rated
         if (_lastCompletedRideId != null &&
             !_dismissedRatingRides.contains(_lastCompletedRideId)) {
           _checkAndShowRating(_lastCompletedRideId!);
         }
         break;
-
       case 'cancelled':
         if (_isActiveRideSheetVisible) {
           Navigator.pop(context);
           _isActiveRideSheetVisible = false;
         }
         _lastKnownRideStatus = null;
-
-        // Clear active ride state and map markers
         _stopDriverLocationTracking();
         setState(() {
           _activeRide = null;
@@ -1449,36 +963,20 @@ class _HomeScreenState extends State<HomeScreen> {
           _mapPolylines = {};
         });
         break;
-
       default:
         AppLogger.log('Unknown ride status: $status');
     }
   }
 
-  void _simulateInCar() {
-    setState(() {
-      _isRideAccepted = false;
-      _isInCar = true;
-    });
-  }
-
-  /// Start tracking driver location and updating ETA
   void _startDriverLocationTracking() {
-    // Cancel any existing timer
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
-
-    // Update driver location every 5 seconds
     _driverLocationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       _updateDriverLocation();
     });
-
-    // Initial update
-
     _updateDriverLocation();
   }
 
-  /// Stop tracking driver location
   void _stopDriverLocationTracking() {
     _driverLocationTimer?.cancel();
     _etaUpdateTimer?.cancel();
@@ -1486,18 +984,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _etaUpdateTimer = null;
   }
 
-  /// Update driver location from active ride data
   Future<void> _updateDriverLocation() async {
     if (_activeRide == null) {
       _stopDriverLocationTracking();
       return;
     }
-
     try {
-      // Fetch latest ride data to get updated driver location
       final response = await _rideService.getActiveRides();
-
-      // Check if rides are in response['rides'] or response['data']['rides']
       List? rides;
       if (response['rides'] != null) {
         rides = response['rides'] as List;
@@ -1505,74 +998,57 @@ class _HomeScreenState extends State<HomeScreen> {
           response['data']['rides'] != null) {
         rides = response['data']['rides'] as List;
       }
-
       if (response['success'] == true && rides != null) {
         if (rides.isNotEmpty) {
           final ride = rides[0];
           final status = ride['Status']?.toString().toLowerCase() ?? '';
-
-          // Only track location when driver is on the way (accepted status)
           if (status == 'accepted') {
             final driverData = ride['Driver'];
             if (driverData != null && driverData['Location'] != null) {
               final driverLocationStr = driverData['Location'].toString();
-
-              // Parse driver location from WKB format
-              final driverCoords = _parsePostGISPoint(driverLocationStr);
-
+              final driverCoords = parsePostGISPoint(driverLocationStr);
               if (driverCoords != null) {
                 AppLogger.log(
-                  '✅ Driver coords parsed: lat=${driverCoords.latitude}, lng=${driverCoords.longitude}',
+                  'Driver coords parsed: lat=${driverCoords.latitude}, lng=${driverCoords.longitude}',
                   tag: 'DRIVER_LOCATION',
                 );
-
                 setState(() {
                   _driverLocation = driverCoords;
                 });
-
                 AppLogger.log(
-                  '🗺️ Updating driver marker on map...',
+                  'Updating driver marker on map...',
                   tag: 'DRIVER_LOCATION',
                 );
-
-                // Update driver marker on map
                 _updateDriverMarker(driverCoords);
-
-                AppLogger.log('⏱️ Calculating ETA...', tag: 'DRIVER_LOCATION');
-
-                // Calculate and update ETA
+                AppLogger.log('Calculating ETA...', tag: 'DRIVER_LOCATION');
                 await _calculateAndUpdateETA(driverCoords);
               } else {
                 AppLogger.log(
-                  '❌ Failed to parse driver coordinates',
+                  'Failed to parse driver coordinates',
                   tag: 'DRIVER_LOCATION',
                 );
               }
             } else {
               AppLogger.log(
-                '⚠️ Driver data or location is null. DriverData: ${driverData != null}, Location: ${driverData?['Location']}',
+                'Driver data or location is null. DriverData: ${driverData != null}, Location: ${driverData?['Location']}',
                 tag: 'DRIVER_LOCATION',
               );
             }
           } else if (status == 'arrived' || status == 'started') {
             AppLogger.log(
-              '🏁 Driver has arrived or trip started, stopping tracking',
+              'Driver has arrived or trip started, stopping tracking',
               tag: 'DRIVER_LOCATION',
             );
-            // Stop tracking when driver arrives or trip starts
             _stopDriverLocationTracking();
           } else {
-            AppLogger.log(
-              '⚠️ Unexpected status: $status',
-              tag: 'DRIVER_LOCATION',
-            );
+            AppLogger.log('Unexpected status: $status', tag: 'DRIVER_LOCATION');
           }
         } else {
-          AppLogger.log('⚠️ Rides array is empty', tag: 'DRIVER_LOCATION');
+          AppLogger.log('Rides array is empty', tag: 'DRIVER_LOCATION');
         }
       } else {
         AppLogger.log(
-          '❌ Response unsuccessful or no rides. Success: ${response['success']}, Rides: $rides',
+          'Response unsuccessful or no rides. Success: ${response['success']}, Rides: $rides',
           tag: 'DRIVER_LOCATION',
         );
       }
@@ -1585,50 +1061,38 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Update driver marker on the map
   void _updateDriverMarker(LatLng driverLocation) {
-    AppLogger.log('🚗 === UPDATING DRIVER MARKER ===', tag: 'DRIVER_MARKER');
+    AppLogger.log('=== UPDATING DRIVER MARKER ===', tag: 'DRIVER_MARKER');
 
     if (_carIcon == null) {
       AppLogger.log(
-        '❌ Car icon is null! Cannot add driver marker.',
+        'Car icon is null! Cannot add driver marker.',
         tag: 'DRIVER_MARKER',
       );
       return;
     }
-
     AppLogger.log(
-      '✅ Car icon loaded, refreshing map with driver at: ${driverLocation.latitude}, ${driverLocation.longitude}',
+      'Car icon loaded, refreshing map with driver at: ${driverLocation.latitude}, ${driverLocation.longitude}',
       tag: 'DRIVER_MARKER',
     );
-
-    // Refresh all markers and polylines to update the route
     if (_activeRide != null) {
       AppLogger.log(
-        '🔄 Refreshing all markers and polylines with updated driver location',
+        'Refreshing all markers and polylines with updated driver location',
         tag: 'DRIVER_MARKER',
       );
       _addActiveRideMarkers(_activeRide!);
     }
-
-    // Also add the driver marker
     setState(() {
-      // Remove old driver marker if exists
-      final removedCount = _mapMarkers
-          .where((marker) => marker.markerId.value == 'driver_location')
-          .length;
       _mapMarkers.removeWhere(
         (marker) => marker.markerId.value == 'driver_location',
       );
-
-      // Add new driver marker
       _mapMarkers.add(
         Marker(
           markerId: MarkerId('driver_location'),
           position: driverLocation,
           icon: _carIcon!,
           anchor: Offset(0.5, 0.5),
-          rotation: 0, // You can calculate bearing if needed
+          rotation: 0,
           infoWindow: InfoWindow(
             title: 'Driver',
             snippet: _assignedDriver?.name ?? 'Your driver',
@@ -1638,50 +1102,39 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  /// Calculate ETA from driver location to pickup location
   Future<void> _calculateAndUpdateETA(LatLng driverLocation) async {
-    AppLogger.log('⏱️ === CALCULATING ETA ===', tag: 'ETA');
+    AppLogger.log('=== CALCULATING ETA ===', tag: 'ETA');
 
     if (_activeRide == null) {
-      AppLogger.log('⚠️ No active ride', tag: 'ETA');
+      AppLogger.log('No active ride', tag: 'ETA');
       return;
     }
 
     try {
-      // Get pickup location
       final pickupLocationStr = _activeRide!['PickupLocation']?.toString();
       if (pickupLocationStr == null) {
-        AppLogger.log('❌ Pickup location is null', tag: 'ETA');
+        AppLogger.log('Pickup location is null', tag: 'ETA');
         return;
       }
-
-      AppLogger.log('📍 Pickup location (raw): $pickupLocationStr', tag: 'ETA');
-
-      final pickupCoords = _parsePostGISPoint(pickupLocationStr);
+      AppLogger.log('Pickup location (raw): $pickupLocationStr', tag: 'ETA');
+      final pickupCoords = parsePostGISPoint(pickupLocationStr);
       if (pickupCoords == null) {
-        AppLogger.log('❌ Failed to parse pickup coordinates', tag: 'ETA');
+        AppLogger.log('Failed to parse pickup coordinates', tag: 'ETA');
         return;
       }
-
       AppLogger.log(
-        '✅ Pickup coords: lat=${pickupCoords.latitude}, lng=${pickupCoords.longitude}',
+        'Pickup coords: lat=${pickupCoords.latitude}, lng=${pickupCoords.longitude}',
         tag: 'ETA',
       );
-
-      AppLogger.log('🌐 Calling Google Directions API...', tag: 'ETA');
-
-      // Get route details from Google Directions API
+      AppLogger.log('Calling Google Directions API...', tag: 'ETA');
       final routeDetails = await _directionsService.getRouteDetails(
         origin: driverLocation,
         destination: pickupCoords,
       );
-
       if (routeDetails != null) {
         if (routeDetails['duration_value'] != null) {
           final durationInSeconds = routeDetails['duration_value'];
-
-          log("this is the duration in seconds $durationInSeconds");
-
+          AppLogger.log("this is the duration in seconds $durationInSeconds");
           final durationInMinutes = (durationInSeconds / 60).ceil();
           setState(() {
             _driverArrivalTime = durationInMinutes.toString();
@@ -1689,26 +1142,20 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } else {
         AppLogger.log(
-          '⚠️ API returned null, using fallback calculation',
+          'API returned null, using fallback calculation',
           tag: 'ETA',
         );
-
-        // Fallback: Calculate straight-line distance and estimate
         final distanceKm = _calculateDistance(driverLocation, pickupCoords);
-        final estimatedMinutes = (distanceKm / 0.5)
-            .ceil(); // Assume 30 km/h average speed
-
+        final estimatedMinutes = (distanceKm / 0.5).ceil();
         AppLogger.log(
-          '📏 Distance: ${distanceKm.toStringAsFixed(2)} km, Estimated: $estimatedMinutes mins',
+          'Distance: ${distanceKm.toStringAsFixed(2)} km, Estimated: $estimatedMinutes mins',
           tag: 'ETA',
         );
-
         setState(() {
           _driverArrivalTime = estimatedMinutes.toString();
         });
-
         AppLogger.log(
-          '✅ ETA ESTIMATED (fallback): $estimatedMinutes mins',
+          'ETA ESTIMATED (fallback): $estimatedMinutes mins',
           tag: 'ETA',
         );
       }
@@ -1726,17 +1173,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       return;
     }
-
     try {
-      // Generate session token for billing optimization
       _sessionToken ??= DateTime.now().millisecondsSinceEpoch.toString();
-
       final predictions = await _placesService.getPlacePredictions(
         query,
         sessionToken: _sessionToken,
         currentLocation: _userCurrentLocation,
       );
-
       setState(() {
         _locationSuggestions = predictions;
         _showSuggestions = predictions.isNotEmpty;
@@ -1751,13 +1194,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _selectLocation(PlacePrediction prediction, bool isFrom) async {
-    // Get place details for accurate coordinates
     final placeDetails = await _placesService.getPlaceDetails(
       prediction.placeId,
       sessionToken: _sessionToken,
     );
 
-    // Store coordinates if available
     if (placeDetails != null) {
       final coordinates = LatLng(placeDetails.latitude, placeDetails.longitude);
 
@@ -1778,72 +1219,18 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       _locationSuggestions = [];
       _showSuggestions = false;
-      _sessionToken = null; // Reset session token after use
+      _sessionToken = null;
     });
 
-    // Save to recent locations
     Provider.of<LocationProvider>(
       context,
       listen: false,
     ).addRecentLocation(prediction.description, prediction.description);
 
-    // Only show vehicle selection after both fields are filled via selection
     if (!isFrom && fromController.text.isNotEmpty) {
       _checkBothFields();
     }
   }
-
-  // Future<void> _getCurrentLocation() async {
-  //   try {
-  //     LocationPermission permission = await Geolocator.checkPermission();
-  //     if (permission == LocationPermission.denied) {
-  //       permission = await Geolocator.requestPermission();
-  //     }
-
-  //     if (permission != LocationPermission.denied) {
-  //       Position position = await Geolocator.getCurrentPosition();
-  //       List<Placemark> placemarks = await placemarkFromCoordinates(
-  //         position.latitude,
-  //         position.longitude,
-  //       );
-  //       String currentAddress = 'Current location';
-  //       if (placemarks.isNotEmpty) {
-  //         Placemark place = placemarks[0];
-  //         currentAddress = '${place.street ?? ''}, ${place.locality ?? ''}'
-  //             .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
-  //         if (currentAddress.isEmpty) currentAddress = 'Current location';
-  //       }
-  //       // setState(() {
-  //       //   _currentLocation = LatLng(position.latitude, position.longitude);
-  //       //   _userCurrentLocation = position;
-  //       //   _currentLocationAddress = currentAddress; // Store the address
-  //       //   _isLocationLoaded = true;
-  //       // });
-  //       setState(() {
-  //         _currentLocation = LatLng(position.latitude, position.longitude);
-  //         _userCurrentLocation = position;
-  //         _currentLocationAddress = currentAddress;
-  //         _isLocationLoaded = true;
-  //         // Auto-fill fromController so textfield shows real address immediately
-  //         // and becomes editable right away
-  //         if (fromController.text.isEmpty ||
-  //             fromController.text == 'Current location') {
-  //           fromController.text = currentAddress;
-  //           _pickupCoordinates = LatLng(position.latitude, position.longitude);
-  //           _isFromFieldEditable = true;
-  //         }
-  //       });
-  //       AppLogger.log(
-  //         '📍 Current user location: ${position.latitude}, ${position.longitude}',
-  //       );
-
-  //       // Check for nearby drivers immediately after getting location
-  //       _checkNearbyDrivers();
-  //     }
-  //   } catch (e) {
-  //     AppLogger.log('Error getting location: $e');
-  //   }
-  // }
 
   Future<void> _getCurrentLocation() async {
     try {
@@ -1860,22 +1247,17 @@ class _HomeScreenState extends State<HomeScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Get address
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
-
       String currentAddress = '';
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-
-        // Try street + locality first
         final street = place.street?.trim() ?? '';
         final locality = place.locality?.trim() ?? '';
         final subLocality = place.subLocality?.trim() ?? '';
         final adminArea = place.administrativeArea?.trim() ?? '';
-
         if (street.isNotEmpty && street != locality) {
           currentAddress = locality.isNotEmpty ? '$street, $locality' : street;
         } else if (locality.isNotEmpty) {
@@ -1889,20 +1271,15 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (adminArea.isNotEmpty) {
           currentAddress = adminArea;
         }
-
-        // Clean up
         currentAddress = currentAddress
             .replaceAll(RegExp(r'^,\s*|,\s*$'), '')
             .trim();
       }
-
-      // If STILL empty, use coordinates as last resort (never "Current location")
       if (currentAddress.isEmpty) {
         currentAddress =
             '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
       }
       final coords = LatLng(position.latitude, position.longitude);
-
       if (mounted) {
         setState(() {
           _currentLocation = coords;
@@ -1910,29 +1287,21 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentLocationAddress = currentAddress;
           _isLocationLoaded = true;
           _pickupCoordinates = coords;
-
-          // Only set controller if it's empty or still has placeholder text
           if (fromController.text.isEmpty ||
               fromController.text == 'Current location' ||
               fromController.text == 'Loading...') {
-            // fromController.text = currentAddress;
             _isFromFieldEditable = true;
           }
         });
-
-        // Move camera to current location
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(target: coords, zoom: 16.0),
           ),
         );
       }
-
-      // Check nearby drivers after location is confirmed
       _checkNearbyDrivers();
     } catch (e) {
       AppLogger.error('Error getting location: $e', tag: 'LOCATION');
-      // Set editable even on error so user isn't stuck
       if (mounted) {
         setState(() {
           _isFromFieldEditable = true;
@@ -1948,14 +1317,7 @@ class _HomeScreenState extends State<HomeScreen> {
           end.latitude,
           end.longitude,
         ) /
-        1000; // Convert to kilometers
-  }
-
-  String _formatDistance(double distanceKm) {
-    if (distanceKm < 1) {
-      return '${(distanceKm * 1000).round()} m';
-    }
-    return '${distanceKm.toStringAsFixed(1)} km';
+        1000;
   }
 
   Future<void> _checkAndShowRating(int rideId) async {
@@ -1963,87 +1325,39 @@ class _HomeScreenState extends State<HomeScreen> {
       AppLogger.log('=== CHECKING RATING STATUS ===');
       AppLogger.log('Ride ID: $rideId');
       AppLogger.log('Calling getRideDetails...');
-
       final result = await _rideService.getRideDetails(rideId);
-
       AppLogger.log('getRideDetails result: $result');
-
       if (result['success'] == true) {
         final rideData = result['data'];
         AppLogger.log('Ride data: $rideData');
-
         final hasRated = rideData['passenger_rated_driver'] ?? false;
         AppLogger.log('passenger_rated_driver: $hasRated');
-
         if (!hasRated && mounted) {
-          AppLogger.log('✅ Showing rating sheet');
+          AppLogger.log('Showing rating sheet');
           _showRatingSheet();
         } else {
           AppLogger.log(
-            '⚠️ Not showing rating sheet - hasRated: $hasRated, mounted: $mounted',
+            'Not showing rating sheet - hasRated: $hasRated, mounted: $mounted',
           );
         }
       } else {
-        AppLogger.log('❌ getRideDetails failed: ${result['message']}');
+        AppLogger.log('getRideDetails failed: ${result['message']}');
       }
       AppLogger.log('=== END CHECKING RATING STATUS ===');
     } catch (e) {
-      AppLogger.log('❌ Error checking rating status: $e');
+      AppLogger.log('Error checking rating status: $e');
     }
   }
 
-  // Future<RideResponse?> _requestRide({bool isScheduled = false}) async {
-  //   if (_currentEstimate == null || selectedVehicle == null) {
-  //     throw Exception('No estimate or vehicle selected');
-  //   }
-
-  //   final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
-  //   final vehicleType = selectedPriceData['vehicle_type'];
-
-  //   String? scheduledDateTime;
-  //   if (isScheduled) {
-  //     final scheduledDate = DateTime(
-  //       selectedDate.year,
-  //       selectedDate.month,
-  //       selectedDate.day,
-  //       selectedTime.hour,
-  //       selectedTime.minute,
-  //     );
-  //     scheduledDateTime = scheduledDate.toIso8601String();
-  //   }
-
-  //   final request = RideRequest(
-  //     pickup: _pickupCoordinates != null
-  //         ? '${_pickupCoordinates!.latitude},${_pickupCoordinates!.longitude}'
-  //         : '${_currentLocation.latitude},${_currentLocation.longitude}',
-  //     dest: _destinationCoordinates != null
-  //         ? '${_destinationCoordinates!.latitude},${_destinationCoordinates!.longitude}'
-  //         : '${_currentLocation.latitude + 0.01},${_currentLocation.longitude + 0.01}',
-  //     pickupAddress: fromController.text.isNotEmpty
-  //         ? fromController.text
-  //         : 'Current location',
-  //     destAddress: toController.text,
-  //     stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
-  //     serviceType: 'taxi',
-  //     vehicleType: vehicleType,
-  //     paymentMethod: selectedPaymentMethod,
-  //     scheduled: isScheduled,
-  //     scheduledAt: scheduledDateTime,
-  //   );
-
-  //   return await _rideService.requestRide(request);
-  // }
-
   Future<void> _estimateRide() async {
-    AppLogger.log('🚗 === ESTIMATING RIDE ===', tag: 'ESTIMATE');
+    AppLogger.log('=== ESTIMATING RIDE ===', tag: 'ESTIMATE');
 
     if (_pickupCoordinates == null || _destinationCoordinates == null) {
-      AppLogger.log('❌ Missing coordinates', tag: 'ESTIMATE');
+      AppLogger.log('Missing coordinates', tag: 'ESTIMATE');
       AppLogger.log('Pickup: $_pickupCoordinates', tag: 'ESTIMATE');
       AppLogger.log('Destination: $_destinationCoordinates', tag: 'ESTIMATE');
       return;
     }
-
     final request = RideEstimateRequest(
       pickup:
           'POINT(${_pickupCoordinates!.longitude} ${_pickupCoordinates!.latitude})',
@@ -2051,25 +1365,22 @@ class _HomeScreenState extends State<HomeScreen> {
           'POINT(${_destinationCoordinates!.longitude} ${_destinationCoordinates!.latitude})',
       destAddress: toController.text,
       serviceType: 'taxi',
-      vehicleType: 'regular', // Default for estimation
+      vehicleType: 'regular',
     );
-
-    AppLogger.log('📤 Estimate Request:', tag: 'ESTIMATE');
+    AppLogger.log('Estimate Request:', tag: 'ESTIMATE');
     AppLogger.log('  Pickup: ${request.pickup}', tag: 'ESTIMATE');
     AppLogger.log('  Dest: ${request.dest}', tag: 'ESTIMATE');
     AppLogger.log('  Service Type: ${request.serviceType}', tag: 'ESTIMATE');
-
     try {
       _currentEstimate = await _rideService.estimateRide(request);
-
-      AppLogger.log('✅ === ESTIMATE RESPONSE RECEIVED ===', tag: 'ESTIMATE');
+      AppLogger.log('=== ESTIMATE RESPONSE RECEIVED ===', tag: 'ESTIMATE');
       AppLogger.log('Currency: ${_currentEstimate!.currency}', tag: 'ESTIMATE');
       AppLogger.log(
         'Distance KM: ${_currentEstimate!.distanceKm}',
         tag: 'ESTIMATE',
       );
       AppLogger.log(
-        '⏱️ DURATION MIN: ${_currentEstimate!.durationMin}',
+        'DURATION MIN: ${_currentEstimate!.durationMin}',
         tag: 'ESTIMATE',
       );
       AppLogger.log(
@@ -2080,7 +1391,6 @@ class _HomeScreenState extends State<HomeScreen> {
         'Price List Length: ${_currentEstimate!.priceList.length}',
         tag: 'ESTIMATE',
       );
-
       for (int i = 0; i < _currentEstimate!.priceList.length; i++) {
         final price = _currentEstimate!.priceList[i];
         AppLogger.log(
@@ -2092,9 +1402,7 @@ class _HomeScreenState extends State<HomeScreen> {
           tag: 'ESTIMATE',
         );
       }
-
       AppLogger.log('=== END ESTIMATE RESPONSE ===', tag: 'ESTIMATE');
-
       setState(() {});
     } catch (e) {
       rethrow;
@@ -2102,93 +1410,88 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addActiveRideMarkers(Map<String, dynamic> ride) async {
-    // Get ride status to determine what to display
     final status = ride['Status']?.toString().toLowerCase() ?? '';
-
-    // Parse PostGIS POINT format: "POINT(longitude latitude)"
     final pickupLocation = ride['PickupLocation']?.toString();
     final destLocation = ride['DestLocation']?.toString();
     final stopLocation = ride['StopLocation']?.toString();
-
     LatLng? pickupCoords;
     LatLng? destCoords;
     LatLng? stopCoords;
-
-    // Check if location is in WKB format (hex string) or POINT format
     if (pickupLocation != null &&
         (pickupLocation.startsWith('0101000020') ||
             pickupLocation.contains('POINT'))) {
-      final coords = _parsePostGISPoint(pickupLocation);
+      final coords = parsePostGISPoint(pickupLocation);
       if (coords != null) {
         pickupCoords = coords;
-        AppLogger.log('✅ Pickup coords parsed: $coords', tag: 'MARKERS');
+        AppLogger.log('Pickup coords parsed: $coords', tag: 'MARKERS');
       } else {
-        AppLogger.log('❌ Failed to parse pickup coords', tag: 'MARKERS');
+        AppLogger.log('Failed to parse pickup coords', tag: 'MARKERS');
       }
     } else {
       AppLogger.log(
-        '⚠️ Pickup location is null or not in recognized format',
+        'Pickup location is null or not in recognized format',
         tag: 'MARKERS',
       );
     }
-
     if (destLocation != null &&
         (destLocation.startsWith('0101000020') ||
             destLocation.contains('POINT'))) {
-      final coords = _parsePostGISPoint(destLocation);
+      final coords = parsePostGISPoint(destLocation);
       if (coords != null) {
         destCoords = coords;
-        AppLogger.log('✅ Dest coords parsed: $coords', tag: 'MARKERS');
+        AppLogger.log('Dest coords parsed: $coords', tag: 'MARKERS');
       } else {
-        AppLogger.log('❌ Failed to parse dest coords', tag: 'MARKERS');
+        AppLogger.log('Failed to parse dest coords', tag: 'MARKERS');
       }
     } else {
       AppLogger.log(
-        '⚠️ Dest location is null or not in recognized format',
+        'Dest location is null or not in recognized format',
         tag: 'MARKERS',
       );
     }
-
-    // Handle stop location - if "No stops", place marker at midpoint
     final stopAddress = ride['StopAddress']?.toString() ?? '';
     if (stopAddress == 'No stops' &&
         pickupCoords != null &&
         destCoords != null) {
-      // Calculate midpoint between pickup and destination
       stopCoords = LatLng(
         (pickupCoords.latitude + destCoords.latitude) / 2,
         (pickupCoords.longitude + destCoords.longitude) / 2,
       );
       AppLogger.log(
-        '✅ Stop coords calculated as midpoint: $stopCoords',
+        'Stop coords calculated as midpoint: $stopCoords',
         tag: 'MARKERS',
       );
     } else if (stopLocation != null &&
         (stopLocation.startsWith('0101000020') ||
             stopLocation.contains('POINT'))) {
-      final coords = _parsePostGISPoint(stopLocation);
+      final coords = parsePostGISPoint(stopLocation);
       if (coords != null) {
         stopCoords = coords;
-        AppLogger.log('✅ Stop coords parsed: $coords', tag: 'MARKERS');
+        AppLogger.log('Stop coords parsed: $coords', tag: 'MARKERS');
       } else {
-        AppLogger.log('❌ Failed to parse stop coords', tag: 'MARKERS');
+        AppLogger.log('Failed to parse stop coords', tag: 'MARKERS');
       }
     } else {
       AppLogger.log(
-        '⚠️ Stop location is null or not in recognized format',
+        'Stop location is null or not in recognized format',
         tag: 'MARKERS',
       );
     }
 
-    // Create markers
     final markers = <Marker>{};
 
-    // Always add pickup marker
     if (pickupCoords != null) {
-      AppLogger.log('🎨 Creating pickup marker widget...', tag: 'MARKERS');
+      AppLogger.log('Creating pickup marker widget...', tag: 'MARKERS');
       try {
         final pickupIcon = await _createBitmapDescriptorFromWidget(
-          _buildPickupMarkerWidget(),
+          PickupMarkerWidget(
+            driverArrivalTime: _driverArrivalTime,
+            hasNearbyDriver: _hasNearbyDriver,
+            isDriverAssigned: _isDriverAssigned,
+            pickupAddress: _activeRide?['PickupAddress']?.toString(),
+            fromText: fromController.text,
+            currentLocationAddress: _currentLocationAddress,
+          ),
           size: Size(247.w, 50.h),
         );
         markers.add(
@@ -2199,13 +1502,12 @@ class _HomeScreenState extends State<HomeScreen> {
             anchor: Offset(0.5, 1.0),
           ),
         );
-        AppLogger.log('✅ Pickup marker added with custom icon', tag: 'MARKERS');
+        AppLogger.log('Pickup marker added with custom icon', tag: 'MARKERS');
       } catch (e) {
         AppLogger.log(
-          '⚠️ Failed to create custom pickup marker, using default: $e',
+          'Failed to create custom pickup marker, using default: $e',
           tag: 'MARKERS',
         );
-        // Fallback to default marker
         markers.add(
           Marker(
             markerId: MarkerId('active_pickup'),
@@ -2221,15 +1523,17 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // Only add dropoff marker when ride has started
     if (status == 'started' && destCoords != null) {
       AppLogger.log(
-        '🎨 Creating dropoff marker widget (ride started)...',
+        'Creating dropoff marker widget (ride started)...',
         tag: 'MARKERS',
       );
       try {
         final dropoffIcon = await _createBitmapDescriptorFromWidget(
-          _buildDropoffMarkerWidget(),
+          DropoffMarkerWidget(
+            destAddress: _activeRide?['DestAddress']?.toString(),
+            toText: toController.text,
+          ),
           size: Size(242.w, 48.h),
         );
         markers.add(
@@ -2240,16 +1544,12 @@ class _HomeScreenState extends State<HomeScreen> {
             anchor: Offset(0.5, 1.0),
           ),
         );
-        AppLogger.log(
-          '✅ Dropoff marker added with custom icon',
-          tag: 'MARKERS',
-        );
+        AppLogger.log('Dropoff marker added with custom icon', tag: 'MARKERS');
       } catch (e) {
         AppLogger.log(
-          '⚠️ Failed to create custom dropoff marker, using default: $e',
+          'Failed to create custom dropoff marker, using default: $e',
           tag: 'MARKERS',
         );
-        // Fallback to default marker
         markers.add(
           Marker(
             markerId: MarkerId('active_dropoff'),
@@ -2266,17 +1566,18 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } else if (status == 'accepted') {
       AppLogger.log(
-        '⏭️ Skipping dropoff marker (ride not started yet)',
+        'Skipping dropoff marker (ride not started yet)',
         tag: 'MARKERS',
       );
     }
 
-    // Only add stop marker when ride has started
     if (status == 'started' && stopCoords != null) {
-      AppLogger.log('🎨 Creating stop marker widget...', tag: 'MARKERS');
+      AppLogger.log('Creating stop marker widget...', tag: 'MARKERS');
       try {
         final stopIcon = await _createBitmapDescriptorFromWidget(
-          _buildStopMarkerWidget(),
+          StopMarkerWidget(
+            stopAddress: _activeRide?['StopAddress']?.toString(),
+          ),
           size: Size(200.w, 40.h),
         );
         markers.add(
@@ -2287,13 +1588,12 @@ class _HomeScreenState extends State<HomeScreen> {
             anchor: Offset(0.5, 1.0),
           ),
         );
-        AppLogger.log('✅ Stop marker added with custom icon', tag: 'MARKERS');
+        AppLogger.log('Stop marker added with custom icon', tag: 'MARKERS');
       } catch (e) {
         AppLogger.log(
-          '⚠️ Failed to create custom stop marker, using default: $e',
+          'Failed to create custom stop marker, using default: $e',
           tag: 'MARKERS',
         );
-        // Fallback to default marker
         markers.add(
           Marker(
             markerId: MarkerId('active_stop'),
@@ -2310,24 +1610,18 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    AppLogger.log(
-      '📊 Total markers created: ${markers.length}',
-      tag: 'MARKERS',
-    );
+    AppLogger.log('Total markers created: ${markers.length}', tag: 'MARKERS');
 
-    // Draw polyline based on ride status
     final polylines = <Polyline>{};
 
     if (status == 'accepted') {
-      // When accepted: Draw polyline from pickup to driver location
       if (pickupCoords != null && _driverLocation != null) {
         AppLogger.log(
-          '🛣️ Drawing route from PICKUP to DRIVER (accepted status)...',
+          'Drawing route from PICKUP to DRIVER (accepted status)...',
           tag: 'MARKERS',
         );
 
         try {
-          // Get route using flutter_polyline_points
           PolylinePoints polylinePoints = PolylinePoints();
           PolylineResult result = await polylinePoints
               .getRouteBetweenCoordinates(
@@ -2352,17 +1646,17 @@ class _HomeScreenState extends State<HomeScreen> {
               routePoints.add(LatLng(point.latitude, point.longitude));
             }
             AppLogger.log(
-              '✅ Got ${routePoints.length} route points (pickup to driver)',
+              'Got ${routePoints.length} route points (pickup to driver)',
               tag: 'MARKERS',
             );
           } else {
             AppLogger.log(
-              '⚠️ Directions API returned empty. Error: ${result.errorMessage}',
+              'Directions API returned empty. Error: ${result.errorMessage}',
               tag: 'MARKERS',
             );
-            routePoints = _generateCurvedPath(pickupCoords, _driverLocation!);
+            routePoints = generateCurvedPath(pickupCoords, _driverLocation!);
             AppLogger.log(
-              '📍 Using curved path fallback with ${routePoints.length} points',
+              'Using curved path fallback with ${routePoints.length} points',
               tag: 'MARKERS',
             );
           }
@@ -2377,13 +1671,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
 
-          AppLogger.log(
-            '✅ Polyline created (pickup to driver)',
-            tag: 'MARKERS',
-          );
+          AppLogger.log('Polyline created (pickup to driver)', tag: 'MARKERS');
         } catch (e) {
-          AppLogger.log('⚠️ Failed to get route polyline: $e', tag: 'MARKERS');
-          // Fallback: draw straight line
+          AppLogger.log('Failed to get route polyline: $e', tag: 'MARKERS');
           polylines.add(
             Polyline(
               polylineId: PolylineId('driver_to_pickup_route'),
@@ -2396,20 +1686,18 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       } else {
         AppLogger.log(
-          '⚠️ Cannot draw pickup-to-driver route: pickupCoords=${pickupCoords != null}, driverLocation=${_driverLocation != null}',
+          'Cannot draw pickup-to-driver route: pickupCoords=${pickupCoords != null}, driverLocation=${_driverLocation != null}',
           tag: 'MARKERS',
         );
       }
     } else if (status == 'started') {
-      // When started: Draw polyline from pickup to destination
       if (pickupCoords != null && destCoords != null) {
         AppLogger.log(
-          '🛣️ Drawing route from PICKUP to DESTINATION (started status)...',
+          'Drawing route from PICKUP to DESTINATION (started status)...',
           tag: 'MARKERS',
         );
 
         try {
-          // Get route using flutter_polyline_points
           PolylinePoints polylinePoints = PolylinePoints();
           PolylineResult result = await polylinePoints
               .getRouteBetweenCoordinates(
@@ -2434,17 +1722,17 @@ class _HomeScreenState extends State<HomeScreen> {
               routePoints.add(LatLng(point.latitude, point.longitude));
             }
             AppLogger.log(
-              '✅ Got ${routePoints.length} route points (pickup to destination)',
+              'Got ${routePoints.length} route points (pickup to destination)',
               tag: 'MARKERS',
             );
           } else {
             AppLogger.log(
-              '⚠️ Directions API returned empty. Error: ${result.errorMessage}',
+              'Directions API returned empty. Error: ${result.errorMessage}',
               tag: 'MARKERS',
             );
-            routePoints = _generateCurvedPath(pickupCoords, destCoords);
+            routePoints = generateCurvedPath(pickupCoords, destCoords);
             AppLogger.log(
-              '📍 Using curved path fallback with ${routePoints.length} points',
+              'Using curved path fallback with ${routePoints.length} points',
               tag: 'MARKERS',
             );
           }
@@ -2458,14 +1746,8 @@ class _HomeScreenState extends State<HomeScreen> {
               geodesic: true,
             ),
           );
-
-          // AppLogger.log(
-          //   '✅ Polyline created (pickup to destination)',
-          //   tag: 'MARKERS',
-          // );
         } catch (e) {
-          AppLogger.log('⚠️ Failed to get route polyline: $e', tag: 'MARKERS');
-          // Fallback: draw straight line
+          AppLogger.log('Failed to get route polyline: $e', tag: 'MARKERS');
           polylines.add(
             Polyline(
               polylineId: PolylineId('active_route'),
@@ -2484,203 +1766,35 @@ class _HomeScreenState extends State<HomeScreen> {
       _mapPolylines = polylines;
     });
 
-    AppLogger.log('✅ Markers and polylines set in state', tag: 'MARKERS');
+    AppLogger.log('Markers and polylines set in state', tag: 'MARKERS');
 
-    // Only fit camera to show all markers on the FIRST load
-    // After that, let the user control the map zoom/pan
     if (!_hasInitializedMapCamera &&
         markers.isNotEmpty &&
         _mapController != null) {
       final positions = markers.map((m) => m.position).toList();
-      final bounds = _calculateBounds(positions);
+      final bounds = calculateBounds(positions);
       _mapController!.animateCamera(
         CameraUpdate.newLatLngBounds(bounds, 100.0),
       );
       _hasInitializedMapCamera = true;
       AppLogger.log(
-        '📷 Camera adjusted to fit markers (first time only)',
+        'Camera adjusted to fit markers (first time only)',
         tag: 'MARKERS',
       );
     } else if (_hasInitializedMapCamera) {
       AppLogger.log(
-        '⏭️ Skipping camera adjustment - user can control map freely',
+        'Skipping camera adjustment - user can control map freely',
         tag: 'MARKERS',
       );
     } else {
       AppLogger.log(
-        '⚠️ Cannot adjust camera: markers=${markers.length}, controller=${_mapController != null}',
+        'Cannot adjust camera: markers=${markers.length}, controller=${_mapController != null}',
         tag: 'MARKERS',
       );
     }
 
-    AppLogger.log('📍 === MARKERS SETUP COMPLETE ===', tag: 'MARKERS');
+    AppLogger.log('=== MARKERS SETUP COMPLETE ===', tag: 'MARKERS');
   }
-
-  LatLng? _parsePostGISPoint(String pointString) {
-    try {
-      // Check if it's WKB format (hex string)
-      if (pointString.startsWith('0101000020')) {
-        AppLogger.log('🔍 Parsing WKB format: $pointString', tag: 'WKB_PARSER');
-        final result = _parsePostGISLocation(pointString);
-        if (result != null && result['lat'] != null && result['lng'] != null) {
-          final latLng = LatLng(result['lat']!, result['lng']!);
-          AppLogger.log('✅ WKB parsed to LatLng: $latLng', tag: 'WKB_PARSER');
-          return latLng;
-        } else {
-          AppLogger.log('❌ Failed to parse WKB format', tag: 'WKB_PARSER');
-          return null;
-        }
-      }
-
-      // Otherwise, try POINT format
-      // Remove "POINT(" and ")" and split by space
-      final coords = pointString
-          .replaceAll('POINT(', '')
-          .replaceAll(')', '')
-          .split(' ');
-
-      if (coords.length == 2) {
-        final longitude = double.parse(coords[0]);
-        final latitude = double.parse(coords[1]);
-        return LatLng(latitude, longitude);
-      }
-    } catch (e) {
-      AppLogger.log('Error parsing PostGIS point: $e');
-    }
-    return null;
-  }
-
-  LatLngBounds _calculateBounds(List<LatLng> positions) {
-    double minLat = positions.first.latitude;
-    double maxLat = positions.first.latitude;
-    double minLng = positions.first.longitude;
-    double maxLng = positions.first.longitude;
-
-    for (final pos in positions) {
-      minLat = math.min(minLat, pos.latitude);
-      maxLat = math.max(maxLat, pos.latitude);
-      minLng = math.min(minLng, pos.longitude);
-      maxLng = math.max(maxLng, pos.longitude);
-    }
-
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
-    );
-  }
-
-  // void _showRatingSheet() {
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     isDismissible: false,
-  //     enableDrag: false,
-  //     shape: RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-  //     ),
-  //     builder: (context) => StatefulBuilder(
-  //       builder: (context, setRatingState) {
-  //         int selectedRating = 0;
-  //         final TextEditingController commentController = TextEditingController();
-
-  //         return Container(
-  //           height: 400.h,
-  //           padding: EdgeInsets.all(20.w),
-  //           decoration: BoxDecoration(
-  //             color: Colors.white,
-  //             borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-  //           ),
-  //           child: Column(
-  //             children: [
-  //               Text(
-  //                 'Rate your driver',
-  //                 style: TextStyle(
-  //                   fontSize: 18.sp,
-  //                   fontWeight: FontWeight.w600,
-  //                 ),
-  //               ),
-  //               SizedBox(height: 20.h),
-  //               Row(
-  //                 mainAxisAlignment: MainAxisAlignment.center,
-  //                 children: List.generate(5, (index) {
-  //                   return GestureDetector(
-  //                     onTap: () {
-  //                       setRatingState(() {
-  //                         selectedRating = index + 1;
-  //                       });
-  //                     },
-  //                     child: Icon(
-  //                       Icons.star,
-  //                       size: 40.sp,
-  //                       color: index < selectedRating ? Colors.amber : Colors.grey,
-  //                     ),
-  //                   );
-  //                 }),
-  //               ),
-  //               SizedBox(height: 20.h),
-  //               TextField(
-  //                 controller: commentController,
-  //                 decoration: InputDecoration(
-  //                   hintText: 'Add a comment (optional)',
-  //                   border: OutlineInputBorder(),
-  //                 ),
-  //                 maxLines: 3,
-  //               ),
-  //               Spacer(),
-  //               Row(
-  //                 children: [
-  //                   Expanded(
-  //                     child: TextButton(
-  //                       onPressed: () {
-  //                         if (_lastCompletedRideId != null) {
-  //                           _dismissedRatingRides.add(_lastCompletedRideId!);
-  //                         }
-  //                         Navigator.pop(context);
-  //                       },
-  //                       child: Text('Skip'),
-  //                     ),
-  //                   ),
-  //                   SizedBox(width: 10.w),
-  //                   Expanded(
-  //                     child: ElevatedButton(
-  //                       onPressed: selectedRating > 0
-  //                           ? () async {
-  //                               if (_lastCompletedRideId != null) {
-  //                                 try {
-  //                                   await _rideService.rateRide(
-  //                                     rideId: _lastCompletedRideId!,
-  //                                     score: selectedRating,
-  //                                     comment: commentController.text,
-  //                                   );
-  //                                   Navigator.pop(context);
-  //                                 } catch (e) {
-  //                                   AppLogger.log('Error rating ride: $e');
-  //                                 }
-  //                               }
-  //                             }
-  //                           : null,
-  //                       child: Text('Submit'),
-  //                     ),
-  //                   ),
-  //                 ],
-  //               ),
-  //             ],
-  //           ),
-  //         );
-  //       },
-  //     ),
-  //   );
-  // }
-
-  // @override
-  // void dispose() {
-  //   _webSocketService.disconnect();
-  //   _activeRideCheckTimer?.cancel();
-
-  //   _callService.dispose(); // Add this line
-
-  //   super.dispose();
-  // }
 
   void _dismissSuggestions() {
     setState(() {
@@ -2696,41 +1810,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     await profileProvider.fetchUserProfile();
   }
-
-  // Future<void> _forceUpdateLocation() async {
-  //   try {
-  //     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  //     if (!serviceEnabled) return;
-
-  //     LocationPermission permission = await Geolocator.checkPermission();
-  //     if (permission == LocationPermission.denied) {
-  //       permission = await Geolocator.requestPermission();
-  //       if (permission == LocationPermission.denied) return;
-  //     }
-
-  //     if (permission == LocationPermission.deniedForever) return;
-
-  //     Position position = await Geolocator.getCurrentPosition(
-  //       desiredAccuracy: LocationAccuracy.high,
-  //     );
-
-  //     if (mounted) {
-  //       setState(() {
-  //         _currentLocation = LatLng(position.latitude, position.longitude);
-  //         _userCurrentLocation = position;
-  //       });
-
-  //       _mapController?.animateCamera(
-  //         CameraUpdate.newCameraPosition(
-  //           CameraPosition(target: _currentLocation, zoom: 16.0),
-  //         ),
-  //       );
-  //       AppLogger.log('📍 Map centered to: $_currentLocation', tag: 'LOCATION');
-  //     }
-  //   } catch (e) {
-  //     AppLogger.error('Error getting location: $e', tag: 'LOCATION');
-  //   }
-  // }
 
   Future<void> _forceUpdateLocation() async {
     try {
@@ -2750,11 +1829,8 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
           _userCurrentLocation = position;
-          // Only update coordinates, never touch fromController here
-          // _getCurrentLocation() is the sole owner of the address text
         });
 
-        // Only move camera, don't touch controllers
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
             CameraPosition(
@@ -2819,10 +1895,14 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _dismissSuggestions,
         child: Scaffold(
           key: _scaffoldKey,
-          drawer: const AppDrawer(),
+          drawer: AppDrawer(
+            onNavigateToTab: (index) {
+              context.pop();
+              setState(() => _currentIndex = index);
+            },
+          ),
           body: Stack(
             children: [
-              // Google Maps background
               GoogleMap(
                 onMapCreated: (GoogleMapController controller) {
                   _mapController = controller;
@@ -2860,34 +1940,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Positioned(
                   top: 66.h,
                   right: 30.w,
-                  child: GestureDetector(
+                  child: ActiveRideButton(
                     onTap: () {
                       if (_activeRide != null) {
                         _hasUserDismissedSheet = false;
                         _showDriverAcceptedSheet();
                       }
                     },
-                    child: Container(
-                      width: 50.w,
-                      height: 50.h,
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(25.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: EdgeInsets.all(10.w),
-                      child: Icon(
-                        Icons.directions_car,
-                        size: 24.sp,
-                        color: Colors.white,
-                      ),
-                    ),
                   ),
                 ),
               if (_activeRide == null && !_isDriverAssigned)
@@ -2895,7 +1954,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: 120.h,
                   left: 35.w,
                   right: 35.w,
-                  child: GestureDetector(
+                  child: QuickPickupButton(
+                    hasNearbyDriver: _hasNearbyDriver,
+                    driverArrivalTime: _driverArrivalTime,
+                    fromText: fromController.text,
+                    currentLocationAddress: _currentLocationAddress,
                     onTap: () {
                       setState(() {
                         fromController.text = _currentLocationAddress;
@@ -2914,120 +1977,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         curve: Curves.easeInOut,
                       );
                     },
-                    child: Container(
-                      width: 247.w,
-                      height: 50.h,
-                      padding: EdgeInsets.only(
-                        right: 12.w,
-                        top: 4.h,
-                        bottom: 4.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50.w,
-                            height: 50.h,
-                            decoration: BoxDecoration(
-                              color: Color(ConstColors.mainColor),
-                              shape: BoxShape.circle,
-                              border: _hasNearbyDriver
-                                  ? null
-                                  : Border.all(
-                                      color: Colors.grey.shade300,
-                                      width: 1,
-                                    ),
-                            ),
-                            child: Center(
-                              child: _hasNearbyDriver
-                                  ? Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          _driverArrivalTime,
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 16.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                            height: 1.0,
-                                          ),
-                                        ),
-                                        Text(
-                                          "MIN",
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 10.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                            height: 1.0,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : Icon(
-                                      Icons.location_on,
-                                      color: Color(ConstColors.whiteColor),
-                                      size: 24.sp,
-                                    ),
-                            ),
-                          ),
-                          SizedBox(width: 6.w),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Pick Up',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 10.sp,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: -0.41,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                Text(
-                                  fromController.text.isNotEmpty
-                                      ? fromController.text
-                                      : _currentLocationAddress,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.41,
-                                    color: Colors.black,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: Color(ConstColors.blackColor),
-                            size: 24.sp,
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               if (_isBottomSheetVisible)
@@ -3305,27 +2254,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               ),
                                                             GestureDetector(
                                                               onTap: () async {
-                                                                final result = await Navigator.push(
-                                                                  context,
-                                                                  MaterialPageRoute(
-                                                                    builder: (context) => MapSelectionScreen(
-                                                                      isFromField:
-                                                                          true,
-                                                                      initialLocation:
-                                                                          _currentLocation,
-                                                                    ),
-                                                                  ),
+                                                                final result = await context.pushNamed(
+                                                                  AppRoutes
+                                                                      .mapSelection
+                                                                      .name,
+                                                                  extra: {
+                                                                    'isFromField':
+                                                                        true,
+                                                                    'initialLocation':
+                                                                        _currentLocation,
+                                                                  },
                                                                 );
                                                                 if (result !=
                                                                     null) {
+                                                                  final data =
+                                                                      result
+                                                                          as Map<
+                                                                            String,
+                                                                            dynamic
+                                                                          >;
                                                                   setState(() {
                                                                     fromController
                                                                             .text =
-                                                                        result['address'];
+                                                                        data['address'];
                                                                     _pickupCoordinates =
-                                                                        result['location'];
+                                                                        data['location'];
                                                                     _currentLocation =
-                                                                        result['location'];
+                                                                        data['location'];
                                                                   });
                                                                   if (toController
                                                                       .text
@@ -3455,19 +2410,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       ),
                                                     GestureDetector(
                                                       onTap: () async {
-                                                        final result = await Navigator.push(
-                                                          context,
-                                                          MaterialPageRoute(
-                                                            builder: (context) =>
-                                                                MapSelectionScreen(
-                                                                  isFromField:
-                                                                      false,
-                                                                  initialLocation:
-                                                                      _currentLocation,
-                                                                ),
-                                                          ),
-                                                        );
-                                                        if (result != null)
+                                                        final result = await context
+                                                            .pushNamed(
+                                                              AppRoutes
+                                                                  .mapSelection
+                                                                  .name,
+                                                              extra: {
+                                                                'isFromField':
+                                                                    false,
+                                                                'initialLocation':
+                                                                    _currentLocation,
+                                                              },
+                                                            );
+                                                        if (result != null &&
+                                                            result
+                                                                is Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >) {
                                                           setState(() {
                                                             stopController
                                                                     .text =
@@ -3475,6 +2435,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             _stopCoordinates =
                                                                 result['location'];
                                                           });
+                                                        }
                                                       },
                                                       child: Container(
                                                         width: 24.w,
@@ -3574,24 +2535,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                   GestureDetector(
                                                     onTap: () async {
-                                                      final result = await Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              MapSelectionScreen(
-                                                                isFromField:
-                                                                    false,
-                                                                initialLocation:
-                                                                    _currentLocation,
-                                                              ),
-                                                        ),
-                                                      );
+                                                      final result = await context
+                                                          .pushNamed(
+                                                            'mapSelection',
+                                                            extra: {
+                                                              'isFromField':
+                                                                  false,
+                                                              'initialLocation':
+                                                                  _currentLocation,
+                                                            },
+                                                          );
                                                       if (result != null) {
+                                                        final data =
+                                                            result
+                                                                as Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >;
                                                         setState(() {
                                                           toController.text =
-                                                              result['address'];
+                                                              data['address'];
                                                           _destinationCoordinates =
-                                                              result['location'];
+                                                              data['location'];
                                                         });
                                                         if (fromController
                                                             .text
@@ -3639,67 +2604,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 if (_showSuggestions &&
                                     _locationSuggestions.isNotEmpty)
-                                  ListView.separated(
-                                    padding: EdgeInsets.zero,
-                                    shrinkWrap: true,
-                                    physics: NeverScrollableScrollPhysics(),
-                                    itemCount: _locationSuggestions.length,
-                                    separatorBuilder: (context, index) =>
-                                        Divider(
-                                          height: 1,
-                                          color: Colors.grey.shade200,
-                                        ),
-                                    itemBuilder: (context, index) {
-                                      final prediction =
-                                          _locationSuggestions[index];
-                                      return ListTile(
-                                        dense: true,
-                                        leading: SvgPicture.asset(
-                                          ConstImages.location,
-                                          width: 20.w,
-                                          height: 20.h,
-                                          color: Colors.grey,
-                                          fit: BoxFit.scaleDown,
-                                        ),
-                                        title: Text(
-                                          prediction.mainText,
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 14.sp,
-                                            fontWeight: FontWeight.w600,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          maxLines: 1,
-                                        ),
-                                        subtitle:
-                                            prediction.secondaryText.isNotEmpty
-                                            ? Text(
-                                                prediction.secondaryText,
-                                                style: TextStyle(
-                                                  fontSize: 12.sp,
-                                                  color: Colors.grey[600],
-                                                ),
-                                              )
-                                            : null,
-                                        trailing: prediction.distance != null
-                                            ? Text(
-                                                prediction.distance!,
-                                                style: TextStyle(
-                                                  fontSize: 12.sp,
-                                                  fontFamily: 'Inter',
-                                                  color: Colors.grey[600],
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              )
-                                            : null,
-                                        onTap: () => _selectLocation(
-                                          prediction,
-                                          _isFromFieldFocused,
-                                        ),
-                                      );
-                                    },
+                                  LocationSuggestionsList(
+                                    suggestions: _locationSuggestions,
+                                    onSelect: (prediction) => _selectLocation(
+                                      prediction,
+                                      _isFromFieldFocused,
+                                    ),
                                   ),
-
                                 if (!_showSuggestions ||
                                     _locationSuggestions.isEmpty) ...[
                                   SizedBox(height: 15.h),
@@ -3711,7 +2622,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       alignment: Alignment.centerLeft,
                                       child: Text(
                                         'Saved location',
-                                        style: ConstTextStyles.savedLocation,
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w500,
+                                          fontFamily: 'Inter',
+                                          color: AppColors.kGreyColor,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -3726,27 +2642,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                           thickness: 1,
                                           color: Colors.grey.shade300,
                                         ),
-                                        ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          leading: Image.asset(
-                                            ConstImages.add,
-                                            width: 24.w,
-                                            height: 24.h,
-                                          ),
-                                          title: Text(
-                                            'Add home location',
-                                            style: ConstTextStyles.locationItem,
-                                          ),
+                                        AddLocationTile(
+                                          title: 'Add home location',
                                           onTap: () async {
-                                            final result = await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const AddHomeScreen(
-                                                      locationType: 'home',
-                                                    ),
-                                              ),
-                                            );
+                                            final result = await context
+                                                .pushNamed(
+                                                  AppRoutes.addHome.name,
+                                                  extra: {
+                                                    'locationType': 'home',
+                                                  },
+                                                );
                                             if (result == true) {
                                               _loadFavouriteLocations();
                                               CustomFlushbar.showSuccess(
@@ -3757,31 +2662,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                             }
                                           },
                                         ),
-                                        Divider(
-                                          thickness: 1,
-                                          color: Colors.grey.shade300,
-                                        ),
-                                        ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          leading: Image.asset(
-                                            ConstImages.add,
-                                            width: 24.w,
-                                            height: 24.h,
-                                          ),
-                                          title: Text(
-                                            'Add work location',
-                                            style: ConstTextStyles.locationItem,
-                                          ),
+                                        AddLocationTile(
+                                          title: 'Add work location',
                                           onTap: () async {
-                                            final result = await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const AddHomeScreen(
-                                                      locationType: 'work',
-                                                    ),
-                                              ),
-                                            );
+                                            final result = await context
+                                                .pushNamed(
+                                                  AppRoutes.addHome.name,
+                                                  extra: {
+                                                    'locationType': 'work',
+                                                  },
+                                                );
                                             if (result == true) {
                                               _loadFavouriteLocations();
                                               CustomFlushbar.showSuccess(
@@ -3792,31 +2682,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                             }
                                           },
                                         ),
-                                        Divider(
-                                          thickness: 1,
-                                          color: Colors.grey.shade300,
-                                        ),
-                                        ListTile(
-                                          contentPadding: EdgeInsets.zero,
-                                          leading: Image.asset(
-                                            ConstImages.add,
-                                            width: 24.w,
-                                            height: 24.h,
-                                          ),
-                                          title: Text(
-                                            'Add favourite location',
-                                            style: ConstTextStyles.locationItem,
-                                          ),
+                                        AddLocationTile(
+                                          title: 'Add favourite location',
                                           onTap: () async {
-                                            final result = await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const AddHomeScreen(
-                                                      locationType: 'favourite',
-                                                    ),
-                                              ),
-                                            );
+                                            final result = await context
+                                                .pushNamed(
+                                                  AppRoutes.addHome.name,
+                                                  extra: {
+                                                    'locationType': 'favourite',
+                                                  },
+                                                );
                                             if (result == true) {
                                               _loadFavouriteLocations();
                                               CustomFlushbar.showSuccess(
@@ -3832,14 +2707,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                           alignment: Alignment.centerLeft,
                                           child: Text(
                                             'Recent locations',
-                                            style: ConstTextStyles
-                                                .recentLocation
-                                                .copyWith(
-                                                  color: Color(
-                                                    ConstColors
-                                                        .recentLocationColor,
-                                                  ),
-                                                ),
+                                            style: TextStyle(
+                                              fontSize: 14.sp,
+                                              fontWeight: FontWeight.w500,
+                                              fontFamily: 'Inter',
+                                              color: AppColors.kGreyColor,
+                                            ),
                                           ),
                                         ),
                                         SizedBox(height: 10.h),
@@ -3851,35 +2724,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   Consumer<LocationProvider>(
-                                    builder: (context, locationProvider, child) {
-                                      final allLocations = <Widget>[];
-
-                                      for (final fav in _favouriteLocations) {
-                                        allLocations.add(
-                                          Column(
-                                            children: [
-                                              ListTile(
-                                                leading:
-                                                    _getFavoriteLocationIcon(
-                                                      fav.name,
-                                                    ),
-                                                title: Text(
-                                                  fav.name,
-                                                  style: ConstTextStyles
-                                                      .drawerItem1,
-                                                ),
-                                                subtitle: Text(
-                                                  fav.destAddress,
-                                                  style: TextStyle(
-                                                    fontSize: 12.sp,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                                trailing: Icon(
-                                                  Icons.star,
-                                                  color: Colors.amber,
-                                                  size: 24.sp,
-                                                ),
+                                    builder:
+                                        (context, locationProvider, child) {
+                                          final allLocations = <Widget>[];
+                                          for (final fav
+                                              in _favouriteLocations) {
+                                            allLocations.add(
+                                              FavoriteLocationItem(
+                                                name: fav.name,
+                                                address: fav.destAddress,
+                                                id: fav.id,
+                                                isFromFieldFocused:
+                                                    _isFromFieldFocused,
                                                 onTap: () {
                                                   if (_isFromFieldFocused) {
                                                     fromController.text =
@@ -3903,51 +2759,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   }
                                                 },
                                                 onLongPress: () {
-                                                  // ADD THIS
                                                   _showDeleteLocationDialog(
                                                     fav.name,
                                                     fav.id,
-                                                  ); // You'll need the ID
+                                                  );
                                                 },
                                               ),
-                                              Divider(
-                                                thickness: 1,
-                                                color: Colors.grey.shade300,
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                      for (final recent
-                                          in locationProvider.recentLocations) {
-                                        if (!recent.isFavourite) {
-                                          allLocations.add(
-                                            Column(
-                                              children: [
-                                                ListTile(
-                                                  leading: Image.asset(
-                                                    ConstImages.locationPin,
-                                                    width: 24.w,
-                                                    height: 24.h,
-                                                  ),
-                                                  title: Text(
-                                                    recent.name,
-                                                    style: ConstTextStyles
-                                                        .drawerItem1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
-                                                  subtitle: Text(
-                                                    recent.address,
-                                                    style: TextStyle(
-                                                      fontSize: 12.sp,
-                                                      color: Colors.grey,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
+                                            );
+                                          }
+                                          for (final recent
+                                              in locationProvider
+                                                  .recentLocations) {
+                                            if (!recent.isFavourite) {
+                                              allLocations.add(
+                                                RecentLocationItem(
+                                                  recent: recent,
+                                                  isFromFieldFocused:
+                                                      _isFromFieldFocused,
                                                   onTap: () {
                                                     if (_isFromFieldFocused) {
                                                       fromController.text =
@@ -3971,17 +2799,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     }
                                                   },
                                                 ),
-                                                Divider(
-                                                  thickness: 1,
-                                                  color: Colors.grey.shade300,
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }
-                                      }
-                                      return Column(children: allLocations);
-                                    },
+                                              );
+                                            }
+                                          }
+                                          return Column(children: allLocations);
+                                        },
                                   ),
                                 ],
                               ],
@@ -4001,12 +2823,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _checkBothFields() async {
     if (fromController.text.length >= 3 && toController.text.length >= 3) {
-      // Geocode addresses if coordinates aren't already set
-      // (coordinates are set when user selects from autocomplete suggestions)
       try {
-        // Geocode pickup address if not already set
         if (_pickupCoordinates == null && fromController.text.isNotEmpty) {
-          AppLogger.log('📍 Geocoding pickup address: ${fromController.text}');
+          AppLogger.log('Geocoding pickup address: ${fromController.text}');
           final pickupLocations = await locationFromAddress(
             fromController.text,
           );
@@ -4016,18 +2835,15 @@ class _HomeScreenState extends State<HomeScreen> {
               pickupLocations.first.longitude,
             );
             AppLogger.log(
-              '✅ Pickup geocoded to: ${_pickupCoordinates!.latitude}, ${_pickupCoordinates!.longitude}',
+              'Pickup geocoded to: ${_pickupCoordinates!.latitude}, ${_pickupCoordinates!.longitude}',
             );
           } else {
-            AppLogger.log('⚠️ No results found for pickup address');
+            AppLogger.log('No results found for pickup address');
           }
         }
 
-        // Geocode destination address if not already set
         if (_destinationCoordinates == null && toController.text.isNotEmpty) {
-          AppLogger.log(
-            '📍 Geocoding destination address: ${toController.text}',
-          );
+          AppLogger.log('Geocoding destination address: ${toController.text}');
           final destLocations = await locationFromAddress(toController.text);
           if (destLocations.isNotEmpty) {
             _destinationCoordinates = LatLng(
@@ -4035,15 +2851,14 @@ class _HomeScreenState extends State<HomeScreen> {
               destLocations.first.longitude,
             );
             AppLogger.log(
-              '✅ Destination geocoded to: ${_destinationCoordinates!.latitude}, ${_destinationCoordinates!.longitude}',
+              'Destination geocoded to: ${_destinationCoordinates!.latitude}, ${_destinationCoordinates!.longitude}',
             );
           } else {
-            AppLogger.log('⚠️ No results found for destination address');
+            AppLogger.log('No results found for destination address');
           }
         }
       } catch (e) {
-        AppLogger.log('❌ Error geocoding addresses: $e');
-        // Continue anyway - _updateMapWithRoute will use fallback coordinates
+        AppLogger.log('Error geocoding addresses: $e');
       }
 
       _updateMapWithRoute();
@@ -4057,19 +2872,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateMapWithRoute() async {
-    // Use stored coordinates or fallback
     _pickupCoordinates ??= _currentLocation;
     _destinationCoordinates ??= LatLng(
       _currentLocation.latitude + 0.01,
       _currentLocation.longitude + 0.01,
     );
 
-    AppLogger.log('🗺️ Getting real route path...');
+    AppLogger.log('Getting real route path...');
 
     List<LatLng> routePoints = [];
 
     try {
-      // Get the actual route polyline using flutter_polyline_points
       PolylinePoints polylinePoints = PolylinePoints();
       PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
         googleApiKey: UrlConstants.googleMapsApiKey,
@@ -4092,47 +2905,50 @@ class _HomeScreenState extends State<HomeScreen> {
           routePoints.add(LatLng(point.latitude, point.longitude));
         }
         AppLogger.log(
-          '✅ Got ${routePoints.length} route points from Directions API',
+          'Got ${routePoints.length} route points from Directions API',
         );
       } else {
         AppLogger.log(
-          '⚠️ Directions API returned empty points. Error: ${result.errorMessage}',
+          'Directions API returned empty points. Error: ${result.errorMessage}',
         );
-        // Fallback to curved path
-        routePoints = _generateCurvedPath(
+        routePoints = generateCurvedPath(
           _pickupCoordinates!,
           _destinationCoordinates!,
         );
         AppLogger.log(
-          '📍 Using curved path fallback with ${routePoints.length} points',
+          'Using curved path fallback with ${routePoints.length} points',
         );
       }
     } catch (e) {
-      AppLogger.log('❌ Error fetching route from Directions API: $e');
-      // Fallback to curved path
-      routePoints = _generateCurvedPath(
+      AppLogger.log('Error fetching route from Directions API: $e');
+      routePoints = generateCurvedPath(
         _pickupCoordinates!,
         _destinationCoordinates!,
       );
       AppLogger.log(
-        '📍 Using curved path fallback with ${routePoints.length} points',
+        'Using curved path fallback with ${routePoints.length} points',
       );
     }
 
-    AppLogger.log('✅ Final route has ${routePoints.length} points');
+    AppLogger.log('Final route has ${routePoints.length} points');
 
-    // Create custom marker icons from widgets
     final pickupIcon = await _createBitmapDescriptorFromWidget(
-      _buildPickupMarkerWidget(),
+      PickupMarkerWidget(
+        driverArrivalTime: _driverArrivalTime,
+        hasNearbyDriver: _hasNearbyDriver,
+        isDriverAssigned: _isDriverAssigned,
+        pickupAddress: null,
+        fromText: fromController.text,
+        currentLocationAddress: _currentLocationAddress,
+      ),
       size: Size(247.w, 50.h),
     );
 
     final dropoffIcon = await _createBitmapDescriptorFromWidget(
-      _buildDropoffMarkerWidget(),
+      DropoffMarkerWidget(destAddress: null, toText: toController.text),
       size: Size(242.w, 48.h),
     );
 
-    // Create markers with custom icons
     final markers = <Marker>{
       Marker(
         markerId: MarkerId('pickup'),
@@ -4148,14 +2964,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     };
 
-    // Add stop marker if stop address is provided
     if (stopController.text.isNotEmpty) {
       final stopIcon = await _createBitmapDescriptorFromWidget(
-        _buildStopMarkerWidget(),
+        StopMarkerWidget(stopAddress: stopController.text),
         size: Size(200.w, 40.h),
       );
 
-      // Calculate stop position between pickup and destination
       final stopLat =
           (_pickupCoordinates!.latitude + _destinationCoordinates!.latitude) /
           2;
@@ -4174,7 +2988,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Create polyline with actual route points
     final polylines = <Polyline>{
       Polyline(
         polylineId: PolylineId('route'),
@@ -4190,7 +3003,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _mapPolylines = polylines;
     });
 
-    // Fit map to show all locations with padding
     if (_mapController != null) {
       final allLatitudes = [
         _pickupCoordinates!.latitude,
@@ -4225,7 +3037,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showVehicleSelection() async {
-    // Get estimate data first
     try {
       await _estimateRide();
     } catch (e) {
@@ -4269,7 +3080,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     'Select your vehicle',
-                    style: ConstTextStyles.addHomeTitle,
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Inter',
+                      color: Colors.black,
+                    ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
@@ -4285,7 +3101,7 @@ class _HomeScreenState extends State<HomeScreen> {
               GestureDetector(
                 onTap: selectedVehicle != null
                     ? () {
-                        Navigator.pop(context);
+                        context.pop();
                         _showBookingDetails();
                       }
                     : null,
@@ -4379,14 +3195,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         title,
-                        style: ConstTextStyles.vehicleTitle.copyWith(
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Inter',
                           color: isSelected ? Colors.white : Colors.black,
                         ),
                       ),
                       SizedBox(height: 5.h),
                       Text(
                         '${_currentEstimate!.durationMin.round()} min | 4 passengers',
-                        style: ConstTextStyles.vehicleSubtitle.copyWith(
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'Inter',
                           color: isSelected ? Colors.white : Colors.black,
                         ),
                       ),
@@ -4395,7 +3217,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Text(
                   '${_currentEstimate!.currency}${totalFare.toStringAsFixed(0)}',
-                  style: ConstTextStyles.vehicleTitle.copyWith(
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Inter',
                     color: isSelected ? Colors.white : Colors.black,
                   ),
                 ),
@@ -4409,10 +3234,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showBookingDetails() async {
-    // Reset booking state
     _isBookingRide = false;
 
-    // Get estimate data first
     try {
       await _estimateRide();
     } catch (e) {
@@ -4422,10 +3245,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_currentEstimate == null) return;
 
-    // Set default vehicle if none selected
     if (selectedVehicle == null) {
       setState(() {
-        selectedVehicle = 0; // Default to first vehicle (Regular vehicle)
+        selectedVehicle = 0;
       });
     }
 
@@ -4508,25 +3330,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
               SizedBox(height: 15.h),
-
-              // Divider
               Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-
               SizedBox(height: 16.h),
-
-              // Vehicle selection row
               GestureDetector(
                 onTap: () {
-                  Navigator.pop(context);
+                  context.pop();
                   _showVehicleSelection();
                 },
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: Row(
                     children: [
-                      // Car image
                       Image.asset(
                         selectedVehicle != null
                             ? ConstImages.car
@@ -4536,8 +3351,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         fit: BoxFit.contain,
                       ),
                       SizedBox(width: 8.w),
-
-                      // Vehicle info
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4564,8 +3377,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-
-                      // Price info
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -4594,10 +3405,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-
                       SizedBox(width: 12.w),
-
-                      // Arrow icon
                       Icon(
                         Icons.arrow_forward_ios,
                         size: 18.sp,
@@ -4607,15 +3415,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
               SizedBox(height: 16.h),
-
-              // Divider
               Divider(thickness: 1, height: 1, color: Color(0xFFE5E5EA)),
-
               SizedBox(height: 16.h),
-
-              // Payment method row
               GestureDetector(
                 onTap: () => _showPaymentMethods(
                   onPaymentChanged: () {
@@ -4626,15 +3428,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 20.w),
                   child: Row(
                     children: [
-                      // Payment icon container
                       Container(
                         width: 80.w,
                         height: 38.h,
-                        // padding: EdgeInsets.all(12.w),
-                        // decoration: BoxDecoration(
-                        //   color: Color(0xFFF2F2F7),
-                        //   borderRadius: BorderRadius.circular(8.r),
-                        // ),
                         child: Image.asset(
                           width: 80.w,
                           height: 38.h,
@@ -4643,8 +3439,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       SizedBox(width: 8.w),
-
-                      // Payment method text
                       Expanded(
                         child: Text(
                           selectedPaymentMethod,
@@ -4656,8 +3450,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-
-                      // Arrow icon
                       Icon(
                         Icons.arrow_forward_ios,
                         size: 18.sp,
@@ -4667,19 +3459,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
               Spacer(),
-              // Sizedbox(height: 30.h),
-              // Bottom buttons
               Padding(
                 padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 30.h),
                 child: Row(
                   children: [
-                    // Book Later button
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.pop(context);
+                          context.pop();
                           _showPrebookSheet();
                         },
                         child: Container(
@@ -4706,16 +3494,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
                     SizedBox(width: 16.w),
-
-                    // Book Now button
                     Expanded(
                       child: GestureDetector(
                         onTap: !_isBookingRide
                             ? () async {
-                                // Don't reset isScheduledRide here - it should persist until after booking
-
                                 _panelController.animatePanelToPosition(
                                   0.0,
                                   duration: Duration(milliseconds: 300),
@@ -4728,12 +3511,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                   try {
                                     AppLogger.log(
-                                      '💳 BOOK NOW - CARD PAYMENT: Starting ride request...',
+                                      'BOOK NOW - CARD PAYMENT: Starting ride request...',
                                     );
                                     AppLogger.log(
-                                      '💳 Selected Payment Method: $selectedPaymentMethod',
+                                      'Selected Payment Method: $selectedPaymentMethod',
                                     );
-                                    // Combine selected date and time into DateTime for scheduled rides
                                     final scheduledDateTime = isScheduledRide
                                         ? DateTime(
                                             selectedDate.year,
@@ -4747,62 +3529,46 @@ class _HomeScreenState extends State<HomeScreen> {
                                       isScheduled: isScheduledRide,
                                       scheduledDateTime: scheduledDateTime,
                                     );
-
                                     if (_currentRideResponse != null) {
                                       AppLogger.log(
-                                        '✅ Ride request successful for card payment',
+                                        'Ride request successful for card payment',
                                       );
                                       AppLogger.log(
-                                        '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                        'Ride ID: ${_currentRideResponse!.id}',
                                       );
                                       AppLogger.log(
-                                        '💰 Ride Price: ${_currentRideResponse!.price}',
+                                        'Ride Price: ${_currentRideResponse!.price}',
                                       );
-
                                       final paymentData = await _paymentService
                                           .initializePayment(
                                             rideId: _currentRideResponse!.id,
                                             amount: _currentRideResponse!.price,
                                           );
-
                                       if (paymentData['authorization_url'] !=
                                           null) {
                                         AppLogger.log(
-                                          '🌐 Opening payment webview',
+                                          'Opening payment webview',
                                           tag: 'BOOK_NOW',
                                         );
-
-                                        final result = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                PaymentWebViewScreen(
-                                                  authorizationUrl:
-                                                      paymentData['authorization_url'],
-                                                  reference:
-                                                      paymentData['reference'],
-                                                  onPaymentSuccess: () {},
-                                                ),
-                                          ),
+                                        final result = await context.pushNamed(
+                                          AppRoutes.paymentWebView.name,
+                                          extra: {
+                                            'authorizationUrl':
+                                                paymentData['authorization_url'],
+                                            'reference':
+                                                paymentData['reference'],
+                                            'onPaymentSuccess': () {},
+                                          },
                                         );
-
-                                        // Handle payment result
                                         if (result == true) {
                                           if (mounted) {
-                                            // Clear form fields
                                             fromController.clear();
                                             toController.clear();
                                             setState(() {
                                               _showDestinationField = false;
                                             });
-
-                                            // Close booking details sheet
                                             Navigator.pop(context);
-
-                                            // Show booking request sheet
-                                            // Show appropriate sheet based on ride type
                                             if (isScheduledRide) {
-                                              // Store addresses before clearing
                                               final pickupAddress =
                                                   fromController.text.isNotEmpty
                                                   ? fromController.text
@@ -4815,12 +3581,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 pickupAddress: pickupAddress,
                                                 destAddress: destAddress,
                                               );
-                                              // Reset scheduled ride flag
                                               setState(() {
                                                 isScheduledRide = false;
                                               });
                                             } else {
-                                              // _showBookingRequestSheet();
                                               _panelController
                                                   .animatePanelToPosition(
                                                     0.0,
@@ -4837,13 +3601,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   } catch (e) {
                                     AppLogger.error(
-                                      '❌ Card payment failed',
+                                      'Card payment failed',
                                       error: e,
                                       tag: 'BOOK_NOW',
                                     );
-
                                     if (mounted) {
-                                      // Check if error is about active ride
                                       final errorMessage = e.toString();
                                       if (errorMessage.contains(
                                             'active ride',
@@ -4851,7 +3613,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           errorMessage.contains(
                                             'complete it before',
                                           )) {
-                                        // Show alert dialog for active ride error
                                         showDialog(
                                           context: context,
                                           builder: (BuildContext context) {
@@ -4890,7 +3651,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               actions: [
                                                 TextButton(
                                                   onPressed: () =>
-                                                      Navigator.pop(context),
+                                                      context.pop(),
                                                   child: Text(
                                                     'OK',
                                                     style: TextStyle(
@@ -4916,7 +3677,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                       }
                                     }
                                   }
-
                                   if (mounted) {
                                     setBookingState(() {
                                       _isBookingRide = false;
@@ -4940,87 +3700,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                       isScheduled: isScheduledRide,
                                       scheduledDateTime: scheduledDateTime,
                                     );
-
                                     if (_currentRideResponse != null &&
                                         mounted) {
                                       AppLogger.log(
-                                        '🎫 Ride ID: ${_currentRideResponse!.id}',
+                                        'Ride ID: ${_currentRideResponse!.id}',
                                       );
                                       AppLogger.log(
-                                        '💰 Ride Price: ${_currentRideResponse!.price}',
+                                        'Ride Price: ${_currentRideResponse!.price}',
                                       );
-
-                                      // Wallet payment - call initializePayment just like card
                                       if (selectedPaymentMethod ==
                                           'Pay with wallet') {
                                         setState(() {
                                           selectedPaymentMethod = 'wallet';
                                         });
-                                        // final paymentData =
-                                        //     await _paymentService
-                                        //         .initializePayment(
-                                        //           rideId:
-                                        //               _currentRideResponse!.id,
-                                        //           amount: _currentRideResponse!
-                                        //               .price,
-                                        //         );
-
-                                        // AppLogger.log(
-                                        //   '💳 Wallet payment data: $paymentData',
-                                        //   tag: 'WALLET',
-                                        // );
-
-                                        // if (paymentData['success'] == true ||
-                                        //     paymentData['status'] == true) {
-                                        // Payment initialized successfully, proceed to success sheet
-                                        // if (mounted) {
-                                        //   fromController.clear();
-                                        //   toController.clear();
-                                        //   setState(() {
-                                        //     _showDestinationField = false;
-                                        //   });
-                                        //   Navigator.pop(context);
-
-                                        //   if (isScheduledRide) {
-                                        //     final pickupAddress =
-                                        //         _currentRideResponse!
-                                        //             .pickupAddress;
-                                        //     final destAddress =
-                                        //         _currentRideResponse!
-                                        //             .destAddress;
-                                        //     _showTripScheduledSheet(
-                                        //       pickupAddress: pickupAddress,
-                                        //       destAddress: destAddress,
-                                        //     );
-                                        //     setState(() {
-                                        //       isScheduledRide = false;
-                                        //     });
-                                        //   } else {
-                                        //     _sheetController.animateTo(
-                                        //       0.2,
-                                        //       duration: Duration(
-                                        //         milliseconds: 300,
-                                        //       ),
-                                        //       curve: Curves.easeInOut,
-                                        //     );
-                                        //     _showBookSuccessfulSheet();
-                                        //   }
-                                        // }
-                                        // }
-                                        //  else {
-                                        //   // Payment initialization failed
-                                        //   if (mounted) {
-                                        //     setBookingState(() {
-                                        //       _isBookingRide = false;
-                                        //     });
-                                        //     CustomFlushbar.showError(
-                                        //       context: context,
-                                        //       message:
-                                        //           paymentData['message'] ??
-                                        //           'Wallet payment failed. Please try another method.',
-                                        //     );
-                                        //   }
-                                        // }
 
                                         final scheduledDateTime =
                                             isScheduledRide
@@ -5046,8 +3738,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           setState(() {
                                             _showDestinationField = false;
                                           });
-                                          Navigator.pop(context);
-
+                                          context.pop();
                                           if (isScheduledRide) {
                                             final pickupAddress =
                                                 _currentRideResponse!
@@ -5075,14 +3766,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                           }
                                         }
                                       } else {
-                                        // All other payment methods (Pay in car, pay4me etc.)
                                         if (mounted) {
                                           fromController.clear();
                                           toController.clear();
                                           setState(() {
                                             _showDestinationField = false;
                                           });
-                                          Navigator.pop(context);
+                                          context.pop();
 
                                           if (isScheduledRide) {
                                             final pickupAddress =
@@ -5114,7 +3804,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     }
                                   } catch (e) {
                                     AppLogger.error(
-                                      '❌ OTHER PAYMENT - Ride request failed',
+                                      'OTHER PAYMENT - Ride request failed',
                                       error: e,
                                       tag: 'BOOK_NOW',
                                     );
@@ -5122,13 +3812,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       setBookingState(() {
                                         _isBookingRide = false;
                                       });
-
-                                      // Check if error is about active ride
                                       final errorMessage = e.toString();
-
-                                      // final errorMessage = e.toString();
-
-                                      // Check for insufficient balance error
                                       if (errorMessage.toLowerCase().contains(
                                             'insufficient',
                                           ) ||
@@ -5177,7 +3861,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                     SizedBox(height: 8.h),
                                                     Text(
-                                                      'Your wallet balance isn\'t enough to request this ride. Please add funds to continue',
+                                                      "Your wallet balance isn't enough to request this ride. Please add funds to continue",
                                                       textAlign:
                                                           TextAlign.center,
                                                       style: TextStyle(
@@ -5197,7 +3881,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               Navigator.pop(
                                                                 dialogContext,
                                                               );
-                                                              // Reopen payment methods sheet
                                                               _showPaymentMethods(
                                                                 onPaymentChanged:
                                                                     () {
@@ -5243,22 +3926,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               Navigator.pop(
                                                                 dialogContext,
                                                               );
-                                                              // Navigator.pop(
-                                                              //   context,
-                                                              // ); // close booking sheet
-                                                              // Navigate to wallet screen
-                                                              // Navigator.push(
-                                                              //   context,
-                                                              //   MaterialPageRoute(
-                                                              //     builder:
-                                                              //         (
-                                                              //           context,
-                                                              //         ) =>
-                                                              //             WalletScreen(),
-                                                              //   ),
-
-                                                              // );
-
                                                               _navigateToWallet();
                                                             },
                                                             child: Container(
@@ -5304,7 +3971,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           errorMessage.contains(
                                             'complete it before',
                                           )) {
-                                        // Show alert dialog for active ride error
                                         showDialog(
                                           context: context,
                                           builder: (BuildContext context) {
@@ -5362,7 +4028,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           },
                                         );
                                       } else {
-                                        // Show generic error snackbar for other errors
                                         CustomFlushbar.showError(
                                           context: context,
                                           message: e.toString(),
@@ -5452,12 +4117,7 @@ class _HomeScreenState extends State<HomeScreen> {
           GestureDetector(
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PromoCodeScreen(),
-                ),
-              );
+              context.pushNamed(AppRoutes.promoCode.name);
             },
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -5529,11 +4189,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Pay with card',
                       onPaymentChanged: onPaymentChanged,
                     ),
-                    // Divider(thickness: 1, color: Colors.grey.shade300),
-                    // _buildPaymentOption(
-                    //   'pay4me',
-                    //   onPaymentChanged: onPaymentChanged,
-                    // ),
                     Divider(thickness: 1, color: Colors.grey.shade300),
                     _buildPaymentOption(
                       'Pay in car',
@@ -5569,20 +4224,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () {
         AppLogger.log(
-          '💳 Payment method selected: $method',
+          'Payment method selected: $method',
           tag: 'PAYMENT_METHOD',
         );
-        AppLogger.log('💳 Previous payment method: $selectedPaymentMethod');
+        AppLogger.log('Previous payment method: $selectedPaymentMethod');
         setState(() {
           selectedPaymentMethod = method;
         });
-        AppLogger.log('💳 New payment method set: $selectedPaymentMethod');
+        AppLogger.log('New payment method set: $selectedPaymentMethod');
 
-        // Call the callback to update parent sheet
         if (onPaymentChanged != null) {
           onPaymentChanged();
         }
-
         Navigator.pop(context);
       },
       child: Padding(
@@ -5596,7 +4249,9 @@ class _HomeScreenState extends State<HomeScreen> {
               fit: BoxFit.cover,
             ),
             SizedBox(width: 15.w),
-            Expanded(child: Text(method, style: ConstTextStyles.vehicleTitle)),
+            Expanded(
+              child: Text(method, style: TextStyle(fontSize: 16.sp)),
+            ),
             if (isSelected)
               Icon(Icons.check_circle, color: Colors.green, size: 20.sp),
           ],
@@ -5672,11 +4327,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 GestureDetector(
                   onTap: noteController.text.isNotEmpty
                       ? () {
-                          // Call the callback to update parent sheet
                           if (onNoteChanged != null) {
                             onNoteChanged();
                           }
-                          Navigator.pop(context);
+                          context.pop();
                         }
                       : null,
                   child: Container(
@@ -5780,7 +4434,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 subtitle: Text(
                   '${_getWeekday(selectedDate.weekday)} ${_getMonth(selectedDate.month)} ${selectedDate.day}, ${selectedDate.year}',
-                  style: ConstTextStyles.vehicleTitle,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Inter',
+                    color: Colors.black,
+                  ),
                 ),
                 trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
                 onTap: () async {
@@ -5831,7 +4490,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 subtitle: Text(
                   selectedTime.format(context),
-                  style: ConstTextStyles.vehicleTitle,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Inter',
+                    color: Colors.black,
+                  ),
                 ),
                 trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
                 onTap: () async {
@@ -5962,15 +4626,12 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Determine which location to navigate to based on ride status
       String? destinationAddress;
       final rideStatus = _activeRide!['Status'] ?? 'accepted';
 
       if (rideStatus == 'started') {
-        // If ride has started, navigate to destination
         destinationAddress = _activeRide!['DestAddress'];
       } else {
-        // If ride not started (accepted or arrived), navigate to pickup
         destinationAddress = _activeRide!['PickupAddress'];
       }
 
@@ -5982,7 +4643,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Create Google Maps URL with the destination address
       final encodedAddress = Uri.encodeComponent(destinationAddress);
       final url =
           'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
@@ -6028,7 +4688,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
-
         children: [
           if (hasStarted)
             Align(
@@ -6043,12 +4702,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-
                     borderRadius: BorderRadius.circular(8.r),
-                    // border: Border.all(
-                    //   color: Color(ConstColors.mainColor),
-                    //   width: 1,
-                    // ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -6112,10 +4766,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(2.5.r),
                       ),
                     ),
-                    // Header with title and cancel button
                     Row(
                       children: [
-                        // Only show timer when driver is on the way (not arrived, not started)
                         if (!hasStarted && !hasArrived) ...[
                           SizedBox(
                             width: 60.w,
@@ -6123,7 +4775,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                // Inner circle with ETA time
                                 Container(
                                   width: 60.w,
                                   height: 60.h,
@@ -6153,13 +4804,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ],
                                   ),
                                 ),
-                                // Rotating white arc indicator
                                 Container(
                                   margin: EdgeInsets.all(8),
                                   width: 60.w,
                                   height: 60.h,
                                   child: CircularProgressIndicator(
-                                    // value: 0.25, // Shows only a quarter arc
                                     strokeWidth: 2.0,
                                     valueColor: AlwaysStoppedAnimation<Color>(
                                       Colors.white,
@@ -6213,11 +4862,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-
-                        // Navigation widget - show when ride has started
                       ],
                     ),
-                    // Driver Details
                     Column(
                       children: [
                         if (_assignedDriver != null) ...[
@@ -6225,9 +4871,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             margin: !hasStarted && !hasArrived
                                 ? EdgeInsets.only(left: 69.5.w)
                                 : EdgeInsets.only(left: 1.w),
-                            child: _buildDriverDetail(
-                              'Driver name: ',
-                              _assignedDriver!.name,
+                            child: DriverDetailRow(
+                              label: 'Driver name: ',
+                              value: _assignedDriver!.name,
                             ),
                           ),
                           SizedBox(height: 20.h),
@@ -6248,7 +4894,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                       letterSpacing: -0.32,
                                     ),
                                   ),
-                                  // Spacer(),
                                   Row(
                                     children: [
                                       Icon(
@@ -6274,20 +4919,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-
                             SizedBox(height: 20.h),
                           ],
-                          // Padding(
-                          //   padding: EdgeInsets.symmetric(horizontal: 20.w),
-                          // child:
                           Container(
                             margin: !hasStarted && !hasArrived
                                 ? EdgeInsets.only(left: 69.5.w)
                                 : EdgeInsets.only(left: 1.w),
-                            child: _buildDriverDetail(
-                              'Plate number: ',
-                              _assignedDriver!.plateNumber,
-                              // ),
+                            child: DriverDetailRow(
+                              label: 'Plate number: ',
+                              value: _assignedDriver!.plateNumber,
                             ),
                           ),
                           SizedBox(height: 20.h),
@@ -6296,22 +4936,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               margin: !hasStarted && !hasArrived
                                   ? EdgeInsets.only(left: 69.5.w)
                                   : EdgeInsets.only(left: 1.w),
-                              child: _buildDriverDetail(
-                                'Car: ',
-                                _assignedDriver!.vehicleModel,
+                              child: DriverDetailRow(
+                                label: 'Car: ',
+                                value: _assignedDriver!.vehicleModel,
                               ),
                             ),
                             SizedBox(height: 20.h),
                           ],
-
                           Container(
                             margin: !hasStarted && !hasArrived
                                 ? EdgeInsets.only(left: 69.5.w)
                                 : EdgeInsets.only(left: 1.w),
                             alignment: Alignment.center,
-                            child: _buildDriverDetail(
-                              'Trip ID: ',
-                              _activeRide?['ID']?.toString() ?? 'N/A',
+                            child: DriverDetailRow(
+                              label: 'Trip ID: ',
+                              value: _activeRide?['ID']?.toString() ?? 'N/A',
                             ),
                           ),
                           SizedBox(height: 20.h),
@@ -6320,16 +4959,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? EdgeInsets.only(left: 69.5.w)
                                 : EdgeInsets.only(left: 1.w),
                             alignment: Alignment.center,
-                            child: _buildDriverDetail(
-                              'Price: #',
-                              CurrencyFormatter.format(
+                            child: DriverDetailRow(
+                              label: 'Price: #',
+                              value: CurrencyFormatter.format(
                                 _activeRide?['Price']?.toString() ?? "",
                               ),
                             ),
                           ),
                           SizedBox(height: 20.h),
-
-                          // Payment Method
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20.w),
                             child: Container(
@@ -6369,7 +5006,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           SizedBox(height: 20.h),
-                          // Action Buttons
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20.w),
                             child: SizedBox(
@@ -6380,10 +5016,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: GestureDetector(
                                       onTap: () async {
                                         if (hasStarted) {
-                                          // SOS functionality
                                           if (_activeRide != null) {
                                             try {
-                                              // Show loading indicator
                                               showDialog(
                                                 context: context,
                                                 barrierDismissible: false,
@@ -6393,14 +5027,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ),
                                               );
 
-                                              // Get current location
                                               final position =
                                                   await Geolocator.getCurrentPosition(
                                                     desiredAccuracy:
                                                         LocationAccuracy.high,
                                                   );
 
-                                              // Get address from coordinates
                                               String locationAddress =
                                                   'Unknown location';
                                               try {
@@ -6422,11 +5054,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 );
                                               }
 
-                                              // Format location as POINT
                                               final location =
                                                   'POINT(${position.longitude} ${position.latitude})';
 
-                                              // Get ride ID
                                               final rideId =
                                                   _activeRide?['ID'] is int
                                                   ? _activeRide!['ID']
@@ -6436,7 +5066,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           '0',
                                                     );
 
-                                              // Send SOS
                                               final result = await _rideService
                                                   .sendSOS(
                                                     location: location,
@@ -6445,15 +5074,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     rideId: rideId,
                                                   );
 
-                                              // Close loading dialog
                                               Navigator.pop(context);
 
-                                              // Show result
                                               if (result['success'] == true) {
                                                 CustomFlushbar.showSuccess(
                                                   context: context,
                                                   message:
-                                                      '🆘 SOS alert sent successfully!',
+                                                      'SOS alert sent successfully!',
                                                 );
                                               } else {
                                                 CustomFlushbar.showError(
@@ -6463,7 +5090,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 );
                                               }
                                             } catch (e) {
-                                              // Close loading dialog if still open
                                               Navigator.pop(context);
                                               CustomFlushbar.showError(
                                                 context: context,
@@ -6478,31 +5104,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                             }
                                           }
                                         } else if (hasArrived) {
-                                          // Cancel functionality - show dialog
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => CallScreen(
-                                                driverName:
-                                                    _assignedDriver!.name,
-                                                rideId:
-                                                    _activeRide?['ID'] is int
-                                                    ? _activeRide!['ID']
-                                                    : int.parse(
-                                                        _activeRide?['ID']
-                                                                ?.toString() ??
-                                                            '0',
-                                                      ),
-                                              ),
-                                            ),
+                                          context.pushNamed(
+                                            'call',
+                                            extra: {
+                                              'driverName':
+                                                  _assignedDriver!.name,
+                                              'rideId':
+                                                  _activeRide?['ID'] is int
+                                                  ? _activeRide!['ID']
+                                                  : int.parse(
+                                                      _activeRide?['ID']
+                                                              ?.toString() ??
+                                                          '0',
+                                                    ),
+                                            },
                                           );
                                         } else {
-                                          // Call Driver functionality
                                           if (_assignedDriver != null &&
                                               _activeRide != null) {
                                             Navigator.pop(context);
                                             _showTripCanceledSheet();
-                                            // _showCancelRideDialog();
                                           }
                                         }
                                       },
@@ -6555,22 +5176,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: GestureDetector(
                                       onTap: () async {
                                         if (hasStarted) {
-                                          // Share location functionality
                                           try {
-                                            // Get current location
                                             final position =
                                                 await Geolocator.getCurrentPosition(
                                                   desiredAccuracy:
                                                       LocationAccuracy.high,
                                                 );
-
-                                            // Create Google Maps link
                                             final lat = position.latitude;
                                             final lng = position.longitude;
                                             final mapsUrl =
                                                 'https://www.google.com/maps?q=$lat,$lng';
-
-                                            // Get address if possible
                                             String locationInfo =
                                                 'My current location';
                                             try {
@@ -6591,10 +5206,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 tag: 'SHARE',
                                               );
                                             }
-
-                                            // Share the location
                                             await Share.share(
-                                              '📍 I\'m currently here:\n$locationInfo\n\n🗺️ View on map: $mapsUrl',
+                                              "I'm currently here:\n$locationInfo\n\nView on map: $mapsUrl",
                                               subject: 'My Location',
                                             );
                                           } catch (e) {
@@ -6610,33 +5223,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                             );
                                           }
                                         } else {
-                                          // Chat functionality
                                           if (_assignedDriver != null) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => ChatScreen(
-                                                  rideId:
-                                                      _activeRide?['ID'] is int
-                                                      ? _activeRide!['ID']
-                                                      : int.parse(
-                                                          _activeRide?['ID']
-                                                                  ?.toString() ??
-                                                              '0',
-                                                        ),
-                                                  driverId:
-                                                      _assignedDriver?.id ??
-                                                      '0',
-
-                                                  driverName:
-                                                      _assignedDriver?.name ??
-                                                      'Driver',
-                                                  driverImage: _assignedDriver
-                                                      ?.profilePicture,
-                                                  driverPhone: _assignedDriver
-                                                      ?.phoneNumber,
-                                                ),
-                                              ),
+                                            context.pushNamed(
+                                              AppRoutes.chat.name,
+                                              extra: {
+                                                'rideId':
+                                                    _activeRide?['ID'] is int
+                                                    ? _activeRide!['ID']
+                                                    : int.parse(
+                                                        _activeRide?['ID']
+                                                                ?.toString() ??
+                                                            '0',
+                                                      ),
+                                                'driverId':
+                                                    _assignedDriver?.id ?? '0',
+                                                'driverName':
+                                                    _assignedDriver?.name ??
+                                                    'Driver',
+                                                'driverImage': _assignedDriver
+                                                    ?.profilePicture,
+                                                'driverPhone': _assignedDriver
+                                                    ?.phoneNumber,
+                                              },
                                             );
                                           }
                                         }
@@ -6687,34 +5295,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildDriverDetail(String label, String value) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w500,
-            height: 1.0,
-            letterSpacing: -0.32,
-          ),
-        ),
-        // Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w500,
-            height: 1.0,
-            letterSpacing: -0.32,
-          ),
-        ),
-      ],
-    );
-  }
-
   void _showCancelRideDialog() {
     final TextEditingController reasonController = TextEditingController();
 
@@ -6740,7 +5320,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '⚠️ Please note that charges may apply if you cancel the ride now.',
+                'Please note that charges may apply if you cancel the ride now.',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 14.sp,
@@ -6812,7 +5392,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton(
               onPressed: () async {
                 final reason = reasonController.text.trim();
-
                 if (reason.isEmpty) {
                   CustomFlushbar.showError(
                     context: context,
@@ -6820,10 +5399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                   return;
                 }
-
-                // Close dialog
-                Navigator.of(context).pop();
-                // Show loading
+                context.pop();
                 showDialog(
                   context: this.context,
                   barrierDismissible: false,
@@ -6833,20 +5409,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 );
-
                 try {
-                  // Get ride ID
                   final rideId = _activeRide?['ID'] is int
                       ? _activeRide!['ID']
                       : int.parse(_activeRide?['ID']?.toString() ?? '0');
 
-                  // Call cancel API
                   final result = await _rideService.cancelRide(
                     rideId: rideId,
                     reason: reason,
                   );
-
-                  // Close loading dialog using root navigator
                   if (mounted &&
                       Navigator.of(
                         this.context,
@@ -6854,10 +5425,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ).canPop()) {
                     Navigator.of(this.context, rootNavigator: true).pop();
                   }
-
                   if (result['success'] == true) {
                     if (mounted) {
-                      // Clear active ride state
                       setState(() {
                         _activeRide = null;
                         _isDriverAssigned = false;
@@ -6867,8 +5436,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         _mapMarkers = {};
                         _mapPolylines = {};
                       });
-
-                      // Stop tracking
                       _stopDriverLocationTracking();
                       CustomFlushbar.showSuccess(
                         context: this.context,
@@ -6886,13 +5453,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   }
                 } catch (e) {
-                  // Close loading dialog using root navigator
                   if (mounted) {
                     Navigator.of(this.context, rootNavigator: true).pop();
                   }
-
                   AppLogger.error('Cancel ride error', error: e, tag: 'CANCEL');
-
                   if (mounted) {
                     CustomFlushbar.showError(
                       context: this.context,
@@ -6900,7 +5464,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 }
-
                 reasonController.dispose();
               },
               style: ElevatedButton.styleFrom(
@@ -6961,13 +5524,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () async {
-                        // Store the BuildContext before any async operations
                         final parentContext = context;
-
-                        // Close the sheet first
                         Navigator.pop(parentContext);
-
-                        // Get ride ID
                         final rideId =
                             _currentRideResponse?.id ??
                             (_activeRide?['ID'] is int
@@ -6976,7 +5534,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     _activeRide?['ID']?.toString() ?? '0',
                                   ));
 
-                        // Show loading using root navigator
                         showDialog(
                           context: this.context,
                           barrierDismissible: false,
@@ -6988,20 +5545,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
 
                         try {
-                          // Call cancel API with default reason
                           final result = await _rideService.cancelRide(
                             rideId: rideId,
                             reason: 'No drivers available',
                           );
-
-                          // Close loading dialog using root navigator
                           if (mounted) {
                             Navigator.of(this.context).pop();
                           }
-
                           if (result['success'] == true) {
                             if (mounted) {
-                              // Clear active ride state
                               setState(() {
                                 _activeRide = null;
                                 _isDriverAssigned = false;
@@ -7012,8 +5564,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _mapMarkers = {};
                                 _mapPolylines = {};
                               });
-
-                              // Stop tracking
                               _stopDriverLocationTracking();
                               CustomFlushbar.showSuccess(
                                 context: this.context,
@@ -7031,11 +5581,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             }
                           }
                         } catch (e) {
-                          // Close loading dialog using root navigator
                           if (mounted) {
                             Navigator.of(this.context).pop();
                           }
-
                           AppLogger.error(
                             'Cancel ride error',
                             error: e,
@@ -7076,10 +5624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Just close the sheet and keep waiting
                         Navigator.pop(context);
-
-                        // Show a message that we're still searching
                         CustomFlushbar.showInfo(
                           context: context,
                           message: 'Still searching for available drivers...',
@@ -7116,193 +5661,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _getRoundedTime() {
-    try {
-      // Parse the string to double, round it, and convert to int
-      double time = double.tryParse(_driverArrivalTime) ?? 0.0;
-      return time.round().toString(); // Rounds to nearest whole number
-    } catch (e) {
-      return _driverArrivalTime; // Fallback to original if parsing fails
-    }
-  }
-
-  void _showBookingRequestSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      barrierColor: Colors.black.withOpacity(0.2),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Booking Request Successful',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 20.sp,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 5.h),
-            Text(
-              'You\'ll receive a push notification when your \ndriver is assigned.',
-              textAlign: TextAlign.left,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                height: 1.4,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 10.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 10.h),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 8.w,
-                      height: 8.h,
-                      margin: EdgeInsets.only(top: 6.h),
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 8.h),
-                    Expanded(
-                      child: Text(
-                        'Pick up',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Color(ConstColors.mainColor),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  _currentRideResponse?.pickupAddress ??
-                      '4, Grove Street, Opposite Cj\'s house, Los Santos',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    color: Colors.black,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-            SizedBox(height: 10.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 10.h),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 8.w,
-                      height: 8.h,
-                      margin: EdgeInsets.only(top: 6.h),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 8.h),
-                    Expanded(
-                      child: Text(
-                        'Destination',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  _currentRideResponse?.destAddress ??
-                      '7, Grove Street, Opposite Officer Tennpeny\'s house, Los Santos',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    color: Colors.black,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-            SizedBox(height: 16.h),
-            Container(
-              width: double.infinity,
-              height: 50.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    // _showBookSuccessfulSheet();
-
-                    _showTripDetailsSheet();
-                  },
-                  borderRadius: BorderRadius.circular(12.r),
-                  child: Center(
-                    child: Text(
-                      'View trip',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 16.h),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showBookSuccessfulSheet() {
     showModalBottomSheet(
       context: context,
@@ -7321,15 +5679,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Container(
-            //   width: 69.w,
-            //   height: 5.h,
-            //   margin: EdgeInsets.only(bottom: 20.h),
-            //   decoration: BoxDecoration(
-            //     color: Colors.grey.shade300,
-            //     borderRadius: BorderRadius.circular(2.5.r),
-            //   ),
-            // ),
             Text(
               'Booking Successful',
               style: TextStyle(
@@ -7368,7 +5717,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Spacer(),
             SizedBox(height: 20.h),
             GestureDetector(
               onTap: () {
@@ -7378,8 +5726,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   curve: Curves.easeInOut,
                 );
                 Navigator.pop(context);
-
-                // _showBookingRequestSheet();
                 _showTripDetailsSheet();
               },
               child: Container(
@@ -7422,9 +5768,6 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedPaymentMethod;
     final pickupAddr = _currentRideResponse?.pickupAddress ?? 'Pickup Location';
     final destAddr = _currentRideResponse?.destAddress ?? 'Destination';
-    final vehicleType = _currentRideResponse?.vehicleType ?? selectedOption;
-    final ridePrice =
-        _currentRideResponse?.price.toStringAsFixed(0) ?? '12,000';
 
     showModalBottomSheet(
       context: context,
@@ -7439,17 +5782,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Column(
           children: [
-            // SizedBox(height: 12.h),
-            // Center(
-            //   child: Container(
-            //     width: 36.w,
-            //     height: 5.h,
-            //     decoration: BoxDecoration(
-            //       color: Color(0xFFD1D1D6),
-            //       borderRadius: BorderRadius.circular(2.5.r),
-            //     ),
-            //   ),
-            // ),
             SizedBox(height: 16.h),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -7710,15 +6042,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Spacer(),
             SizedBox(height: 30.h),
             Container(
               height: 60.h,
-              // decoration: BoxDecoration(
-              //   border: Border(
-              //     top: BorderSide(color: Color(0xFFE5E5EA), width: 1),
-              //   ),
-              // ),
               child: Row(
                 children: [
                   Expanded(
@@ -7730,7 +6056,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           duration: Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
-                        // _showEditPrebookingSheet();
                       },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -7758,8 +6083,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        // Navigator.pop(context);
-                        // _showCancelRideDialog();
                         Navigator.pop(context);
                         _showTripCanceledSheet();
                       },
@@ -7795,7 +6118,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
         : ['Bicycle', 'Vehicle', 'Motor bike'][selectedDelivery!];
 
-    // Format the scheduled date and time
     final scheduledDateTime = DateTime(
       selectedDate.year,
       selectedDate.month,
@@ -7807,7 +6129,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final formattedDate =
         '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
 
-    // Get the price from the current estimate
     final price = _currentEstimate != null && selectedVehicle != null
         ? '${_currentEstimate!.currency}${_currentEstimate!.priceList[selectedVehicle!]['total_fare'].toStringAsFixed(0)}'
         : '₦12,000';
@@ -8128,28 +6449,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showEditPrebookingSheet() {
-    // Format the scheduled date and time
-    // Check if we need to prefill data from existing ride
     if (fromController.text.isEmpty || toController.text.isEmpty) {
       String? pickupAddr;
       String? destAddr;
-      String? pickupLoc; // WKT
-      String? destLoc; // WKT
+      String? pickupLoc;
+      String? destLoc;
 
       if (_currentRideResponse != null) {
         pickupAddr = _currentRideResponse!.pickupAddress;
         destAddr = _currentRideResponse!.destAddress;
-        // _currentRideResponse might not have raw coordinates easily accessible as WKT string in the model
-        // usually, but let's check.
-        // RideResponse model usually has address. Coordinates might be in _activeRide map if available.
       }
 
-      // Fallback or primary source: _activeRide map usually has all details
       if (_activeRide != null) {
         pickupAddr ??= _activeRide!['PickupAddress'];
         destAddr ??= _activeRide!['DestAddress'];
-        pickupLoc =
-            _activeRide!['PickupLocation']; // Expecting "POINT(lng lat)"
+        pickupLoc = _activeRide!['PickupLocation'];
         destLoc = _activeRide!['DestLocation'];
       }
 
@@ -8160,7 +6474,6 @@ class _HomeScreenState extends State<HomeScreen> {
         toController.text = destAddr;
       }
 
-      // Parse coordinates if they are not set
       if (_pickupCoordinates == null && pickupLoc != null) {
         try {
           final content = pickupLoc
@@ -8193,17 +6506,6 @@ class _HomeScreenState extends State<HomeScreen> {
         } catch (_) {}
       }
     }
-
-    // final scheduledDateTime = DateTime(
-    //   selectedDate.year,
-    //   selectedDate.month,
-    //   selectedDate.day,
-    //   selectedTime.hour,
-    //   selectedTime.minute,
-    // );
-
-    // final formattedDate =
-    //     '${_getMonth(scheduledDateTime.month)} ${scheduledDateTime.day}, ${scheduledDateTime.year} at ${selectedTime.format(context)}';
 
     showModalBottomSheet(
       context: context,
@@ -8266,43 +6568,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   SizedBox(height: 30.h),
-                  // PICK UP - Tappable to select location
-                  // GestureDetector(
-                  //   onTap: () async {
-                  //     Navigator.pop(context);
-                  //     // Navigate to map selection for pickup
-                  //     final result = await Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //         builder: (context) => MapSelectionScreen(
-                  //           isFromField: true,
-                  //           initialLocation: _pickupCoordinates ?? _currentLocation,
-                  //         ),
-                  //       ),
-                  //     );
-
-                  //     if (result != null && result is Map<String, dynamic>) {
-                  //       setState(() {
-                  //         _pickupCoordinates = result['location'] as LatLng;
-                  //         fromController.text = result['address'] as String;
-                  //       });
-                  //       _sheetController.animateTo(
-                  //         0.2,
-                  //         duration: Duration(milliseconds: 300),
-                  //         curve: Curves.easeInOut,
-                  //       );
-                  //       _showEditPrebookingSheet();
-                  //     }
-                  //   },
-                  //   child: _buildEditField(
-                  //     'PICK UP',
-                  //     fromController.text.isNotEmpty
-                  //         ? fromController.text
-                  //         : _currentLocationAddress,
-                  //   ),
-                  // ),
-
-                  // Replace the GestureDetector wrapping _buildEditField('PICK UP', ...) with:
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -8356,16 +6621,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             suffixIcon: GestureDetector(
                               onTap: () async {
                                 Navigator.pop(context);
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MapSelectionScreen(
-                                      isFromField: true,
-                                      initialLocation:
-                                          _pickupCoordinates ??
-                                          _currentLocation,
-                                    ),
-                                  ),
+                                final result = await context.pushNamed(
+                                  AppRoutes.mapSelection.name,
+                                  extra: {
+                                    'isFromField': true,
+                                    'initialLocation':
+                                        _pickupCoordinates ?? _currentLocation,
+                                  },
                                 );
                                 if (result != null &&
                                     result is Map<String, dynamic>) {
@@ -8405,104 +6667,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_showSuggestions &&
                           _locationSuggestions.isNotEmpty &&
                           _isFromFieldFocused)
-                        Container(
-                          constraints: BoxConstraints(maxHeight: 200.h),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.r),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 4),
-                            ],
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemCount: _locationSuggestions.length,
-                            separatorBuilder: (_, __) =>
-                                Divider(height: 1, color: Colors.grey.shade200),
-                            itemBuilder: (context, index) {
-                              final prediction = _locationSuggestions[index];
-                              return ListTile(
-                                dense: true,
-                                leading: Icon(
-                                  Icons.location_on,
-                                  size: 20.sp,
-                                  color: Colors.grey,
-                                ),
-                                title: Text(
-                                  prediction.mainText,
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: prediction.secondaryText.isNotEmpty
-                                    ? Text(
-                                        prediction.secondaryText,
-                                        style: TextStyle(
-                                          fontSize: 11.sp,
-                                          color: Colors.grey[600],
-                                        ),
-                                      )
-                                    : null,
-                                onTap: () async {
-                                  final placeDetails = await _placesService
-                                      .getPlaceDetails(
-                                        prediction.placeId,
-                                        sessionToken: _sessionToken,
-                                      );
-                                  if (placeDetails != null) {
-                                    setSheetState(() {
-                                      _pickupCoordinates = LatLng(
-                                        placeDetails.latitude,
-                                        placeDetails.longitude,
-                                      );
-                                      fromController.text =
-                                          prediction.description;
-                                      _showSuggestions = false;
-                                      _locationSuggestions = [];
-                                      _sessionToken = null;
-                                    });
-                                  }
-                                },
-                              );
-                            },
-                          ),
+                        LocationSuggestionsList(
+                          suggestions: _locationSuggestions,
+                          onSelect: (prediction) async {
+                            final placeDetails = await _placesService
+                                .getPlaceDetails(
+                                  prediction.placeId,
+                                  sessionToken: _sessionToken,
+                                );
+                            if (placeDetails != null) {
+                              setSheetState(() {
+                                _pickupCoordinates = LatLng(
+                                  placeDetails.latitude,
+                                  placeDetails.longitude,
+                                );
+                                fromController.text = prediction.description;
+                                _showSuggestions = false;
+                                _locationSuggestions = [];
+                                _sessionToken = null;
+                              });
+                            }
+                          },
                         ),
                     ],
                   ),
                   SizedBox(height: 15.h),
-                  // DESTINATION - Tappable to select location
-                  // GestureDetector(
-                  //   onTap: () async {
-                  //     Navigator.pop(context);
-                  //     final result = await Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //         builder: (context) => MapSelectionScreen(
-                  //           isFromField: false,
-                  //           initialLocation: _destinationCoordinates,
-                  //         ),
-                  //       ),
-                  //     );
-
-                  //     if (result != null && result is Map<String, dynamic>) {
-                  //       setState(() {
-                  //         _destinationCoordinates = result['location'] as LatLng;
-                  //         toController.text = result['address'] as String;
-                  //       });
-                  //       _sheetController.animateTo(
-                  //         0.2,
-                  //         duration: Duration(milliseconds: 300),
-                  //         curve: Curves.easeInOut,
-                  //       );
-                  //       _showEditPrebookingSheet();
-                  //     }
-                  //   },
-                  //   child: _buildEditField('DESTINATION', toController.text),
-                  // ),
-
-                  // Replace the GestureDetector wrapping _buildEditField('DESTINATION', ...) with:
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -8556,16 +6745,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             suffixIcon: GestureDetector(
                               onTap: () async {
                                 Navigator.pop(context);
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MapSelectionScreen(
-                                      isFromField: false,
-                                      initialLocation:
-                                          _destinationCoordinates ??
-                                          _currentLocation,
-                                    ),
-                                  ),
+                                final result = await context.pushNamed(
+                                  AppRoutes.mapSelection.name,
+                                  extra: {
+                                    'isFromField': false,
+                                    'initialLocation':
+                                        _destinationCoordinates ??
+                                        _currentLocation,
+                                  },
                                 );
                                 if (result != null &&
                                     result is Map<String, dynamic>) {
@@ -8605,77 +6792,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_showSuggestions &&
                           _locationSuggestions.isNotEmpty &&
                           !_isFromFieldFocused)
-                        Container(
-                          constraints: BoxConstraints(maxHeight: 200.h),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8.r),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black12, blurRadius: 4),
-                            ],
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemCount: _locationSuggestions.length,
-                            separatorBuilder: (_, __) =>
-                                Divider(height: 1, color: Colors.grey.shade200),
-                            itemBuilder: (context, index) {
-                              final prediction = _locationSuggestions[index];
-                              return ListTile(
-                                dense: true,
-                                leading: Icon(
-                                  Icons.location_on,
-                                  size: 20.sp,
-                                  color: Colors.grey,
-                                ),
-                                title: Text(
-                                  prediction.mainText,
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: prediction.secondaryText.isNotEmpty
-                                    ? Text(
-                                        prediction.secondaryText,
-                                        style: TextStyle(
-                                          fontSize: 11.sp,
-                                          color: Colors.grey[600],
-                                        ),
-                                      )
-                                    : null,
-                                onTap: () async {
-                                  final placeDetails = await _placesService
-                                      .getPlaceDetails(
-                                        prediction.placeId,
-                                        sessionToken: _sessionToken,
-                                      );
-                                  if (placeDetails != null) {
-                                    setSheetState(() {
-                                      _destinationCoordinates = LatLng(
-                                        placeDetails.latitude,
-                                        placeDetails.longitude,
-                                      );
-                                      toController.text =
-                                          prediction.description;
-                                      _showSuggestions = false;
-                                      _locationSuggestions = [];
-                                      _sessionToken = null;
-                                    });
-                                  }
-                                },
-                              );
-                            },
-                          ),
+                        LocationSuggestionsList(
+                          suggestions: _locationSuggestions,
+                          onSelect: (prediction) async {
+                            final placeDetails = await _placesService
+                                .getPlaceDetails(
+                                  prediction.placeId,
+                                  sessionToken: _sessionToken,
+                                );
+                            if (placeDetails != null) {
+                              setSheetState(() {
+                                _destinationCoordinates = LatLng(
+                                  placeDetails.latitude,
+                                  placeDetails.longitude,
+                                );
+                                toController.text = prediction.description;
+                                _showSuggestions = false;
+                                _locationSuggestions = [];
+                                _sessionToken = null;
+                              });
+                            }
+                          },
                         ),
                     ],
                   ),
                   SizedBox(height: 15.h),
-                  // WHEN - Tappable to select date and time
                   GestureDetector(
                     onTap: () async {
-                      // Select date
                       final DateTime? pickedDate = await showDatePicker(
                         context: context,
                         initialDate: selectedDate,
@@ -8683,7 +6826,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         lastDate: DateTime.now().add(Duration(days: 365)),
                       );
                       if (pickedDate != null) {
-                        // Select time
                         final TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
                           initialTime: selectedTime,
@@ -8696,10 +6838,53 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
                       }
                     },
-                    child: _buildEditField('WHEN', formattedDate),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'WHEN',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Container(
+                          width: 353.w,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 15.w,
+                            vertical: 15.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  formattedDate,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   SizedBox(height: 15.h),
-                  // PAYMENT METHOD - Tappable to select payment method
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -8726,13 +6911,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 GestureDetector(
                                   onTap: () {
                                     Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PromoCodeScreen(),
-                                      ),
-                                    );
+                                    context.pushNamed(AppRoutes.promoCode.name);
                                   },
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
@@ -8821,11 +7000,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                             color: Colors.grey.shade300,
                                           ),
                                           _buildPaymentOption('Pay with card'),
-                                          // Divider(
-                                          //   thickness: 1,
-                                          //   color: Colors.grey.shade300,
-                                          // ),
-                                          // _buildPaymentOption('pay4me'),
                                           Divider(
                                             thickness: 1,
                                             color: Colors.grey.shade300,
@@ -8884,7 +7058,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   SizedBox(height: 15.h),
-                  // VEHICLE - Tappable to select vehicle type
                   GestureDetector(
                     onTap: () {
                       showModalBottomSheet(
@@ -8902,7 +7075,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedVehicle = 0;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                                 ListTile(
@@ -8911,7 +7084,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedVehicle = 1;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                                 ListTile(
@@ -8920,7 +7093,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedVehicle = 2;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                               ] else ...[
@@ -8930,7 +7103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedDelivery = 0;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                                 ListTile(
@@ -8939,7 +7112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedDelivery = 1;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                                 ListTile(
@@ -8948,7 +7121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setSheetState(() {
                                       selectedDelivery = 2;
                                     });
-                                    Navigator.pop(context);
+                                    context.pop();
                                   },
                                 ),
                               ],
@@ -8957,19 +7130,76 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     },
-                    child: _buildEditField(
-                      'VEHICLE',
-                      selectedVehicle != null
-                          ? ['Regular', 'Fancy', 'VIP'][selectedVehicle!]
-                          : [
-                              'Bicycle',
-                              'Vehicle',
-                              'Motor bike',
-                            ][selectedDelivery!],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'VEHICLE',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
+                        Container(
+                          width: 353.w,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 15.w,
+                            vertical: 15.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Row(
+                            children: [
+                              Image.asset(
+                                "assets/images/car.png",
+                                width: 60.w,
+                                height: 28.h,
+                                fit: BoxFit.contain,
+                              ),
+                              SizedBox(width: 5.w),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    selectedVehicle != null
+                                        ? [
+                                            'Regular',
+                                            'Fancy',
+                                            'VIP',
+                                          ][selectedVehicle!]
+                                        : [
+                                            'Bicycle',
+                                            'Vehicle',
+                                            'Motor bike',
+                                          ][selectedDelivery!],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14.sp,
+                                    ),
+                                  ),
+                                  Text(
+                                    "4 Passengers",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                      color: Color(0xffB1B1B1),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(height: 115.h),
-                  // Spacer(),
                   Column(
                     children: [
                       GestureDetector(
@@ -9000,7 +7230,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       SizedBox(height: 15.h),
                       GestureDetector(
                         onTap: () async {
-                          // Get ride ID
                           final rideId =
                               _currentRideResponse?.id ??
                               (_activeRide?['ID'] is int
@@ -9009,13 +7238,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       _activeRide?['ID']?.toString() ?? '0',
                                     ));
 
-                          // Get pickup coordinates
                           final pickupCoords =
                               _pickupCoordinates ?? _currentLocation;
                           final pickup =
                               'POINT(${pickupCoords.longitude} ${pickupCoords.latitude})';
 
-                          // Get destination coordinates
                           final destCoords = _destinationCoordinates;
                           if (destCoords == null) {
                             CustomFlushbar.showError(
@@ -9060,10 +7287,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'Motor bike',
                                 ][selectedDelivery!];
 
-                          // Close the sheet
                           Navigator.pop(context);
 
-                          // Show loading
                           showDialog(
                             context: this.context,
                             barrierDismissible: false,
@@ -9075,7 +7300,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
 
                           try {
-                            // First update the prebooked ride
                             final result = await _rideService
                                 .updatePrebookedRide(
                                   rideId: rideId,
@@ -9087,7 +7311,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   stopAddress: stopAddress,
                                   vehicleType: vehicleType,
                                 );
-
                             if (result['success'] != true) {
                               if (mounted &&
                                   Navigator.of(
@@ -9109,13 +7332,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
                               return;
                             }
-
                             AppLogger.log(
-                              '✅ Prebooked ride updated: ${result['data']}',
+                              'Prebooked ride updated: ${result['data']}',
                               tag: 'UPDATE_PREBOOKED',
                             );
-
-                            // Now handle payment based on selected method
                             if (selectedPaymentMethod == 'Pay with card') {
                               final price =
                                   _currentRideResponse?.price ??
@@ -9133,15 +7353,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     rideId: rideId,
                                     amount: price,
                                   );
-
                               AppLogger.log(
-                                '💳 Payment data: $paymentData',
+                                'Payment data: $paymentData',
                                 tag: 'UPDATE_PREBOOKED',
                               );
-
                               if (selectedPaymentMethod == 'Pay with card' &&
                                   paymentData['authorization_url'] != null) {
-                                // Close loading
                                 if (mounted &&
                                     Navigator.of(
                                       this.context,
@@ -9152,30 +7369,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                     rootNavigator: true,
                                   ).pop();
                                 }
-
-                                final paymentResult = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PaymentWebViewScreen(
-                                      authorizationUrl:
-                                          paymentData['authorization_url'],
-                                      reference: paymentData['reference'],
-                                      onPaymentSuccess: () {},
-                                    ),
-                                  ),
+                                final paymentResult = await context.pushNamed(
+                                  AppRoutes.paymentWebView.name,
+                                  extra: {
+                                    'authorizationUrl':
+                                        paymentData['authorization_url'],
+                                    'reference': paymentData['reference'],
+                                    'onPaymentSuccess': () {},
+                                  },
                                 );
-
-                                // Replace the result handling with:
                                 if (paymentResult == true) {
-                                  // Verify payment before showing success
                                   try {
                                     final verifyResult = await _paymentService
                                         .verifyPayment(
                                           paymentData['reference'],
                                         );
-
                                     if (!mounted) return;
-
                                     if (verifyResult['success'] == true ||
                                         verifyResult['status'] == 'success') {
                                       fromController.clear();
@@ -9184,7 +7393,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         _showDestinationField = false;
                                       });
                                       Navigator.pop(context);
-
                                       if (isScheduledRide) {
                                         final pickupAddress =
                                             _currentRideResponse!.pickupAddress;
@@ -9242,45 +7450,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 }
                                 return;
                               }
-
-                              // Wallet payment
-                              // if (selectedPaymentMethod ==
-                              //     'Pay with wallet') {
-                              // if (mounted &&
-                              //     Navigator.of(
-                              //       this.context,
-                              //       rootNavigator: true,
-                              //     ).canPop()) {
-                              //   Navigator.of(
-                              //     this.context,
-                              //     rootNavigator: true,
-                              //   ).pop();
-                              // }
-
-                              // if (paymentData['success'] == true ||
-                              //     paymentData['status'] == true) {
-                              //   if (mounted) {
-                              //     CustomFlushbar.showSuccess(
-                              //       context: this.context,
-                              //       message:
-                              //           'Prebooking saved and wallet charged successfully!',
-                              //     );
-                              //   }
-                              // } else {
-                              //   if (mounted) {
-                              //     CustomFlushbar.showError(
-                              //       context: this.context,
-                              //       message:
-                              //           paymentData['message'] ??
-                              //           'Wallet payment failed.',
-                              //     );
-                              //   }
-                              // }
-                              // return;
-                              // }
                             }
-
-                            // For Pay in car / pay4me - no payment initialization needed
                             if (mounted &&
                                 Navigator.of(
                                   this.context,
@@ -9351,121 +7521,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEditField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
-            letterSpacing: 0.5,
-          ),
-        ),
-        SizedBox(height: 8.h),
-        Container(
-          width: 353.w,
-          padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8.r),
-            // border: Border.all(color: Colors.grey.shade300, width: 1),
-          ),
-          child: label == "VEHICLE"
-              ? Row(
-                  children: [
-                    Image.asset(
-                      "assets/images/car.png",
-                      width: 60.w,
-                      height: 28.h,
-                      fit: BoxFit.contain,
-                    ),
-                    SizedBox(width: 5.w),
-                    Column(
-                      children: [
-                        Text(
-                          value,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14.sp,
-                          ),
-                        ),
-
-                        Text(
-                          "4 Passengers",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xffB1B1B1),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              : label == "PAYMENT METHOD"
-              ? Row(
-                  children: [
-                    Image.asset(
-                      "assets/images/payincar_icon.png",
-                      width: 60.w,
-                      height: 28.h,
-                      fit: BoxFit.contain,
-                    ),
-                    SizedBox(width: 5.w),
-                    Column(
-                      children: [
-                        Text(
-                          value,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14.sp,
-                          ),
-                        ),
-
-                        Text(
-                          value,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xffB1B1B1),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // Icon(
-                    //   Icons.edit,
-                    //   size: 18.sp,
-                    //   color: Color(ConstColors.mainColor),
-                    // ),
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-
   void _showTripCanceledSheet() {
     showModalBottomSheet(
       context: context,
@@ -9521,32 +7576,53 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 30.h),
-              _buildCancelReason(
-                0,
-                'I am taking alternative transport',
-                setCancelState,
+              CancelReasonOption(
+                index: 0,
+                reason: 'I am taking alternative transport',
+                isSelected: selectedCancelReason == 0,
+                onTap: (index) {
+                  setCancelState(() {
+                    selectedCancelReason = index;
+                  });
+                },
               ),
               SizedBox(height: 10.h),
-              _buildCancelReason(
-                1,
-                'It is taking too long to get a driver',
-                setCancelState,
+              CancelReasonOption(
+                index: 1,
+                reason: 'It is taking too long to get a driver',
+                isSelected: selectedCancelReason == 1,
+                onTap: (index) {
+                  setCancelState(() {
+                    selectedCancelReason = index;
+                  });
+                },
               ),
               SizedBox(height: 10.h),
-              _buildCancelReason(
-                2,
-                'I have to attend to something',
-                setCancelState,
+              CancelReasonOption(
+                index: 2,
+                reason: 'I have to attend to something',
+                isSelected: selectedCancelReason == 2,
+                onTap: (index) {
+                  setCancelState(() {
+                    selectedCancelReason = index;
+                  });
+                },
               ),
               SizedBox(height: 10.h),
-              _buildCancelReason(3, 'Others', setCancelState),
+              CancelReasonOption(
+                index: 3,
+                reason: 'Others',
+                isSelected: selectedCancelReason == 3,
+                onTap: (index) {
+                  setCancelState(() {
+                    selectedCancelReason = index;
+                  });
+                },
+              ),
               Spacer(),
               GestureDetector(
                 onTap: selectedCancelReason != null
                     ? () {
-                        // Navigator.pop(context);
-                        // _showFeedbackSuccessSheet();
-
                         if (selectedCancelReason == 3) {
                           Navigator.pop(context);
                           _showCancelRideDialog();
@@ -9584,42 +7660,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCancelReason(
-    int index,
-    String reason,
-    StateSetter setCancelState,
-  ) {
-    final isSelected = selectedCancelReason == index;
-    return GestureDetector(
-      onTap: () {
-        setCancelState(() {
-          selectedCancelReason = index;
-        });
-      },
-      child: Container(
-        width: 353.w,
-        height: 40.h,
-        padding: EdgeInsets.all(10.w),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
-          border: Border.all(color: Color(ConstColors.mainColor)),
-          borderRadius: BorderRadius.circular(15.r),
-        ),
-        child: Center(
-          child: Text(
-            reason,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: isSelected ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showFeedbackSuccessSheet() {
     final reasons = [
       'I am taking alternative transport',
@@ -9631,7 +7671,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ? reasons[selectedCancelReason!]
         : 'Cancelled by passenger';
 
-    // Call cancel API
     () async {
       try {
         final rideId =
@@ -9696,7 +7735,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Show success sheet only after successful cancellation
       if (!mounted) return;
       showModalBottomSheet(
         context: context,
@@ -9746,7 +7784,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.black,
                 ),
               ),
-
               SizedBox(height: 30.h),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
@@ -9776,325 +7813,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }();
   }
 
-  void _showTripCompletedSheet() {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
-            ),
-            Text(
-              'Trip completed',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Divider(thickness: 1, color: Colors.grey.shade300),
-            SizedBox(height: 20.h),
-            Center(
-              child: _buildDriverDetail(
-                'Trip ID:',
-                _activeRide?['ID']?.toString() ?? 'N/A',
-              ),
-            ),
-            SizedBox(height: 10.h),
-            _buildDriverDetail(
-              'Fare:',
-              '₦${_activeRide?['Price']?.toStringAsFixed(0) ?? '0'}',
-            ),
-
-            SizedBox(height: 10.h),
-
-            _buildDriverDetail(
-              'Tip:',
-              '₦${_activeRide?['Tip']?.toStringAsFixed(0) ?? '0'}',
-            ),
-            SizedBox(height: 10.h),
-
-            _buildDriverDetail(
-              'Total:',
-              '₦${((_activeRide?['Price'] ?? 0) + (_activeRide?['Tip'] ?? 0)).toStringAsFixed(0)}',
-            ),
-            SizedBox(height: 30.h),
-            Container(
-              width: 353.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRatingSheet();
-                },
-                child: Center(
-                  child: Text(
-                    'Dismiss',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // void _showIncomingCallNotification(Map<String, dynamic> callData) {
-  //   final driverName = callData['caller_name'] ?? 'Driver';
-  //   final sessionId = callData['session_id'];
-  //   final rideId = callData['ride_id'];
-
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (context) => AlertDialog(
-  //       shape: RoundedRectangleBorder(
-  //         borderRadius: BorderRadius.circular(20.r),
-  //       ),
-  //       content: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         children: [
-  //           Icon(
-  //             Icons.phone_in_talk,
-  //             size: 60.sp,
-  //             color: Color(ConstColors.mainColor),
-  //           ),
-  //           SizedBox(height: 20.h),
-  //           Text(
-  //             'Incoming Call',
-  //             style: TextStyle(
-  //               fontFamily: 'Inter',
-  //               fontSize: 20.sp,
-  //               fontWeight: FontWeight.w600,
-  //             ),
-  //           ),
-  //           SizedBox(height: 10.h),
-  //           Text(
-  //             driverName,
-  //             style: TextStyle(
-  //               fontFamily: 'Inter',
-  //               fontSize: 16.sp,
-  //               fontWeight: FontWeight.w400,
-  //             ),
-  //           ),
-  //           SizedBox(height: 30.h),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-  //             children: [
-  //               GestureDetector(
-  //                 onTap: () async {
-  //                   Navigator.pop(context);
-  //                   await _rejectCall(sessionId);
-  //                 },
-  //                 child: Container(
-  //                   width: 60.w,
-  //                   height: 60.h,
-  //                   decoration: BoxDecoration(
-  //                     color: Colors.red,
-  //                     shape: BoxShape.circle,
-  //                   ),
-  //                   child: Icon(
-  //                     Icons.call_end,
-  //                     color: Colors.white,
-  //                     size: 30.sp,
-  //                   ),
-  //                 ),
-  //               ),
-  //               GestureDetector(
-  //                 onTap: () {
-  //                   Navigator.pop(context);
-  //                   Navigator.push(
-  //                     context,
-  //                     MaterialPageRoute(
-  //                       builder: (context) =>
-  //                           CallScreen(driverName: driverName, rideId: rideId),
-  //                     ),
-  //                   );
-  //                 },
-  //                 child: Container(
-  //                   width: 60.w,
-  //                   height: 60.h,
-  //                   decoration: BoxDecoration(
-  //                     color: Colors.green,
-  //                     shape: BoxShape.circle,
-  //                   ),
-  //                   child: Icon(Icons.call, color: Colors.white, size: 30.sp),
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  Future<void> _rejectCall(int sessionId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      await http.post(
-        Uri.parse('https://api.muvam.app/api/v1/calls/$sessionId/reject'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-      AppLogger.log('❌ Call rejected', tag: 'CALL');
-    } catch (e) {
-      AppLogger.error('Failed to reject call', error: e, tag: 'CALL');
-    }
-  }
-
-  void _showDeleteLocationDialog(String locationType, int locationId) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.r),
-          ),
-          child: Container(
-            padding: EdgeInsets.all(24.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16.r),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Remove from $locationType?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                Text(
-                  'This location will be removed from your $locationType You can add it again anytime.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black,
-                  ),
-                ),
-                SizedBox(height: 24.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          height: 48.h,
-                          decoration: BoxDecoration(
-                            color: Color(0xffB1B1B1),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Cancel',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          Navigator.pop(context);
-                          final sheetContext = context; // capture BEFORE await
-
-                          // Delete the location
-                          try {
-                            await _favouriteService.deleteFavouriteLocation(
-                              locationId,
-                            );
-                            await _loadFavouriteLocations();
-                            CustomFlushbar.showSuccess(
-                              context: context,
-                              message: '$locationType deleted successfully',
-                            );
-                          } catch (e) {
-                            CustomFlushbar.showError(
-                              context: context,
-                              message: 'Failed to delete location',
-                            );
-                          }
-                        },
-                        child: Container(
-                          height: 48.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                            borderRadius: BorderRadius.circular(8.r),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Remove',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _showTripCompleteSheet(int rideId, String price) {
     AppLogger.log(
-      '📊 Opening Trip Complete sheet for ride ID: $rideId',
+      'Opening Trip Complete sheet for ride ID: $rideId',
       tag: 'RIDE',
     );
 
@@ -10135,8 +7856,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 30.h),
-
-            // Trip ID
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -10160,8 +7879,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             SizedBox(height: 15.h),
-
-            // Fare
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -10187,8 +7904,6 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 15.h),
             Divider(color: Colors.grey.shade300),
             SizedBox(height: 15.h),
-
-            // Total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -10213,8 +7928,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             SizedBox(height: 40.h),
-
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -10226,24 +7939,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: TextButton(
                       onPressed: () async {
-                        final sheetContext = context; // capture BEFORE await
+                        final sheetContext = context;
 
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TipScreen(rideId: rideId),
-                          ),
+                        final result = await context.pushNamed(
+                          'tip',
+                          extra: {'rideId': rideId},
                         );
 
-                        // Show success toast when returning from tip screen
                         if (result == true && sheetContext.mounted) {
                           CustomFlushbar.showSuccess(
                             context: sheetContext,
-                            message: 'Tip sent successfully! 🎉',
+                            message: 'Tip sent successfully!',
                           );
                         }
                       },
-
                       child: Text(
                         'Tip Driver',
                         style: TextStyle(
@@ -10266,11 +7975,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: TextButton(
                       onPressed: () async {
                         try {
-                          Navigator.pop(context); // Close trip sheet
-
-                          // Call dismiss API
+                          Navigator.pop(context);
                           await _rideService.dismissRide(rideId);
-
                           if (mounted) {
                             _showRatingSheet();
                           }
@@ -10280,7 +7986,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             error: e,
                             tag: 'RIDE',
                           );
-                          // Proceed to rating anyway as fallback
                           if (mounted) {
                             _showRatingSheet();
                           }
@@ -10313,7 +8018,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final currentRideId = _lastCompletedRideId;
 
     AppLogger.log(
-      '📊 Opening rating sheet for ride ID: $currentRideId',
+      'Opening rating sheet for ride ID: $currentRideId',
       tag: 'RATING',
     );
 
@@ -10409,7 +8114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: selectedRating > 0 && !isSubmitting
                         ? () async {
                             AppLogger.log(
-                              '🔘 Submit button pressed',
+                              'Submit button pressed',
                               tag: 'RATING',
                             );
                             AppLogger.log(
@@ -10424,10 +8129,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               'Current Ride ID: $currentRideId',
                               tag: 'RATING',
                             );
-
                             if (currentRideId == null) {
                               AppLogger.log(
-                                '❌ No ride ID available!',
+                                'No ride ID available!',
                                 tag: 'RATING',
                               );
                               if (mounted) {
@@ -10438,14 +8142,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
                               return;
                             }
-
                             setRatingState(() {
                               isSubmitting = true;
                             });
 
                             try {
                               AppLogger.log(
-                                '📤 Calling rateRide API with ID: $currentRideId',
+                                'Calling rateRide API with ID: $currentRideId',
                                 tag: 'RATING',
                               );
 
@@ -10456,21 +8159,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
 
                               AppLogger.log(
-                                '📥 API Response: $result',
+                                'API Response: $result',
                                 tag: 'RATING',
                               );
 
                               if (result['success'] == true) {
-                                // Mark ride as rated
                                 _dismissedRatingRides.add(currentRideId);
-
-                                // Schedule the navigation and state update properly
-                                // First, close the dialog
                                 if (mounted) {
                                   Navigator.pop(context);
                                 }
-
-                                // Then schedule the state update for the next frame
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
@@ -10484,21 +8181,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       _mapMarkers = {};
                                       _mapPolylines = {};
                                     });
-                                    // CustomFlushbar.
-                                    // showInfo(
-                                    //   context: context,
-                                    //   message: 'Thank you for your rating!',
-                                    // );
-
-                                    Flushbar(
-                                      title: "Success",
+                                    CustomFlushbar.showSuccess(
+                                      context: context,
                                       message: "Thank you for your rating!",
-                                      duration: Duration(seconds: 3),
-                                      backgroundColor: Colors.green,
-                                      margin: EdgeInsets.all(8),
-                                      borderRadius: BorderRadius.circular(8),
-                                      flushbarPosition: FlushbarPosition.TOP,
-                                    ).show(context);
+                                    );
                                   }
                                 });
                               } else {
@@ -10514,7 +8200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
                             } catch (e) {
                               AppLogger.log(
-                                '❌ Error submitting rating: $e',
+                                'Error submitting rating: $e',
                                 tag: 'RATING',
                               );
                               if (mounted) {
@@ -10568,12 +8254,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     ).whenComplete(() {
-      // Schedule controller disposal after the current frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         reviewController.dispose();
       });
 
-      // Mark ride as dismissed if user closes without rating
       if (currentRideId != null && selectedRating == 0) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -10586,680 +8270,44 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildPickupWidget() {
-    // Show when there's an active ride
-    if (_activeRide == null) return SizedBox.shrink();
-
-    return Container(
-      width: 247.w,
-      height: 50.h,
-      padding: EdgeInsets.only(right: 12.h, top: 4, bottom: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50.w,
-            height: 50.h,
-            decoration: BoxDecoration(
-              color: Color(ConstColors.mainColor),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _getRoundedTime(), // Call a helper function
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    "MIN",
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Pick up',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.41,
-                  ),
-                ),
-                Text(
-                  _pickupLocation,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.41,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios, size: 16.sp),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDropoffWidget() {
-    // Show when there's an active ride
-    if (_activeRide == null) return SizedBox.shrink();
-
-    return Container(
-      width: 242.w,
-      height: 48.h,
-      padding: EdgeInsets.fromLTRB(22.w, 7.h, 22.w, 7.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      child: Row(
-        children: [
-          Image.asset(ConstImages.locationPin, width: 24.w, height: 24.h),
-          SizedBox(width: 6.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Drop off',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.41,
-                  ),
-                ),
-                Text(
-                  _dropoffLocation,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.41,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios, size: 16.sp),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteLineWidget() {
-    if (!_isDriverAssigned && !_isInCar) return SizedBox.shrink();
-
-    return Container(
-      width: 2.w,
-      height: 30.h,
-      color: Color(ConstColors.mainColor),
-    );
-  }
-
-  Widget _buildRoutePickupWidget() {
-    return Container(
-      width: 247.w,
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50.w,
-            height: 50.h,
-            decoration: BoxDecoration(
-              color: Color(ConstColors.mainColor),
-              borderRadius: BorderRadius.circular(1000.r),
-            ),
-            child: Center(
-              child: Text(
-                _estimatedTime,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w600,
-                  height: 16 / 18,
-                  letterSpacing: -0.41,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Pick up',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    height: 22 / 14,
-                    letterSpacing: -0.41,
-                  ),
-                ),
-                Text(
-                  fromController.text.isNotEmpty
-                      ? fromController.text
-                      : _currentLocationAddress,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 22 / 14,
-                    letterSpacing: -0.41,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios, size: 16.sp),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteDropoffWidget() {
-    return Container(
-      width: 247.w,
-      height: 50.h,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50.w,
-            height: 50.h,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(1000.r),
-              border: Border.all(color: Colors.grey.shade300, width: 1),
-            ),
-            child: Center(
-              child: Image.asset(
-                ConstImages.locationIconPin,
-                width: 24.w,
-                height: 24.h,
-              ),
-            ),
-          ),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Drop off',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    height: 22 / 14,
-                    letterSpacing: -0.41,
-                  ),
-                ),
-                Text(
-                  toController.text.isNotEmpty
-                      ? toController.text
-                      : 'Destination',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    height: 22 / 14,
-                    letterSpacing: -0.41,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios, size: 16.sp),
-        ],
-      ),
-    );
-  }
-
-  Future<RideResponse> _requestRide({
-    bool isScheduled = false,
-    DateTime? scheduledDateTime,
-  }) async {
-    AppLogger.log('🚗 === STARTING RIDE REQUEST ===');
-
-    if (_currentEstimate == null || selectedVehicle == null) {
-      AppLogger.log('❌ Missing estimate or vehicle selection');
-      throw Exception('No estimate or vehicle selected');
-    }
-
-    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
-    final vehicleType = selectedPriceData['vehicle_type'];
-
-    AppLogger.log('🚙 Selected Vehicle Type: $vehicleType');
-    AppLogger.log('💰 Selected Price Data: $selectedPriceData');
-
-    // Use actual selected coordinates for pickup and destination
-    final pickupLatLng = _pickupCoordinates ?? _currentLocation;
-    final destLatLng =
-        _destinationCoordinates ??
-        LatLng(
-          _currentLocation.latitude + 0.01,
-          _currentLocation.longitude + 0.01,
-        );
-
-    final pickupCoords =
-        "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
-    final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
-
-    AppLogger.log(
-      '📍 Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
-    );
-    AppLogger.log(
-      '🎯 Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
-    );
-    AppLogger.log('💳 Original Payment Method: "$selectedPaymentMethod"');
-
-    // Fix payment method conversion - "Pay in car" should become "in_car"
-    String convertedPaymentMethod;
-    if (selectedPaymentMethod == 'Pay in car') {
-      convertedPaymentMethod = 'in_car';
-    } else if (selectedPaymentMethod == 'Pay with wallet') {
-      convertedPaymentMethod = 'wallet';
-    } else {
-      convertedPaymentMethod = 'gateway';
-    }
-
-    AppLogger.log('💳 Converted Payment Method: "$convertedPaymentMethod"');
-    AppLogger.log('🕐 isScheduled parameter: $isScheduled');
-    AppLogger.log('🕐 scheduledDateTime parameter: $scheduledDateTime');
-
-    String? formattedScheduledAt;
-    if (isScheduled && scheduledDateTime != null) {
-      formattedScheduledAt = scheduledDateTime.toUtc().toIso8601String();
-
-      AppLogger.log('✅ Scheduled Ride: true');
-      AppLogger.log('✅ Scheduled At (formatted): $formattedScheduledAt');
-      AppLogger.log('✅ Original DateTime: $scheduledDateTime');
-    } else {
-      AppLogger.log(
-        '❌ NOT a scheduled ride - isScheduled: $isScheduled, scheduledDateTime: $scheduledDateTime',
-      );
-    }
-
-    String destAddress = toController.text;
-    if (destAddress.isEmpty && _destinationCoordinates != null) {
-      try {
-        final placemarks = await placemarkFromCoordinates(
-          _destinationCoordinates!.latitude,
-          _destinationCoordinates!.longitude,
-        );
-        if (placemarks.isNotEmpty) {
-          final placemark = placemarks.first;
-          destAddress =
-              '${placemark.street}, ${placemark.locality}${placemark.administrativeArea != null ? ', ${placemark.administrativeArea}' : ''}';
-          AppLogger.log('📍 Reverse geocoded destination: $destAddress');
-        }
-      } catch (e) {
-        AppLogger.log('⚠️ Failed to reverse geocode destination: $e');
-        destAddress = "Destination";
-      }
-    }
-    if (destAddress.isEmpty) {
-      destAddress = "Destination";
-    }
-
-    final request = RideRequest(
-      pickup: pickupCoords,
-      dest: destCoords,
-      pickupAddress: fromController.text.isNotEmpty
-          ? fromController.text
-          : "Current location",
-      destAddress: destAddress,
-      serviceType: _currentEstimate!.serviceType,
-      vehicleType: vehicleType,
-      paymentMethod: convertedPaymentMethod,
-      scheduled: isScheduled ? true : null,
-      scheduledAt: formattedScheduledAt,
-      stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
-      note: noteController.text.isNotEmpty ? noteController.text : null,
-    );
-
-    AppLogger.log('📋 === RIDE REQUEST OBJECT CREATED ===');
-    AppLogger.log('📋 request.scheduled: ${request.scheduled}');
-    AppLogger.log('📋 request.scheduledAt: ${request.scheduledAt}');
-    AppLogger.log('📋 Final Ride Request Object:');
-    AppLogger.log('  - Pickup: ${request.pickup}');
-    AppLogger.log('  - Destination: ${request.dest}');
-    AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
-    AppLogger.log('  - Destination Address: ${request.destAddress}');
-    AppLogger.log('  - Service Type: ${request.serviceType}');
-    AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
-    AppLogger.log('  - Payment Method: ${request.paymentMethod}');
-    if (request.scheduled == true) {
-      AppLogger.log('  - Scheduled: ${request.scheduled}');
-      AppLogger.log('  - Scheduled At======: ${request.scheduledAt}');
-    }
-
-    AppLogger.log('\n📦 ===================================================');
-    AppLogger.log('📦 FINAL DATA BEING SENT TO BACKEND');
-    AppLogger.log('📦 ===================================================');
-    AppLogger.log('Method: POST');
-    AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
-    AppLogger.log(
-      'Headers: {Content-Type: application/json, Authorization: Bearer <TOKEN>}',
-    );
-    AppLogger.log('Body (JSON):');
-    try {
-      AppLogger.log(jsonEncode(request.toJson()));
-    } catch (e) {
-      AppLogger.log('Error encoding JSON: $e');
-      AppLogger.log('Raw Map: ${request.toJson()}');
-    }
-    AppLogger.log('📦 ===================================================\n');
-
-    return await _rideService.requestRide(request);
-  }
-
-  void _showActiveRideSheet() {
-    if (_activeRide == null || _isActiveRideSheetVisible) return;
-
-    _isActiveRideSheetVisible = true;
-
-    final status = _activeRide!['Status']?.toString().toLowerCase() ?? '';
-    final rideId = _activeRide!['ID']?.toString() ?? 'Unknown';
-    final pickupAddress = _activeRide!['PickupAddress'] ?? 'Pickup location';
-    final destAddress = _activeRide!['DestAddress'] ?? 'Destination';
-    final price = _activeRide!['Price']?.toString() ?? '0';
-
-    showModalBottomSheet(
+  void _showDeleteLocationDialog(String locationType, int locationId) {
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => Container(
-        height: 400.h,
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
-            ),
-            Text(
-              'Active Ride',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-            SizedBox(height: 10.h),
-            Text(
-              'ID: #$rideId',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w400,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Text(
-              '₦$price',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w700,
-                fontSize: 36.sp,
-                height: 1.0,
-                letterSpacing: -0.32,
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Container(
-              padding: EdgeInsets.all(15.w),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 6.w,
-                        height: 6.h,
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      SizedBox(width: 10.w),
-                      Expanded(
-                        child: Text(
-                          'Pickup: $pickupAddress',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10.h),
-                  Row(
-                    children: [
-                      Container(
-                        width: 6.w,
-                        height: 6.h,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      SizedBox(width: 10.w),
-                      Expanded(
-                        child: Text(
-                          'Destination: $destAddress',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 10.h),
-              decoration: BoxDecoration(
-                color: _getStatusColor(status),
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              child: Text(
-                'Status: ${status.toUpperCase()}',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            Spacer(),
-            if (_assignedDriver != null)
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 48.h,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Color(ConstColors.mainColor)),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                driverId: _assignedDriver?.id ?? '0',
-                                rideId: _activeRide?['ID'] is int
-                                    ? _activeRide!['ID']
-                                    : int.parse(
-                                        _activeRide?['ID']?.toString() ?? '0',
-                                      ),
-                                driverName: _assignedDriver?.name ?? 'Driver',
-                                driverImage: _assignedDriver?.profilePicture,
-                                driverPhone: _assignedDriver?.phoneNumber,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Center(
-                          child: Text(
-                            'Chat Driver',
-                            style: TextStyle(
-                              color: Color(ConstColors.mainColor),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    child: Container(
-                      height: 48.h,
-                      decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          _isActiveRideSheetVisible = false;
-                          Navigator.pop(context);
-                        },
-                        child: Center(
-                          child: Text(
-                            'Track Ride',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    ).whenComplete(() {
-      _isActiveRideSheetVisible = false;
-    });
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'accepted':
-        return Colors.blue;
-      case 'arrived':
-        return Colors.orange;
-      case 'started':
-        return Colors.green;
-      case 'completed':
-        return Colors.grey;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+      builder: (BuildContext context) {
+        return DeleteLocationDialog(
+          locationType: locationType,
+          locationId: locationId,
+          onDelete: () async {
+            try {
+              await _favouriteService.deleteFavouriteLocation(locationId);
+              await _loadFavouriteLocations();
+              CustomFlushbar.showSuccess(
+                context: context,
+                message: '$locationType deleted successfully',
+              );
+            } catch (e) {
+              CustomFlushbar.showError(
+                context: context,
+                message: 'Failed to delete location',
+              );
+            }
+          },
+        );
+      },
+    );
   }
 
   List<LatLng> _generateCurvedPath(LatLng start, LatLng end) {
     List<LatLng> points = [];
 
-    // Calculate midpoint with offset for curve
     double midLat = (start.latitude + end.latitude) / 2;
     double midLng = (start.longitude + end.longitude) / 2;
 
-    // Add curve offset (perpendicular to the line)
     double offsetLat = (end.longitude - start.longitude) * 0.002;
     double offsetLng = (start.latitude - end.latitude) * 0.002;
 
     LatLng curvePoint = LatLng(midLat + offsetLat, midLng + offsetLng);
 
-    // Generate points along the curve
     for (int i = 0; i <= 20; i++) {
       double t = i / 20.0;
       double lat = _quadraticBezier(
@@ -11284,54 +8332,127 @@ class _HomeScreenState extends State<HomeScreen> {
     return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
   }
 
-  Map<String, double>? _parsePostGISLocation(String location) {
-    try {
-      if (location.length >= 50) {
-        final hexData = location.substring(18);
-        final lngHex = hexData.substring(0, 16);
-        final latHex = hexData.substring(16, 32);
+  Future<RideResponse> _requestRide({
+    bool isScheduled = false,
+    DateTime? scheduledDateTime,
+  }) async {
+    AppLogger.log('=== STARTING RIDE REQUEST ===');
 
-        final lngBytes = _hexToBytes(lngHex);
-        final latBytes = _hexToBytes(latHex);
-
-        final lng = _bytesToDouble(lngBytes);
-        final lat = _bytesToDouble(latBytes);
-
-        if (lat != null && lng != null) {
-          return {'lat': lat, 'lng': lng};
-        }
-      }
-    } catch (e) {
-      AppLogger.log('Error parsing PostGIS location: $e');
+    if (_currentEstimate == null || selectedVehicle == null) {
+      AppLogger.log('Missing estimate or vehicle selection');
+      throw Exception('No estimate or vehicle selected');
     }
-    return null;
-  }
-
-  List<int> _hexToBytes(String hex) {
-    final bytes = <int>[];
-    for (int i = 0; i < hex.length; i += 2) {
-      bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
-    }
-    return bytes.reversed.toList(); // Reverse for little-endian
-  }
-
-  double? _bytesToDouble(List<int> bytes) {
-    if (bytes.length != 8) return null;
-    final buffer = Uint8List.fromList(bytes).buffer;
-    return ByteData.view(buffer).getFloat64(0, Endian.big);
-  }
-
-  /// Get icon for favorite location based on type
-  Widget _getFavoriteLocationIcon(String name) {
-    final nameLower = name.toLowerCase();
-
-    if (nameLower.contains('home')) {
-      return Icon(Icons.home, size: 24.sp, color: Color(ConstColors.mainColor));
-    } else if (nameLower.contains('work')) {
-      return Icon(Icons.work, size: 24.sp, color: Color(ConstColors.mainColor));
+    final selectedPriceData = _currentEstimate!.priceList[selectedVehicle!];
+    final vehicleType = selectedPriceData['vehicle_type'];
+    AppLogger.log('Selected Vehicle Type: $vehicleType');
+    AppLogger.log('Selected Price Data: $selectedPriceData');
+    final pickupLatLng = _pickupCoordinates ?? _currentLocation;
+    final destLatLng =
+        _destinationCoordinates ??
+        LatLng(
+          _currentLocation.latitude + 0.01,
+          _currentLocation.longitude + 0.01,
+        );
+    final pickupCoords =
+        "POINT(${pickupLatLng.longitude} ${pickupLatLng.latitude})";
+    final destCoords = "POINT(${destLatLng.longitude} ${destLatLng.latitude})";
+    AppLogger.log(
+      'Pickup Coordinates: $pickupCoords (${pickupLatLng.latitude}, ${pickupLatLng.longitude})',
+    );
+    AppLogger.log(
+      'Destination Coordinates: $destCoords (${destLatLng.latitude}, ${destLatLng.longitude})',
+    );
+    AppLogger.log('Original Payment Method: "$selectedPaymentMethod"');
+    String convertedPaymentMethod;
+    if (selectedPaymentMethod == 'Pay in car') {
+      convertedPaymentMethod = 'in_car';
+    } else if (selectedPaymentMethod == 'Pay with wallet') {
+      convertedPaymentMethod = 'wallet';
     } else {
-      return Icon(Icons.star, size: 24.sp, color: Colors.amber);
+      convertedPaymentMethod = 'gateway';
     }
+    AppLogger.log('Converted Payment Method: "$convertedPaymentMethod"');
+    AppLogger.log('isScheduled parameter: $isScheduled');
+    AppLogger.log('scheduledDateTime parameter: $scheduledDateTime');
+    String? formattedScheduledAt;
+    if (isScheduled && scheduledDateTime != null) {
+      formattedScheduledAt = scheduledDateTime.toUtc().toIso8601String();
+      AppLogger.log('Scheduled Ride: true');
+      AppLogger.log('Scheduled At (formatted): $formattedScheduledAt');
+      AppLogger.log('Original DateTime: $scheduledDateTime');
+    } else {
+      AppLogger.log(
+        'NOT a scheduled ride - isScheduled: $isScheduled, scheduledDateTime: $scheduledDateTime',
+      );
+    }
+    String destAddress = toController.text;
+    if (destAddress.isEmpty && _destinationCoordinates != null) {
+      try {
+        final placemarks = await placemarkFromCoordinates(
+          _destinationCoordinates!.latitude,
+          _destinationCoordinates!.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final placemark = placemarks.first;
+          destAddress =
+              '${placemark.street}, ${placemark.locality}${placemark.administrativeArea != null ? ', ${placemark.administrativeArea}' : ''}';
+          AppLogger.log('Reverse geocoded destination: $destAddress');
+        }
+      } catch (e) {
+        AppLogger.log('Failed to reverse geocode destination: $e');
+        destAddress = "Destination";
+      }
+    }
+    if (destAddress.isEmpty) {
+      destAddress = "Destination";
+    }
+    final request = RideRequest(
+      pickup: pickupCoords,
+      dest: destCoords,
+      pickupAddress: fromController.text.isNotEmpty
+          ? fromController.text
+          : "Current location",
+      destAddress: destAddress,
+      serviceType: _currentEstimate!.serviceType,
+      vehicleType: vehicleType,
+      paymentMethod: convertedPaymentMethod,
+      scheduled: isScheduled ? true : null,
+      scheduledAt: formattedScheduledAt,
+      stopAddress: stopController.text.isNotEmpty ? stopController.text : null,
+      note: noteController.text.isNotEmpty ? noteController.text : null,
+    );
+    AppLogger.log('=== RIDE REQUEST OBJECT CREATED ===');
+    AppLogger.log('request.scheduled: ${request.scheduled}');
+    AppLogger.log('request.scheduledAt: ${request.scheduledAt}');
+    AppLogger.log('Final Ride Request Object:');
+    AppLogger.log('  - Pickup: ${request.pickup}');
+    AppLogger.log('  - Destination: ${request.dest}');
+    AppLogger.log('  - Pickup Address: ${request.pickupAddress}');
+    AppLogger.log('  - Destination Address: ${request.destAddress}');
+    AppLogger.log('  - Service Type: ${request.serviceType}');
+    AppLogger.log('  - Vehicle Type: ${request.vehicleType}');
+    AppLogger.log('  - Payment Method: ${request.paymentMethod}');
+    if (request.scheduled == true) {
+      AppLogger.log('  - Scheduled: ${request.scheduled}');
+      AppLogger.log('  - Scheduled At======: ${request.scheduledAt}');
+    }
+    AppLogger.log('\n===================================================');
+    AppLogger.log('FINAL DATA BEING SENT TO BACKEND');
+    AppLogger.log('===================================================');
+    AppLogger.log('Method: POST');
+    AppLogger.log('URL: ${UrlConstants.baseUrl}${UrlConstants.rideRequest}');
+    AppLogger.log(
+      'Headers: {Content-Type: application/json, Authorization: Bearer <TOKEN>}',
+    );
+    AppLogger.log('Body (JSON):');
+    try {
+      AppLogger.log(jsonEncode(request.toJson()));
+    } catch (e) {
+      AppLogger.log('Error encoding JSON: $e');
+      AppLogger.log('Raw Map: ${request.toJson()}');
+    }
+    AppLogger.log('===================================================\n');
+    return await _rideService.requestRide(request);
   }
 
   @override
@@ -11348,8 +8469,7 @@ class _HomeScreenState extends State<HomeScreen> {
     fromController.dispose();
     toController.dispose();
     stopController.dispose();
-    _nearbyDriverTrackingTimer?.cancel(); // ADD THIS
-
+    _nearbyDriverTrackingTimer?.cancel();
     noteController.dispose();
     super.dispose();
   }

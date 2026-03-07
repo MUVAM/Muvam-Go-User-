@@ -2,6 +2,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/config/repository/ui_service.dart';
+import 'package:muvam/core/config/routes/app_router.dart';
+import 'package:muvam/core/config/theme/app_theme.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/services/biometric_auth_service.dart';
 import 'package:muvam/core/services/call_service.dart';
 import 'package:muvam/core/services/fcm_token_service.dart';
@@ -14,24 +18,20 @@ import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/auth/data/providers/%20delete_account_provider.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
 import 'package:muvam/features/chat/data/providers/chat_provider.dart';
-import 'package:muvam/features/chat/presentation/screens/call_screen.dart';
 import 'package:muvam/features/profile/data/providers/profile_provider.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:muvam/features/profile/presentation/screens/biometric_lock_screen.dart';
 import 'package:muvam/features/promo/data/providers/promo_code_provider.dart';
 import 'package:muvam/features/referral/data/providers/referral_provider.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/shared/presentation/screens/network_banner.dart';
-import 'package:muvam/shared/presentation/screens/splash_screen.dart';
-import 'package:muvam/shared/providers/connectivity_provider.dart';
-import 'package:muvam/shared/providers/location_provider.dart';
-import 'package:muvam/shared/providers/websocket_provider.dart';
-import 'package:muvam/shared/presentation/widgets/connectivity_wrapper.dart';
+import 'package:muvam/layouts/providers/connectivity_provider.dart';
+import 'package:muvam/layouts/providers/location_provider.dart';
+import 'package:muvam/layouts/providers/websocket_provider.dart';
+import 'package:muvam/layouts/presentation/widgets/connectivity_wrapper.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
   await Firebase.initializeApp();
   AppLogger.log('Firebase initialized', tag: 'MAIN');
@@ -41,17 +41,15 @@ Future<void> main() async {
 
   EnhancedNotificationService.initEnhancedNotifications();
 
-  // CRITICAL: Set up WebSocket call handler BEFORE running app
-  _setupGlobalWebSocketHandlerSync();
+  _setupGlobalWebSocketHandler();
 
   runApp(const MyApp());
 }
 
-void _setupGlobalWebSocketHandlerSync() {
+void _setupGlobalWebSocketHandler() {
   final webSocket = WebSocketService.instance;
 
-  AppLogger.log('DRIVER: Setting up global call handler', tag: 'MAIN_SETUP');
-  AppLogger.log('═══════════════════════════════════════', tag: 'MAIN_SETUP');
+  AppLogger.log('Setting up global call handler', tag: 'MAIN_SETUP');
 
   AppLogger.log(
     'Handler before setup: ${webSocket.onIncomingCall != null}',
@@ -59,28 +57,17 @@ void _setupGlobalWebSocketHandlerSync() {
   );
 
   webSocket.addIncomingCallListener((callData) {
-    AppLogger.log(
-      '══════════════════════════════════',
-      tag: 'DRIVER_MAIN_CALL',
-    );
-    AppLogger.log(
-      'DRIVER: INCOMING CALL IN MAIN.DART',
-      tag: 'DRIVER_MAIN_CALL',
-    );
-    AppLogger.log(
-      '══════════════════════════════════',
-      tag: 'DRIVER_MAIN_CALL',
-    );
-    AppLogger.log('Raw call data: $callData', tag: 'DRIVER_MAIN_CALL');
+    AppLogger.log('Incoming call received in main.dart', tag: 'MAIN_CALL');
+    AppLogger.log('Raw call data: $callData', tag: 'MAIN_CALL');
 
     final callType = callData['type'];
     final messageData = callData['data'];
 
-    AppLogger.log('Call type: $callType', tag: 'DRIVER_MAIN_CALL');
-    AppLogger.log('Message data: $messageData', tag: 'DRIVER_MAIN_CALL');
+    AppLogger.log('Call type: $callType', tag: 'MAIN_CALL');
+    AppLogger.log('Message data: $messageData', tag: 'MAIN_CALL');
 
     if (messageData == null) {
-      AppLogger.log('No data in call message!', tag: 'DRIVER_MAIN_CALL');
+      AppLogger.log('No data in call message', tag: 'MAIN_CALL');
       return;
     }
 
@@ -89,57 +76,46 @@ void _setupGlobalWebSocketHandlerSync() {
     final rideId = messageData['ride_id'] ?? 0;
     final recipientId = messageData['recipient_id'];
 
-    AppLogger.log('Session ID: $sessionId', tag: 'DRIVER_MAIN_CALL');
-    AppLogger.log('Caller Name: $callerName', tag: 'DRIVER_MAIN_CALL');
-    AppLogger.log('Ride ID: $rideId', tag: 'DRIVER_MAIN_CALL');
-    AppLogger.log('Recipient ID: $recipientId', tag: 'DRIVER_MAIN_CALL');
+    AppLogger.log('Session ID: $sessionId', tag: 'MAIN_CALL');
+    AppLogger.log('Caller Name: $callerName', tag: 'MAIN_CALL');
+    AppLogger.log('Ride ID: $rideId', tag: 'MAIN_CALL');
+    AppLogger.log('Recipient ID: $recipientId', tag: 'MAIN_CALL');
 
     if (callType == 'call_initiate') {
-      AppLogger.log(
-        'Showing incoming call overlay...',
-        tag: 'DRIVER_MAIN_CALL',
-      );
+      AppLogger.log('Showing incoming call overlay', tag: 'MAIN_CALL');
 
       try {
         GlobalCallService.instance.showIncomingCall(
           callData: callData,
           onAccept: (sessionId) async {
             AppLogger.log(
-              'DRIVER: Call accepted - Session: $sessionId',
-              tag: 'DRIVER_MAIN_CALL',
-            );
-
-            AppLogger.log(
-              'DRIVER: User accepted call - Session: $sessionId',
-              tag: 'DRIVER_MAIN_CALL',
+              'Call accepted - Session: $sessionId',
+              tag: 'MAIN_CALL',
             );
 
             try {
-              MyApp.navigatorKey.currentState?.push(
-                MaterialPageRoute(
-                  builder: (context) => CallScreen(
-                    driverName: callerName,
-                    rideId: rideId,
-                    sessionId: sessionId,
-                  ),
-                ),
+              MyApp.navigatorKey.currentState?.pushNamed(
+                AppRoutes.call.name,
+                arguments: {
+                  'driverName': callerName,
+                  'rideId': rideId,
+                  'sessionId': sessionId,
+                },
               );
-              AppLogger.log('Navigated to CallScreen', tag: 'DRIVER_MAIN_CALL');
+              AppLogger.log('Navigated to CallScreen', tag: 'MAIN_CALL');
             } catch (e) {
               AppLogger.error(
                 'Failed to navigate to CallScreen',
                 error: e,
-                tag: 'DRIVER_MAIN_CALL',
+                tag: 'MAIN_CALL',
               );
-              return;
             }
           },
           onReject: (sessionId) async {
             AppLogger.log(
-              'DRIVER: Call rejected - Session: $sessionId',
-              tag: 'DRIVER_MAIN_CALL',
+              'Call rejected - Session: $sessionId',
+              tag: 'MAIN_CALL',
             );
-
             try {
               final callService = CallService();
               try {
@@ -148,23 +124,17 @@ void _setupGlobalWebSocketHandlerSync() {
                 callService.dispose();
               }
             } catch (e) {
-              AppLogger.log(
-                'Error rejecting call: $e',
-                tag: 'DRIVER_MAIN_CALL',
-              );
+              AppLogger.log('Error rejecting call: $e', tag: 'MAIN_CALL');
             }
           },
         );
       } catch (e) {
-        AppLogger.log(
-          'Error showing call overlay: $e',
-          tag: 'DRIVER_MAIN_CALL',
-        );
+        AppLogger.log('Error showing call overlay: $e', tag: 'MAIN_CALL');
       }
     } else {
       AppLogger.log(
-        'Call type is $callType (not call_initiate), passing to CallService',
-        tag: 'DRIVER_MAIN_CALL',
+        'Call type is $callType, passing to CallService',
+        tag: 'MAIN_CALL',
       );
 
       if (callType == 'call_offer' || callType == 'call_ice_candidate') {
@@ -179,7 +149,7 @@ void _setupGlobalWebSocketHandlerSync() {
   );
   AppLogger.log('Global call handler setup complete', tag: 'MAIN_SETUP');
   AppLogger.log(
-    'DO NOT connect WebSocket yet - wait for HomeScreen',
+    'Do not connect WebSocket yet - wait for HomeScreen',
     tag: 'MAIN_SETUP',
   );
 }
@@ -196,10 +166,12 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isLocked = false;
+  late final AppRouter _appRouter;
 
   @override
   void initState() {
     super.initState();
+    _appRouter = AppRouter();
     GlobalCallService.instance.initialize(MyApp.navigatorKey);
     WidgetsBinding.instance.addObserver(this);
   }
@@ -225,10 +197,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       AppLogger.log('App going to background, time recorded', tag: 'LIFECYCLE');
     } else if (state == AppLifecycleState.resumed) {
       AppLogger.log('App resumed from background', tag: 'LIFECYCLE');
-
       biometricService.shouldLockApp().then((shouldLock) {
         AppLogger.log('Should lock app: $shouldLock', tag: 'LIFECYCLE');
-
         if (shouldLock && !_isLocked) {
           _isLocked = true;
           _showBiometricLockScreen();
@@ -240,21 +210,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _showBiometricLockScreen() {
     AppLogger.log('Showing biometric lock screen', tag: 'LIFECYCLE');
 
-    MyApp.navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (context) => BiometricLockScreen(
-          onAuthenticated: () {
-            _isLocked = false;
-            Navigator.of(context).pop();
-            AppLogger.log(
-              'Biometric authentication successful',
-              tag: 'LIFECYCLE',
-            );
-          },
-          isLoginScreen: false,
-        ),
-        fullscreenDialog: true,
-      ),
+    MyApp.navigatorKey.currentState?.pushNamed(
+      AppRoutes.biometricLock.name,
+      arguments: {
+        'onAuthenticated': () {
+          _isLocked = false;
+          if (MyApp.navigatorKey.currentState?.canPop() ?? false) {
+            MyApp.navigatorKey.currentState?.pop();
+          }
+          AppLogger.log(
+            'Biometric authentication successful',
+            tag: 'LIFECYCLE',
+          );
+        },
+        'isLoginScreen': false,
+      },
     );
   }
 
@@ -280,15 +250,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ChangeNotifierProvider(create: (_) => ReferralProvider()),
             ChangeNotifierProvider(create: (_) => PromoCodeProvider()),
             ChangeNotifierProvider(create: (_) => DeleteAccountProvider()),
+            ChangeNotifierProvider(create: (_) => UIService()),
           ],
           child: ConnectivityWrapper(
-            child: MaterialApp(
+            child: MaterialApp.router(
               debugShowCheckedModeBanner: false,
               title: 'Muvam',
-              theme: ThemeData(useMaterial3: true),
-              navigatorKey: MyApp.navigatorKey,
-              routes: {'/home': (context) => SplashScreen()},
-              home: NetworkBanner(child: SplashScreen()),
+              theme: lightTheme,
+              routerConfig: _appRouter.routerConfig,
             ),
           ),
         );

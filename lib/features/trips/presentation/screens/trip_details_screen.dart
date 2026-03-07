@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
-import 'package:muvam/features/trips/presentation/screens/edit_prebooking_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 
 class TripDetailsScreen extends StatefulWidget {
@@ -31,26 +34,26 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
   String _formatTime(String dateTimeStr) {
     try {
-      final dateTime = DateTime.parse(dateTimeStr).toLocal();
-      return DateFormat('h:mm a').format(dateTime);
-    } catch (e) {
+      return DateFormat('h:mm a').format(DateTime.parse(dateTimeStr).toLocal());
+    } catch (_) {
       return '';
     }
   }
 
   String _formatDate(String dateTimeStr) {
     try {
-      final dateTime = DateTime.parse(dateTimeStr).toLocal();
-      return DateFormat('MMMM d, yyyy').format(dateTime);
-    } catch (e) {
+      return DateFormat(
+        'MMMM d, yyyy',
+      ).format(DateTime.parse(dateTimeStr).toLocal());
+    } catch (_) {
       return '';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
@@ -68,30 +71,23 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          provider.clearSelectedRide();
-                          Navigator.pop(context);
-                        },
-                        child: Image.asset(
-                          ConstImages.back,
-                          width: 33.w,
-                          height: 33.h,
-                        ),
-                      ),
-                    ],
+                  GestureDetector(
+                    onTap: () {
+                      provider.clearSelectedRide();
+                      context.pop();
+                    },
+                    child: Image.asset(
+                      ConstImages.back,
+                      width: 33.w,
+                      height: 33.h,
+                    ),
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'Trip scheduled',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.headlineSmall24(
+                    context,
+                    text: 'Trip scheduled',
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                   SizedBox(height: 30.h),
                   Row(
@@ -99,33 +95,26 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         width: 8.w,
                         height: 8.h,
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
+                        decoration: const BoxDecoration(
+                          color: AppColors.kMainColor,
                           shape: BoxShape.circle,
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      Text(
-                        'Pick up',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF9E9E9E),
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Pick up',
+                        isTextWidget: true,
+                        color: const Color(0xFF9E9E9E),
                       ),
                     ],
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    ride.pickupAddress,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: ride.pickupAddress,
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                   SizedBox(height: 15.h),
                   Row(
@@ -150,64 +139,49 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       Container(
                         width: 8.w,
                         height: 8.h,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      Text(
-                        'Destination',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF9E9E9E),
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Destination',
+                        isTextWidget: true,
+                        color: const Color(0xFF9E9E9E),
                       ),
                     ],
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    ride.destAddress,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: ride.destAddress,
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'When',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF9E9E9E),
-                    ),
+                  MuvamTexts.bodySmall12(
+                    context,
+                    text: 'When',
+                    isTextWidget: true,
+                    color: const Color(0xFF9E9E9E),
                   ),
                   SizedBox(height: 8.h),
                   Row(
                     children: [
-                      Text(
-                        _formatDate(ride.createdAt),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.titleMedium18(
+                        context,
+                        text: _formatDate(ride.createdAt),
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w500,
                       ),
-                      Text(
-                        _formatTime(ride.createdAt),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
+                      SizedBox(width: 8.w),
+                      MuvamTexts.bodyLarge16(
+                        context,
+                        text: _formatTime(ride.createdAt),
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w500,
                       ),
                     ],
                   ),
@@ -220,24 +194,18 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Payment method',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xFF9E9E9E),
-                              ),
+                            MuvamTexts.bodySmall12(
+                              context,
+                              text: 'Payment method',
+                              isTextWidget: true,
+                              color: const Color(0xFF9E9E9E),
                             ),
                             SizedBox(height: 8.h),
-                            Text(
-                              ride.paymentMethod,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
+                            MuvamTexts.bodyLarge16(
+                              context,
+                              text: ride.paymentMethod,
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w600,
                             ),
                           ],
                         ),
@@ -252,24 +220,18 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Vehicle',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xFF9E9E9E),
-                              ),
+                            MuvamTexts.bodySmall12(
+                              context,
+                              text: 'Vehicle',
+                              isTextWidget: true,
+                              color: const Color(0xFF9E9E9E),
                             ),
                             SizedBox(height: 8.h),
-                            Text(
-                              ride.vehicleType,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
+                            MuvamTexts.bodyLarge16(
+                              context,
+                              text: ride.vehicleType,
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w600,
                             ),
                           ],
                         ),
@@ -279,55 +241,44 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   SizedBox(height: 10.h),
                   Divider(thickness: 1, color: Colors.grey.shade300),
                   SizedBox(height: 10.h),
-                  Text(
-                    'Price',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF9E9E9E),
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: 'Price',
+                    isTextWidget: true,
+                    color: const Color(0xFF9E9E9E),
+                    fontWeight: FontWeight.w500,
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    provider.formatPrice(ride.price),
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.headlineMedium28(
+                    context,
+                    text: provider.formatPrice(ride.price),
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Spacer(),
+                  const Spacer(),
                   GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            EditPrebookingScreen(
-              ride: ride,
-              initialScheduledAt: ride.createdAt,
-            ),
-      ),
-    );
-  
+                    onTap: () {
+                      context.pushNamed(
+                        AppRoutes.editPrebooking.name,
+                        extra: {
+                          'ride': ride,
+                          'initialScheduledAt': ride.createdAt,
+                        },
+                      );
                     },
                     child: Container(
                       width: 353.w,
-                      height: 48.h,
+                      height: 47.h,
                       decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
+                        color: AppColors.kMainColor,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Center(
-                        child: Text(
-                          'Edit prebooking',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Edit prebooking',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                       ),
                     ),

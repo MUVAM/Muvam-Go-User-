@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/services/fcm_token_service.dart';
 import 'package:muvam/core/services/firebase_config_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
@@ -819,12 +820,10 @@ class EnhancedNotificationService {
       AppLogger.log('Notification tapped - app was in background');
       await triggerVibration();
 
-      // Navigate to home screen
       MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        '/home',
+        AppRoutes.home.name,
         (route) => false,
       );
-
       if (message.data['postId'] != null) {
         await _handleNotificationTap('postId:${message.data['postId']}');
       }
@@ -857,7 +856,7 @@ class EnhancedNotificationService {
         await Future.delayed(Duration(seconds: 1));
 
         MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-          '/home',
+          AppRoutes.home.name,
           (route) => false,
         );
 

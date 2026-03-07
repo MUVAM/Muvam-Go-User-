@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class ContactItemWidget extends StatelessWidget {
   final IconData icon;
@@ -23,36 +24,31 @@ class ContactItemWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.kWhiteColor,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: Colors.grey.shade200),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Color(ConstColors.mainColor), size: 24.sp),
+            Icon(icon, color: AppColors.kMainColor, size: 24.sp),
             SizedBox(width: 16.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
+                  MuvamTexts.bodySmall12(
+                    context,
+                    text: label,
+                    isTextWidget: true,
+                    color: Colors.grey[600]!,
+                    fontWeight: FontWeight.w500,
                   ),
                   SizedBox(height: 2.h),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyMedium14(
+                    context,
+                    text: value,
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                 ],
               ),

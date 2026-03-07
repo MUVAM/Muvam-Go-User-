@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:muvam/features/activities/presentation/widgets/history_item.dart';
 import 'package:provider/provider.dart';
@@ -15,8 +16,9 @@ class HistoryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     String formatTime(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('h:mm a').format(dateTime);
+        return DateFormat(
+          'h:mm a',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -24,8 +26,9 @@ class HistoryTab extends StatelessWidget {
 
     String formatDate(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('MMMM d, yyyy').format(dateTime);
+        return DateFormat(
+          'MMMM d, yyyy',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -35,9 +38,7 @@ class HistoryTab extends StatelessWidget {
       builder: (context, provider, child) {
         if (provider.isLoading && !provider.hasData) {
           return Center(
-            child: CircularProgressIndicator(
-              color: Color(ConstColors.mainColor),
-            ),
+            child: CircularProgressIndicator(color: AppColors.kMainColor),
           );
         }
 
@@ -48,20 +49,17 @@ class HistoryTab extends StatelessWidget {
               children: [
                 Icon(Icons.error_outline, size: 48.sp, color: Colors.red),
                 SizedBox(height: 16.h),
-                Text(
-                  provider.errorMessage ?? 'Failed to load rides',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text: provider.errorMessage ?? 'Failed to load rides',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  center: true,
                 ),
                 SizedBox(height: 8.h),
                 TextButton(
                   onPressed: () => provider.fetchRides(),
-                  child: Text('Retry'),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
@@ -82,15 +80,13 @@ class HistoryTab extends StatelessWidget {
                   height: 120.h,
                 ),
                 SizedBox(height: 16.h),
-                Text(
-                  'Nothing here for now. Ready to take \nyour fast ride',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text: 'Nothing here for now. Ready to take \nyour fast ride',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey,
+                  center: true,
                 ),
                 if (provider.isRefreshing) ...[
                   SizedBox(height: 16.h),
@@ -99,7 +95,7 @@ class HistoryTab extends StatelessWidget {
                     height: 20.h,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(ConstColors.mainColor),
+                      color: AppColors.kMainColor,
                     ),
                   ),
                 ],
@@ -109,7 +105,7 @@ class HistoryTab extends StatelessWidget {
         }
 
         return ListView.builder(
-          physics: PageScrollPhysics(),
+          physics: const PageScrollPhysics(),
           shrinkWrap: true,
           itemCount: historyRides.length,
           itemBuilder: (context, index) {

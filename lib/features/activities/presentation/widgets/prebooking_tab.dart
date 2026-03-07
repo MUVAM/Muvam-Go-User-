@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
-import 'package:muvam/features/trips/presentation/screens/trip_details_screen.dart';
 import 'package:provider/provider.dart';
 
 class PrebookingTab extends StatelessWidget {
@@ -16,8 +18,9 @@ class PrebookingTab extends StatelessWidget {
   Widget build(BuildContext context) {
     String formatTime(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('h:mm a').format(dateTime);
+        return DateFormat(
+          'h:mm a',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -25,8 +28,9 @@ class PrebookingTab extends StatelessWidget {
 
     String formatDate(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('MMMM d, yyyy').format(dateTime);
+        return DateFormat(
+          'MMMM d, yyyy',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -36,9 +40,7 @@ class PrebookingTab extends StatelessWidget {
       builder: (context, provider, child) {
         if (provider.isLoading && !provider.hasData) {
           return Center(
-            child: CircularProgressIndicator(
-              color: Color(ConstColors.mainColor),
-            ),
+            child: CircularProgressIndicator(color: AppColors.kMainColor),
           );
         }
 
@@ -49,20 +51,17 @@ class PrebookingTab extends StatelessWidget {
               children: [
                 Icon(Icons.error_outline, size: 48.sp, color: Colors.red),
                 SizedBox(height: 16.h),
-                Text(
-                  provider.errorMessage ?? 'Failed to load rides',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text: provider.errorMessage ?? 'Failed to load rides',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  center: true,
                 ),
                 SizedBox(height: 8.h),
                 TextButton(
                   onPressed: () => provider.fetchRides(),
-                  child: Text('Retry'),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
@@ -84,15 +83,14 @@ class PrebookingTab extends StatelessWidget {
                   height: 120.h,
                 ),
                 SizedBox(height: 16.h),
-                Text(
-                  'No prebooked rides yet. Plan ahead \nand schedule your next trip',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text:
+                      'No prebooked rides yet. Plan ahead \nand schedule your next trip',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey,
+                  center: true,
                 ),
                 if (provider.isRefreshing) ...[
                   SizedBox(height: 16.h),
@@ -101,7 +99,7 @@ class PrebookingTab extends StatelessWidget {
                     height: 20.h,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(ConstColors.mainColor),
+                      color: AppColors.kMainColor,
                     ),
                   ),
                 ],
@@ -111,7 +109,7 @@ class PrebookingTab extends StatelessWidget {
         }
 
         return ListView.builder(
-          physics: PageScrollPhysics(),
+          physics: const PageScrollPhysics(),
           shrinkWrap: true,
           itemCount: prebookedRides.length,
           itemBuilder: (context, index) {
@@ -120,20 +118,18 @@ class PrebookingTab extends StatelessWidget {
               padding: EdgeInsets.only(bottom: 15.h),
               child: GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TripDetailsScreen(rideId: ride.id),
-                    ),
+                  context.pushNamed(
+                    AppRoutes.tripDetails.name,
+                    extra: {'rideId': ride.id},
                   );
                 },
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.kWhiteColor,
                     borderRadius: BorderRadius.circular(5.r),
                     border: Border.all(
-                      color: Color(0xFFB1B1B1).withOpacity(0.5),
+                      color: const Color(0xFFB1B1B1).withOpacity(0.5),
                       width: 0.5,
                     ),
                   ),
@@ -148,74 +144,52 @@ class PrebookingTab extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                formatTime(ride.createdAt),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12.sp,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodySmall12(
+                                context,
+                                text: formatTime(ride.createdAt),
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
                               ),
-                              Text(
-                                formatDate(ride.createdAt),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16.sp,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodyLarge16(
+                                context,
+                                text: formatDate(ride.createdAt),
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w600,
                               ),
                             ],
                           ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                'Trip Id',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12.sp,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodySmall12(
+                                context,
+                                text: 'Trip Id',
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
                               ),
-                              Text(
-                                '#${ride.id}',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16.sp,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodyLarge16(
+                                context,
+                                text: '#${ride.id}',
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w600,
                               ),
                             ],
                           ),
                         ],
                       ),
                       SizedBox(height: 20.h),
-                      Text(
-                        'Pick up',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Pick up',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w500,
                       ),
                       SizedBox(height: 5.h),
-                      Text(
-                        ride.pickupAddress,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14.sp,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.bodyMedium14(
+                        context,
+                        text: ride.pickupAddress,
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -225,31 +199,23 @@ class PrebookingTab extends StatelessWidget {
                         child: Container(
                           width: 30.w,
                           height: 2.h,
-                          decoration: BoxDecoration(
-                            color: Color(ConstColors.mainColor),
-                          ),
+                          color: AppColors.kMainColor,
                           child: CustomPaint(painter: ArrowPainter()),
                         ),
                       ),
                       SizedBox(height: 15.h),
-                      Text(
-                        'Destination',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12.sp,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Destination',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w500,
                       ),
                       SizedBox(height: 5.h),
-                      Text(
-                        ride.destAddress,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14.sp,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.bodyMedium14(
+                        context,
+                        text: ride.destAddress,
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

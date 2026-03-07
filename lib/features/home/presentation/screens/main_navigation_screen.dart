@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/core/utils/extension.dart';
 import 'package:muvam/features/activities/presentation/screens/activities_screen.dart';
 import 'package:muvam/features/home/presentation/screens/home_screen.dart';
 import 'package:muvam/features/home/presentation/widgets/app_drawer.dart';
-import 'package:muvam/features/services/presentation/screens/services_screen.dart';
+import 'package:muvam/features/services/presentation/services_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final int initialIndex;
@@ -55,18 +56,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               message: 'Press back again to exit',
             );
           } else {
-            Navigator.of(context).pop();
+            context.pop();
           }
         }
       },
       child: Scaffold(
         key: _scaffoldKey,
-        drawer: const AppDrawer(),
+        drawer: AppDrawer(
+          onNavigateToTab: (index) {
+            _scaffoldKey.currentState?.closeDrawer();
+            setState(() => _currentIndex = index);
+          },
+        ),
         body: IndexedStack(index: _currentIndex, children: _screens),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
-          backgroundColor: Colors.white,
-          selectedItemColor: Color(ConstColors.mainColor),
+          backgroundColor: AppColors.kWhiteColor,
+          selectedItemColor: AppColors.kMainColor,
           unselectedItemColor: Colors.grey,
           onTap: (index) {
             setState(() {
@@ -79,9 +85,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ConstImages.homeIcon,
                 width: 24.w,
                 height: 24.h,
-                color: _currentIndex == 0
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+                color: _currentIndex == 0 ? AppColors.kMainColor : Colors.grey,
               ),
               label: 'Home',
             ),
@@ -90,9 +94,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ConstImages.services,
                 width: 24.w,
                 height: 24.h,
-                color: _currentIndex == 1
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+                color: _currentIndex == 1 ? AppColors.kMainColor : Colors.grey,
               ),
               label: 'Services',
             ),
@@ -101,9 +103,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ConstImages.activities,
                 width: 24.w,
                 height: 24.h,
-                color: _currentIndex == 2
-                    ? Color(ConstColors.mainColor)
-                    : Colors.grey,
+                color: _currentIndex == 2 ? AppColors.kMainColor : Colors.grey,
               ),
               label: 'Activities',
             ),

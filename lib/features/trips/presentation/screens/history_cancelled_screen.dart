@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:provider/provider.dart';
 
 class HistoryCancelledScreen extends StatefulWidget {
   final int rideId;
@@ -48,8 +51,8 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Consumer<ActivitiesTabsProvider>(
           builder: (context, provider, child) {
@@ -72,7 +75,7 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                       GestureDetector(
                         onTap: () {
                           provider.clearSelectedRide();
-                          Navigator.pop(context);
+                          context.pop();
                         },
                         child: Image.asset(
                           ConstImages.back,
@@ -83,33 +86,22 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                     ],
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'Booking id: ${ride.id}',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleLarge22(
+                    context,
+                    text: 'Booking id: ${ride.id}',
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 12.h),
-                  Text(
-                    _formatTime(ride.createdAt),
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: _formatTime(ride.createdAt),
+                    isTextWidget: true,
                   ),
-                  Text(
-                    _formatDate(ride.createdAt),
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: _formatDate(ride.createdAt),
+                    fontWeight: FontWeight.w400,
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 30.h),
                   Row(
@@ -117,33 +109,26 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                       Container(
                         width: 8.w,
                         height: 8.h,
-                        decoration: BoxDecoration(
-                          color: Color(ConstColors.mainColor),
+                        decoration: const BoxDecoration(
+                          color: AppColors.kMainColor,
                           shape: BoxShape.circle,
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      Text(
-                        'Pick up',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF9E9E9E),
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Pick up',
+                        color: const Color(0xFF9E9E9E),
+                        isTextWidget: true,
                       ),
                     ],
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    ride.pickupAddress,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: ride.pickupAddress,
+                    fontWeight: FontWeight.w600,
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 15.h),
                   Padding(
@@ -171,52 +156,43 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                       Container(
                         width: 8.w,
                         height: 8.h,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      Text(
-                        'Destination',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF9E9E9E),
-                        ),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text: 'Destination',
+                        color: const Color(0xFF9E9E9E),
+                        isTextWidget: true,
                       ),
                     ],
                   ),
                   SizedBox(height: 8.h),
-                  Text(
-                    ride.destAddress,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: ride.destAddress,
+                    fontWeight: FontWeight.w600,
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 16.h),
                   Divider(thickness: 1, color: Colors.grey.shade300),
                   SizedBox(height: 16.h),
-                  Text(
-                    'Payment method',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF9E9E9E),
-                    ),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: 'Payment method',
+                    color: const Color(0xFF9E9E9E),
+                    fontWeight: FontWeight.w500,
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 15.h),
                   Container(
                     width: double.infinity,
                     height: 70.h,
                     decoration: BoxDecoration(
-                      color: Color(0xFFF5F5F5),
+                      color: const Color(0xFFF5F5F5),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 15.w),
@@ -229,7 +205,7 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                               padding: EdgeInsets.all(4.sp),
                               width: 50.w,
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppColors.kWhiteColor,
                                 borderRadius: BorderRadius.circular(4.r),
                               ),
                               child: SvgPicture.asset(
@@ -239,47 +215,35 @@ class _HistoryCancelledScreenState extends State<HistoryCancelledScreen> {
                               ),
                             ),
                             SizedBox(width: 12.w),
-                            Text(
-                              ride.paymentMethod,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.black,
-                              ),
+                            MuvamTexts.bodyLarge16(
+                              context,
+                              text: ride.paymentMethod,
+                              isTextWidget: true,
                             ),
                           ],
                         ),
-                        Text(
-                          'Cancelled',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.red,
-                          ),
+                        MuvamTexts.titleMedium18(
+                          context,
+                          text: 'Cancelled',
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                          isTextWidget: true,
                         ),
                       ],
                     ),
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'Service type',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF9E9E9E),
-                    ),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: 'Service type',
+                    color: const Color(0xFF9E9E9E),
+                    fontWeight: FontWeight.w500,
+                    isTextWidget: true,
                   ),
-                  Text(
-                    ride.serviceType,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleLarge22(
+                    context,
+                    text: ride.serviceType,
+                    isTextWidget: true,
                   ),
                 ],
               ),

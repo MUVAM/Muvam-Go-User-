@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class AppLockRadioOption extends StatelessWidget {
   final String title;
@@ -34,7 +35,7 @@ class AppLockRadioOption extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
-                      ? const Color(ConstColors.mainColor)
+                      ? AppColors.kMainColor
                       : Colors.grey.shade400,
                   width: 2,
                 ),
@@ -44,9 +45,9 @@ class AppLockRadioOption extends StatelessWidget {
                       child: Container(
                         width: 10.w,
                         height: 10.h,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(ConstColors.mainColor),
+                          color: AppColors.kMainColor,
                         ),
                       ),
                     )
@@ -54,14 +55,10 @@ class AppLockRadioOption extends StatelessWidget {
             ),
             SizedBox(width: 12.w),
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                ),
+              child: MuvamTexts.bodyMedium14(
+                context,
+                text: title,
+                isTextWidget: true,
               ),
             ),
           ],

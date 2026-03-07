@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/utils/extension.dart';
 import 'package:muvam/features/support/widgets/contact_item_widget.dart';
 import 'package:muvam/features/support/widgets/feature_item_widget.dart';
+import 'package:muvam/features/support/widgets/section_title.dart';
+import 'package:muvam/features/support/widgets/paragraph.dart';
 import 'package:muvam/features/support/widgets/social_button_widget.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutUsScreen extends StatelessWidget {
@@ -12,8 +17,8 @@ class AboutUsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -23,11 +28,11 @@ class AboutUsScreen extends StatelessWidget {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       ConstImages.back,
-                      width: 33.w,
-                      height: 33.h,
+                      width: 35.w,
+                      height: 35.h,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -97,47 +102,49 @@ class AboutUsScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 30.h),
-                    _buildSectionTitle('Our Story'),
+                    const SectionTitle(title: 'Our Story'),
                     SizedBox(height: 12.h),
-                    _buildParagraph(
-                      'Muvam is a leading ride-hailing service committed to providing safe, reliable, and affordable transportation solutions. Founded with a vision to revolutionize urban mobility, we connect riders with professional drivers at the tap of a button.',
+                    const Paragraph(
+                      text:
+                          'Muvam is a leading ride-hailing service committed to providing safe, reliable, and affordable transportation solutions. Founded with a vision to revolutionize urban mobility, we connect riders with professional drivers at the tap of a button.',
                     ),
                     SizedBox(height: 20.h),
-                    _buildSectionTitle('Our Mission'),
+                    const SectionTitle(title: 'Our Mission'),
                     SizedBox(height: 12.h),
-                    _buildParagraph(
-                      'To make transportation accessible, convenient, and sustainable for everyone. We strive to create a seamless experience that empowers both riders and drivers while contributing to smarter, cleaner cities.',
+                    const Paragraph(
+                      text:
+                          'To make transportation accessible, convenient, and sustainable for everyone. We strive to create a seamless experience that empowers both riders and drivers while contributing to smarter, cleaner cities.',
                     ),
                     SizedBox(height: 20.h),
-                    _buildSectionTitle('Why Choose Muvam?'),
+                    const SectionTitle(title: 'Why Choose Muvam?'),
                     SizedBox(height: 12.h),
-                    FeatureItemWidget(
+                    const FeatureItemWidget(
                       icon: Icons.verified_user,
                       title: 'Safety First',
                       description:
                           'All drivers are thoroughly vetted and rides are insured',
                     ),
                     SizedBox(height: 12.h),
-                    FeatureItemWidget(
+                    const FeatureItemWidget(
                       icon: Icons.attach_money,
                       title: 'Transparent Pricing',
                       description:
                           'No hidden fees, see your fare before you ride',
                     ),
                     SizedBox(height: 12.h),
-                    FeatureItemWidget(
+                    const FeatureItemWidget(
                       icon: Icons.support_agent,
                       title: '24/7 Support',
                       description: 'Our team is always here to help you',
                     ),
                     SizedBox(height: 12.h),
-                    FeatureItemWidget(
+                    const FeatureItemWidget(
                       icon: Icons.eco,
                       title: 'Eco-Friendly',
                       description: 'Committed to reducing carbon emissions',
                     ),
                     SizedBox(height: 30.h),
-                    _buildSectionTitle('Get in Touch'),
+                    const SectionTitle(title: 'Get in Touch'),
                     SizedBox(height: 12.h),
                     ContactItemWidget(
                       icon: Icons.email,
@@ -160,7 +167,7 @@ class AboutUsScreen extends StatelessWidget {
                       onTap: () => _launchWebsite('https://www.muvam.com'),
                     ),
                     SizedBox(height: 30.h),
-                    _buildSectionTitle('Follow Us'),
+                    const SectionTitle(title: 'Follow Us'),
                     SizedBox(height: 16.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -210,32 +217,6 @@ class AboutUsScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 20.sp,
-        fontWeight: FontWeight.w700,
-        color: Colors.black,
-      ),
-    );
-  }
-
-  Widget _buildParagraph(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 14.sp,
-        fontWeight: FontWeight.w400,
-        color: Colors.grey[700],
-        height: 1.6,
-      ),
-      textAlign: TextAlign.justify,
     );
   }
 

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 
 class FaqScreen extends StatefulWidget {
   const FaqScreen({super.key});
@@ -68,8 +72,8 @@ class _FaqScreenState extends State<FaqScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -79,7 +83,7 @@ class _FaqScreenState extends State<FaqScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       ConstImages.back,
                       width: 33.w,
@@ -89,14 +93,11 @@ class _FaqScreenState extends State<FaqScreen> {
                   ),
                   Expanded(
                     child: Center(
-                      child: Text(
-                        'FAQ',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
+                      child: MuvamTexts.titleMedium18(
+                        context,
+                        text: 'FAQ',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -115,19 +116,19 @@ class _FaqScreenState extends State<FaqScreen> {
                   final isExpanded = _expandedIndex == index;
                   return Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.kWhiteColor,
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
                         color: isExpanded
-                            ? Color(ConstColors.mainColor)
+                            ? AppColors.kMainColor
                             : Colors.grey.shade200,
                         width: isExpanded ? 2 : 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: AppColors.kBlackColor.withOpacity(0.05),
                           blurRadius: 8,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -149,36 +150,29 @@ class _FaqScreenState extends State<FaqScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        faq['question']!,
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 15.sp,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                      child: MuvamTexts.bodyLarge16(
+                                        context,
+                                        text: faq['question']!,
+                                        isTextWidget: true,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     Icon(
                                       isExpanded
                                           ? Icons.keyboard_arrow_up
                                           : Icons.keyboard_arrow_down,
-                                      color: Color(ConstColors.mainColor),
+                                      color: AppColors.kMainColor,
                                       size: 24.sp,
                                     ),
                                   ],
                                 ),
                                 if (isExpanded) ...[
                                   SizedBox(height: 12.h),
-                                  Text(
-                                    faq['answer']!,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w400,
-                                      color: Colors.grey[700],
-                                      height: 1.5,
-                                    ),
+                                  MuvamTexts.bodyMedium14(
+                                    context,
+                                    text: faq['answer']!,
+                                    isTextWidget: true,
+                                    color: Colors.grey[700]!,
                                   ),
                                 ],
                               ],
@@ -191,7 +185,7 @@ class _FaqScreenState extends State<FaqScreen> {
                 },
               ),
             ),
-            SizedBox(height: 20.h),
+            DeviceBottomPadding(),
           ],
         ),
       ),

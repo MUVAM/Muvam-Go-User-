@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/core/utils/extension.dart';
 
 class FundWalletSheet {
   static void show(BuildContext context) {
@@ -15,7 +17,7 @@ class FundWalletSheet {
       builder: (context) => Container(
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.kWhiteColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
         child: Column(
@@ -27,7 +29,7 @@ class FundWalletSheet {
                 height: 5.h,
                 margin: EdgeInsets.only(bottom: 20.h),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.kGreyColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2.5.r),
                 ),
               ),
@@ -37,24 +39,17 @@ class FundWalletSheet {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Fund wallet',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleLarge22(
+                    context,
+                    text: 'Fund wallet',
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.kBlackColor,
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'How much do you want to add?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyMedium14(
+                    context,
+                    text: 'How much do you want to add?',
+                    color: AppColors.kBlackColor,
                   ),
                   SizedBox(height: 15.h),
                   Container(
@@ -63,7 +58,7 @@ class FundWalletSheet {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8.r),
                       border: Border.all(
-                        color: Colors.grey.shade300,
+                        color: AppColors.kGreyColor.withOpacity(0.3),
                         width: 0.4,
                       ),
                     ),
@@ -75,43 +70,38 @@ class FundWalletSheet {
                         border: InputBorder.none,
                         hintText: 'Enter amount',
                         prefixText: '₦ ',
-                        prefixStyle: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black,
-                        ),
+                        prefixStyle: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.kBlackColor,
+                            ),
                         contentPadding: EdgeInsets.zero,
                         isDense: true,
                       ),
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w400,
-                        color: Colors.black,
+                        color: AppColors.kBlackColor,
                       ),
                     ),
                   ),
                   SizedBox(height: 30.h),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context);
+                      context.pop();
                     },
                     child: Container(
                       width: 353.w,
                       height: 47.h,
                       decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
+                        color: AppColors.kMainColor,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Center(
-                        child: Text(
-                          'Continue',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Continue',
+                          color: AppColors.kWhiteColor,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),

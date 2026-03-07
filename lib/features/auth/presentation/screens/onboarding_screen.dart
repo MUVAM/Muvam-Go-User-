@@ -1,15 +1,20 @@
+import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:country_picker/country_picker.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
+import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/core/utils/extension.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:muvam/core/constants/colors.dart';
-import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
-import 'package:muvam/features/auth/presentation/screens/otp_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,7 +29,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController phoneController = TextEditingController();
 
   bool _isValidPhone() {
-    String phone = phoneController.text.trim();
+    final phone = phoneController.text.trim();
     return phone.length == 10 || (phone.length == 11 && phone.startsWith('0'));
   }
 
@@ -36,9 +41,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    phoneController.dispose();
+    super.dispose();
+  }
+
   void _showCustomCountryPicker(BuildContext context) {
-    final TextEditingController searchController = TextEditingController();
-    List<Country> allCountries = CountryService().getAll();
+    final searchController = TextEditingController();
+    final List<Country> allCountries = CountryService().getAll();
     List<Country> filteredCountries = allCountries;
 
     showModalBottomSheet(
@@ -49,9 +60,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.9,
+              height: context.screenHeight * 0.9,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.kWhiteColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
               ),
               child: Column(
@@ -95,15 +106,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
-                          borderSide: BorderSide(color: Colors.grey, width: 1),
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
-                          borderSide: BorderSide(color: Colors.grey, width: 1),
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.r),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.grey,
                             width: 1.5,
                           ),
@@ -115,19 +132,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                       onChanged: (value) {
                         setModalState(() {
-                          if (value.isEmpty) {
-                            filteredCountries = allCountries;
-                          } else {
-                            filteredCountries = allCountries
-                                .where(
-                                  (country) =>
-                                      country.name.toLowerCase().contains(
-                                        value.toLowerCase(),
-                                      ) ||
-                                      country.phoneCode.contains(value),
-                                )
-                                .toList();
-                          }
+                          filteredCountries = value.isEmpty
+                              ? allCountries
+                              : allCountries
+                                    .where(
+                                      (c) =>
+                                          c.name.toLowerCase().contains(
+                                            value.toLowerCase(),
+                                          ) ||
+                                          c.phoneCode.contains(value),
+                                    )
+                                    .toList();
                         });
                       },
                     ),
@@ -146,14 +161,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         final country = filteredCountries[index];
                         final isSelected =
                             countryCode == '+${country.phoneCode}';
-
                         return InkWell(
                           onTap: () {
                             setState(() {
                               countryCode = '+${country.phoneCode}';
                               countryFlag = country.flagEmoji;
                             });
-                            Navigator.pop(context);
+                            GoRouter.of(context).pop();
                           },
                           child: Container(
                             padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -165,30 +179,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 ),
                                 SizedBox(width: 16.w),
                                 Expanded(
-                                  child: Text(
-                                    country.name,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w400,
-                                      color: Colors.black,
-                                    ),
+                                  child: MuvamTexts.bodyLarge16(
+                                    context,
+                                    text: country.name,
                                   ),
                                 ),
-                                Text(
-                                  '+${country.phoneCode}',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.grey[600],
-                                  ),
+                                MuvamTexts.bodyLarge16(
+                                  context,
+                                  text: '+${country.phoneCode}',
+                                  color: Colors.grey[600],
                                 ),
                                 if (isSelected) ...[
                                   SizedBox(width: 12.w),
                                   Icon(
                                     Icons.check,
-                                    color: Color(ConstColors.mainColor),
+                                    color: AppColors.kMainColor,
                                     size: 20.sp,
                                   ),
                                 ],
@@ -211,8 +216,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -227,26 +232,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => GoRouterHelper(context).pop(),
                     child: Icon(
                       Icons.arrow_back,
                       size: 24.sp,
-                      color: Colors.black,
+                      color: AppColors.kBlackColor,
                     ),
                   ),
-                  Spacer(),
-                  const Text(
-                    'Enter your phone number',
-                    style: ConstTextStyles.boldTitle,
+                  const Spacer(),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: 'Enter your phone number',
+                    isTextWidget: true,
                   ),
-                  Spacer(),
+                  const Spacer(),
                 ],
               ),
             ),
             SizedBox(height: 8.h),
-            const Text(
-              'We will send you a validation code',
-              style: ConstTextStyles.lightSubtitle,
+            MuvamTexts.bodySmall12(
+              context,
+              text: 'We will send you a validation code',
+              center: true,
+              isTextWidget: true,
             ),
             SizedBox(height: 30.h),
             Padding(
@@ -255,42 +263,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 height: 50.h,
                 decoration: BoxDecoration(
-                  color: Color(ConstColors.fieldColor).withValues(alpha: 0.18),
+                  color: AppColors.kFieldColor.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     GestureDetector(
-                      onTap: () {
-                        _showCustomCountryPicker(context);
-                      },
+                      onTap: () => _showCustomCountryPicker(context),
                       child: Container(
-                        width: 100.w,
-                        height: 42.h,
-                        margin: EdgeInsets.only(left: 4.w),
+                        height: 45.h,
+                        margin: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 4.h,
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 12.w),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10.r),
+                          color: AppColors.kWhiteColor,
+                          borderRadius: BorderRadius.circular(14.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               countryFlag,
-                              style: TextStyle(fontSize: 14.sp),
+                              style: TextStyle(fontSize: 16.sp),
                             ),
-                            SizedBox(width: 2.w),
-                            Flexible(
-                              child: Text(
-                                countryCode,
-                                style: ConstTextStyles.inputText.copyWith(
-                                  fontSize: 14.sp,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                            SizedBox(width: 6.w),
+                            MuvamTexts.bodyMedium14(
+                              context,
+                              text: countryCode,
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w500,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            SizedBox(width: 1.w),
+                            SizedBox(width: 4.w),
                             SvgPicture.asset(
                               ConstImages.dropDown,
                               fit: BoxFit.scaleDown,
@@ -303,10 +316,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: TextField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
-                        style: ConstTextStyles.inputText,
                         maxLength: 11,
                         textAlignVertical: TextAlignVertical.center,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w400,
+                        ),
                         decoration: InputDecoration(
+                          filled: false,
                           hintText: 'Enter your phone number',
                           hintStyle: TextStyle(
                             fontFamily: 'Inter',
@@ -317,7 +335,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           border: InputBorder.none,
                           counterText: '',
                           contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12.w,
+                            horizontal: 8.w,
                             vertical: 0,
                           ),
                           isDense: true,
@@ -328,21 +346,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
             ),
-            Spacer(flex: 5),
+            const Spacer(flex: 5),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacings.k20),
               child: Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
+                  final isEnabled = _isValidPhone() && !authProvider.isLoading;
                   return GestureDetector(
-                    onTap: _isValidPhone() && !authProvider.isLoading
+                    onTap: isEnabled
                         ? () async {
                             String phoneNumber = phoneController.text.trim();
-
-                            // Remove leading 0 if present
                             if (phoneNumber.startsWith('0')) {
                               phoneNumber = phoneNumber.substring(1);
                             }
-
                             final fullPhone = countryCode + phoneNumber;
                             final success = await authProvider.sendOtp(
                               fullPhone,
@@ -354,16 +370,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               final prefs =
                                   await SharedPreferences.getInstance();
                               await prefs.setString('user_phone', fullPhone);
-
-                              await Future.delayed(Duration(milliseconds: 100));
-
+                              await Future.delayed(
+                                const Duration(milliseconds: 100),
+                              );
                               if (mounted) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        OtpScreen(phoneNumber: fullPhone),
-                                  ),
+                                context.pushNamed(
+                                  AppRoutes.otp.name,
+                                  extra: {'phoneNumber': fullPhone},
                                 );
                               }
                             } else {
@@ -380,11 +393,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         : null,
                     child: Container(
                       width: double.infinity,
-                      height: 48.h,
+                      height: 47.h,
                       decoration: BoxDecoration(
-                        color: _isValidPhone() && !authProvider.isLoading
-                            ? Color(ConstColors.mainColor)
-                            : Color(ConstColors.fieldColor),
+                        color: isEnabled
+                            ? AppColors.kMainColor
+                            : AppColors.kFieldColor,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Center(
@@ -392,18 +405,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ? SizedBox(
                                 width: 20.w,
                                 height: 20.h,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                child: const CircularProgressIndicator(
+                                  color: AppColors.kWhiteColor,
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(
-                                'Continue',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            : MuvamTexts.button16(
+                                context,
+                                text: 'Continue',
+                                isTextWidget: true,
+                                color: AppColors.kWhiteColor,
                               ),
                       ),
                     ),
@@ -411,7 +422,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            SizedBox(height: 40.h),
+            DeviceBottomPadding(),
           ],
         ),
       ),

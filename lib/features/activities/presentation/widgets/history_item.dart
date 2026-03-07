@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/features/trips/presentation/screens/history_cancelled_screen.dart';
-import 'package:muvam/features/trips/presentation/screens/history_completed_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class HistoryItem extends StatelessWidget {
   final int rideId;
@@ -26,28 +28,24 @@ class HistoryItem extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (isCompleted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HistoryCompletedScreen(rideId: rideId),
-            ),
+          context.pushNamed(
+            AppRoutes.historyCompleted.name,
+            extra: {'rideId': rideId},
           );
         } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HistoryCancelledScreen(rideId: rideId),
-            ),
+          context.pushNamed(
+            AppRoutes.historyCancelled.name,
+            extra: {'rideId': rideId},
           );
         }
       },
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.kWhiteColor,
           borderRadius: BorderRadius.circular(5.r),
           border: Border.all(
-            color: Color(0xFFB1B1B1).withOpacity(0.5),
+            color: const Color(0xFFB1B1B1).withOpacity(0.5),
             width: 0.5,
           ),
         ),
@@ -61,37 +59,26 @@ class HistoryItem extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      time,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12.sp,
-                        color: Colors.black,
-                      ),
+                    MuvamTexts.bodySmall12(
+                      context,
+                      text: time,
+                      isTextWidget: true,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Text(
-                      date,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16.sp,
-                        height: 1.0,
-                        letterSpacing: -0.41,
-                        color: Colors.black,
-                      ),
+                    MuvamTexts.bodyLarge16(
+                      context,
+                      text: date,
+                      isTextWidget: true,
+                      fontWeight: FontWeight.w600,
                     ),
                   ],
                 ),
                 isCompleted
-                    ? Text(
-                        price ?? '',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12.sp,
-                          color: Colors.black,
-                        ),
+                    ? MuvamTexts.bodySmall12(
+                        context,
+                        text: price ?? '',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       )
                     : Container(
                         width: 58.w,
@@ -110,7 +97,6 @@ class HistoryItem extends StatelessWidget {
                           child: Text(
                             'Cancelled',
                             style: TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 8.sp,
                               fontWeight: FontWeight.w500,
                               color: Colors.red,
@@ -124,24 +110,18 @@ class HistoryItem extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Destination',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12.sp,
-                    color: Colors.black,
-                  ),
+                MuvamTexts.bodySmall12(
+                  context,
+                  text: 'Destination',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
                 ),
                 SizedBox(height: 5.h),
-                Text(
-                  destination,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.sp,
-                    color: Colors.black,
-                  ),
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text: destination,
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w600,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

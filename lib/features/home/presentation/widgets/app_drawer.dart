@@ -1,31 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/auth/data/providers/auth_provider.dart';
-import 'package:muvam/features/auth/presentation/screens/onboarding_screen.dart';
-import 'package:muvam/features/home/presentation/screens/main_navigation_screen.dart';
 import 'package:muvam/features/home/presentation/widgets/drawer_item.dart';
 import 'package:muvam/features/profile/presentation/widgets/logout_sheet.dart';
-import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
 import 'package:muvam/features/profile/data/providers/user_profile_provider.dart';
-import 'package:muvam/features/profile/presentation/screens/profile_screen.dart';
-import 'package:muvam/features/referral/presentation/screens/referral_screen.dart';
-import 'package:muvam/features/support/presentation/about_screen.dart';
-import 'package:muvam/features/support/presentation/faq_screen.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_empty_screen.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:muvam/core/utils/app_logger.dart';
 
 class AppDrawer extends StatefulWidget {
-  const AppDrawer({super.key});
+  final void Function(int index)? onNavigateToTab;
+  const AppDrawer({super.key, this.onNavigateToTab});
 
   @override
   State<AppDrawer> createState() => _AppDrawerState();
@@ -42,55 +35,34 @@ class _AppDrawerState extends State<AppDrawer> {
 
   Future<void> _loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isDarkMode = prefs.getBool('dark_mode') ?? false;
-    });
+    setState(() => _isDarkMode = prefs.getBool('dark_mode') ?? false);
   }
 
   Future<void> _toggleTheme(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('dark_mode', value);
-    setState(() {
-      _isDarkMode = value;
-    });
+    setState(() => _isDarkMode = value);
   }
 
   void _navigateToWallet() async {
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     final hasAccount = await walletProvider.checkVirtualAccount();
-
     if (!mounted) return;
-
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-
+    context.pop();
     if (hasAccount) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WalletScreen()),
-      );
+      context.pushNamed(AppRoutes.wallet.name);
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const WalletEmptyScreen()),
-      );
+      context.pushNamed(AppRoutes.walletEmpty.name);
     }
   }
 
   Future<void> _launchPhoneDialer() async {
     const phoneNumber = '07032992768';
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-
     try {
       if (await canLaunchUrl(phoneUri)) {
         await launchUrl(phoneUri);
-        AppLogger.log(
-          'Launched phone dialer for: $phoneNumber',
-          tag: 'CONTACT',
-        );
       } else {
-        AppLogger.error('Could not launch phone dialer', tag: 'CONTACT');
         if (mounted) {
           CustomFlushbar.showError(
             context: context,
@@ -99,7 +71,6 @@ class _AppDrawerState extends State<AppDrawer> {
         }
       }
     } catch (e) {
-      AppLogger.error('Error launching phone dialer', error: e, tag: 'CONTACT');
       if (mounted) {
         CustomFlushbar.showError(context: context, message: 'Error: $e');
       }
@@ -109,13 +80,10 @@ class _AppDrawerState extends State<AppDrawer> {
   Future<void> _launchWhatsApp() async {
     const phoneNumber = '2347032992768';
     final Uri whatsappUri = Uri.parse('https://wa.me/$phoneNumber');
-
     try {
       if (await canLaunchUrl(whatsappUri)) {
         await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-        AppLogger.log('Launched WhatsApp for: $phoneNumber', tag: 'CONTACT');
       } else {
-        AppLogger.error('Could not launch WhatsApp', tag: 'CONTACT');
         if (mounted) {
           CustomFlushbar.showError(
             context: context,
@@ -124,7 +92,6 @@ class _AppDrawerState extends State<AppDrawer> {
         }
       }
     } catch (e) {
-      AppLogger.error('Error launching WhatsApp', error: e, tag: 'CONTACT');
       if (mounted) {
         CustomFlushbar.showError(context: context, message: 'Error: $e');
       }
@@ -132,7 +99,7 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   void _showContactBottomSheet() {
-    Navigator.pop(context);
+    context.pop();
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
@@ -141,7 +108,7 @@ class _AppDrawerState extends State<AppDrawer> {
       builder: (context) => Container(
         padding: EdgeInsets.all(20.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.kWhiteColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
         child: Column(
@@ -150,9 +117,14 @@ class _AppDrawerState extends State<AppDrawer> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Contact us', style: ConstTextStyles.addHomeTitle),
+                MuvamTexts.titleMedium18(
+                  context,
+                  text: 'Contact us',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w600,
+                ),
                 GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => context.pop(),
                   child: Icon(Icons.close, size: 24.sp),
                 ),
               ],
@@ -160,7 +132,7 @@ class _AppDrawerState extends State<AppDrawer> {
             SizedBox(height: 20.h),
             ListTile(
               onTap: () async {
-                Navigator.pop(context);
+                context.pop();
                 await _launchPhoneDialer();
               },
               leading: Image.asset(
@@ -168,7 +140,12 @@ class _AppDrawerState extends State<AppDrawer> {
                 width: 22.w,
                 height: 22.h,
               ),
-              title: Text('Via Call', style: ConstTextStyles.contactOption),
+              title: MuvamTexts.bodyMedium14(
+                context,
+                text: 'Via Call',
+                isTextWidget: true,
+                fontWeight: FontWeight.w500,
+              ),
               trailing: Icon(
                 Icons.arrow_forward_ios,
                 size: 12.sp,
@@ -178,7 +155,7 @@ class _AppDrawerState extends State<AppDrawer> {
             Divider(thickness: 1, color: Colors.grey.shade300),
             ListTile(
               onTap: () async {
-                Navigator.pop(context);
+                context.pop();
                 await _launchWhatsApp();
               },
               leading: Image.asset(
@@ -186,7 +163,12 @@ class _AppDrawerState extends State<AppDrawer> {
                 width: 22.w,
                 height: 22.h,
               ),
-              title: Text('Via WhatsApp', style: ConstTextStyles.contactOption),
+              title: MuvamTexts.bodyMedium14(
+                context,
+                text: 'Via WhatsApp',
+                isTextWidget: true,
+                fontWeight: FontWeight.w500,
+              ),
               trailing: Icon(
                 Icons.arrow_forward_ios,
                 size: 12.sp,
@@ -206,16 +188,16 @@ class _AppDrawerState extends State<AppDrawer> {
     return Drawer(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
       child: Container(
-        color: Colors.white,
+        color: AppColors.kWhiteColor,
         child: Column(
           children: [
             Align(
               alignment: Alignment.topRight,
               child: Padding(
-                padding: EdgeInsets.only(top: 20.h, right: 0.w),
+                padding: EdgeInsets.only(top: 20.h),
                 child: IconButton(
                   icon: Icon(Icons.close, size: 24.sp),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => context.pop(),
                 ),
               ),
             ),
@@ -243,41 +225,40 @@ class _AppDrawerState extends State<AppDrawer> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(),
-                          ),
-                        );
+                        context.pop();
+                        context.pushNamed(AppRoutes.profile.name);
                       },
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            profileProvider.userShortName.isNotEmpty
-                                ? profileProvider.userShortName
-                                : 'John Doe',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  profileProvider.userShortName.isNotEmpty
+                                      ? profileProvider.userShortName
+                                      : 'John Doe',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 22.sp,
+                                    color: AppColors.kBlackColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           SizedBox(height: 4.h),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'My account',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey.shade500,
-                                ),
+                              MuvamTexts.bodyMedium14(
+                                context,
+                                text: 'My account',
+                                isTextWidget: true,
+                                color: Colors.grey.shade500,
                               ),
                               Icon(
                                 Icons.arrow_forward_ios,
@@ -294,19 +275,20 @@ class _AppDrawerState extends State<AppDrawer> {
               ),
             ),
             SizedBox(height: 24.h),
-            Divider(thickness: 1, color: Color(0xFFEEEEEE), height: 1),
+            Divider(thickness: 1, color: const Color(0xFFEEEEEE), height: 1),
             DrawerItem(
               title: 'Activities',
               iconPath: ConstImages.calendarBlack,
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        const MainNavigationScreen(initialIndex: 2),
-                  ),
-                );
+                if (widget.onNavigateToTab != null) {
+                  widget.onNavigateToTab!(2);
+                } else {
+                  context.pop();
+                  context.goNamed(
+                    AppRoutes.home.name,
+                    extra: {'initialIndex': 2},
+                  );
+                }
               },
             ),
             DrawerItem(
@@ -320,7 +302,7 @@ class _AppDrawerState extends State<AppDrawer> {
               onTap: () {
                 CustomFlushbar.showInfo(
                   context: context,
-                  message: "Coming soon...",
+                  message: 'Coming soon...',
                 );
               },
             ),
@@ -328,22 +310,16 @@ class _AppDrawerState extends State<AppDrawer> {
               title: 'Promo code',
               iconPath: ConstImages.tag,
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => PromoCodeScreen()),
-                );
+                context.pop();
+                context.pushNamed(AppRoutes.promoCode.name);
               },
             ),
             DrawerItem(
               title: 'Referral',
               iconPath: ConstImages.settings,
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ReferralScreen()),
-                );
+                context.pop();
+                context.pushNamed(AppRoutes.referral.name);
               },
             ),
             DrawerItem(
@@ -355,22 +331,16 @@ class _AppDrawerState extends State<AppDrawer> {
               title: 'FAQ',
               iconPath: ConstImages.questionCircle,
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => FaqScreen()),
-                );
+                context.pop();
+                context.pushNamed(AppRoutes.faq.name);
               },
             ),
             DrawerItem(
               title: 'About',
               iconPath: ConstImages.book,
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AboutUsScreen()),
-                );
+                context.pop();
+                context.pushNamed(AppRoutes.aboutUs.name);
               },
             ),
             Padding(
@@ -380,32 +350,31 @@ class _AppDrawerState extends State<AppDrawer> {
                   Container(
                     width: 40.w,
                     height: 40.h,
-                    decoration: BoxDecoration(
-                      color: Color(ConstColors.mainColor),
+                    decoration: const BoxDecoration(
+                      color: AppColors.kMainColor,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.wb_sunny_outlined,
-                      color: Colors.white,
+                      color: AppColors.kWhiteColor,
                       size: 20.sp,
                     ),
                   ),
                   SizedBox(width: 12.w),
                   Expanded(
-                    child: Text(
-                      'Light mode',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
+                    child: MuvamTexts.bodyMedium14(
+                      context,
+                      text: 'Light mode',
+                      isTextWidget: true,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 18.sp,
+                      color: Colors.black,
                     ),
                   ),
                   Switch(
                     value: _isDarkMode,
                     onChanged: _toggleTheme,
-                    activeColor: Color(ConstColors.mainColor),
+                    activeColor: AppColors.kMainColor,
                   ),
                 ],
               ),
@@ -424,14 +393,12 @@ class _AppDrawerState extends State<AppDrawer> {
                       fit: BoxFit.contain,
                     ),
                     SizedBox(width: 16.w),
-                    Text(
-                      'Logout',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFEF5350),
-                      ),
+                    MuvamTexts.titleMedium18(
+                      context,
+                      text: 'Logout',
+                      isTextWidget: true,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFFEF5350),
                     ),
                   ],
                 ),
@@ -459,20 +426,12 @@ class _AppDrawerState extends State<AppDrawer> {
             context,
             listen: false,
           );
-
           await profileProvider.clearProfile();
           await authProvider.logout();
-
-          // Close the logout sheet
-          Navigator.pop(context);
-
-          // Navigate to onboarding screen and clear all previous routes
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-            (route) => false,
-          );
+          context.pop();
+          context.goNamed(AppRoutes.onboarding.name);
         },
-        onGoBack: () => Navigator.pop(context),
+        onGoBack: () => context.pop(),
       ),
     );
   }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   final bool isFromField;
@@ -20,7 +22,7 @@ class MapSelectionScreen extends StatefulWidget {
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
   GoogleMapController? _mapController;
-  LatLng _selectedLocation = LatLng(6.8720015, 7.4069943);
+  LatLng _selectedLocation = const LatLng(6.8720015, 7.4069943);
   String _selectedAddress = 'Loading...';
   bool _isLoading = false;
 
@@ -39,7 +41,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         location.longitude,
       );
       if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
+        final place = placemarks[0];
         setState(() {
           _selectedAddress =
               '${place.street ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}'
@@ -63,9 +65,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            onMapCreated: (GoogleMapController controller) {
-              _mapController = controller;
-            },
+            onMapCreated: (GoogleMapController controller) =>
+                _mapController = controller,
             initialCameraPosition: CameraPosition(
               target: _selectedLocation,
               zoom: 15.0,
@@ -73,7 +74,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             onTap: _onMapTap,
             markers: {
               Marker(
-                markerId: MarkerId('selected_location'),
+                markerId: const MarkerId('selected_location'),
                 position: _selectedLocation,
                 draggable: true,
                 onDragEnd: (LatLng location) {
@@ -89,18 +90,18 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             top: 60.h,
             left: 20.w,
             child: GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () => context.pop(),
               child: Container(
                 width: 40.w,
                 height: 40.h,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.kWhiteColor,
                   borderRadius: BorderRadius.circular(20.r),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
@@ -115,13 +116,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             child: Container(
               padding: EdgeInsets.all(20.w),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.kWhiteColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: AppColors.kBlackColor.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: Offset(0, -2),
+                    offset: const Offset(0, -2),
                   ),
                 ],
               ),
@@ -141,7 +142,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                     children: [
                       Icon(
                         Icons.location_on,
-                        color: Color(ConstColors.mainColor),
+                        color: AppColors.kMainColor,
                         size: 24.sp,
                       ),
                       SizedBox(width: 10.w),
@@ -149,23 +150,23 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              widget.isFromField
+                            MuvamTexts.bodySmall12(
+                              context,
+                              text: widget.isFromField
                                   ? 'Pickup Location'
                                   : 'Destination',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
+                              isTextWidget: true,
+                              color: Colors.grey[600]!,
+                              fontWeight: FontWeight.w500,
                             ),
                             SizedBox(height: 4.h),
-                            Text(
-                              _isLoading ? 'Loading...' : _selectedAddress,
-                              style: TextStyle(
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            MuvamTexts.bodyMedium14(
+                              context,
+                              text: _isLoading
+                                  ? 'Loading...'
+                                  : _selectedAddress,
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w600,
                             ),
                           ],
                         ),
@@ -182,19 +183,17 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                     },
                     child: Container(
                       width: double.infinity,
-                      height: 48.h,
+                      height: 47.h,
                       decoration: BoxDecoration(
-                        color: Color(ConstColors.mainColor),
+                        color: AppColors.kMainColor,
                         borderRadius: BorderRadius.circular(8.r),
                       ),
                       child: Center(
-                        child: Text(
-                          'Confirm Location',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Confirm Location',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                       ),
                     ),

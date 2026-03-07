@@ -1,87 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/features/wallet/presentation/screens/wallet_screen.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 
 class AccountCreatedScreen extends StatelessWidget {
   const AccountCreatedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Spacer(),
-              SvgPicture.asset(ConstImages.timeStreamline),
-              SizedBox(height: 20.h),
-              Text(
-                'Processing',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 22.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
+      body: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Spacer(),
+            SvgPicture.asset(ConstImages.timeStreamline),
+            SizedBox(height: 20.h),
+            MuvamTexts.titleLarge22(
+              context,
+              text: 'Processing',
+              isTextWidget: true,
+              center: true,
+            ),
+            SizedBox(height: 8.h),
+            MuvamTexts.bodySmall12(
+              context,
+              text: "We're getting your wallet ready\nfor smooth rides",
+              center: true,
+              isTextWidget: true,
+              color: Colors.grey,
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => context.goNamed(AppRoutes.wallet.name),
+              child: Container(
+                width: double.infinity,
+                height: 47.h,
+                decoration: BoxDecoration(
+                  color: AppColors.kMainColor,
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
-              ),
-              Text(
-                'We\'re getting your wallet ready \nfor smooth rides',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey,
-                ),
-              ),
-              SizedBox(height: 10.h),
-              // Text(
-              //   'Go back home',
-              //   style: TextStyle(
-              //     fontFamily: 'Inter',
-              //     fontSize: 18.sp,
-              //     fontWeight: FontWeight.w700,
-              //     color: Color(ConstColors.mainColor),
-              //   ),
-              // ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacement(
+                child: Center(
+                  child: MuvamTexts.button16(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const WalletScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 48.h,
-                  decoration: BoxDecoration(
-                    color: Color(ConstColors.mainColor),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Go to wallet',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    text: 'Go to wallet',
+                    isTextWidget: true,
+                    color: AppColors.kWhiteColor,
                   ),
                 ),
               ),
-              SizedBox(height: 30.h),
-            ],
-          ),
+            ),
+            DeviceBottomPadding(),
+          ],
         ),
       ),
     );

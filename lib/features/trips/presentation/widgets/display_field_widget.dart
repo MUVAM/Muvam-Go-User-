@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class DisplayFieldWidget extends StatelessWidget {
   final String label;
@@ -20,14 +22,11 @@ class DisplayFieldWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
-          ),
+        MuvamTexts.bodySmall12(
+          context,
+          text: label,
+          isTextWidget: true,
+          fontWeight: FontWeight.w500,
         ),
         SizedBox(height: 8.h),
         Container(
@@ -35,7 +34,7 @@ class DisplayFieldWidget extends StatelessWidget {
           padding:
               padding ?? EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
           decoration: BoxDecoration(
-            color: backgroundColor ?? const Color(0xFFB1B1B1).withOpacity(0.12),
+            color: backgroundColor ?? AppColors.kFieldColor.withOpacity(0.12),
             borderRadius: BorderRadius.circular(2.r),
           ),
           child: content,

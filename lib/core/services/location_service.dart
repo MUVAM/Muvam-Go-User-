@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:muvam/core/utils/app_logger.dart';
-import 'package:muvam/features/trips/data/models/location_models.dart';
+import 'package:muvam/features/trips/models/location_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/url_constants.dart';
 

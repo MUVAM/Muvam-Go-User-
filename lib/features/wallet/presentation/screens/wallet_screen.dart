@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
-import 'package:muvam/features/wallet/presentation/screens/how_to_fund_screen.dart';
 import 'package:muvam/features/wallet/presentation/widgets/fund_wallet_sheet.dart';
 import 'package:muvam/features/wallet/presentation/widgets/transaction_item.dart';
 import 'package:muvam/features/wallet/presentation/widgets/wallet_card.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,27 +28,13 @@ class _WalletScreenState extends State<WalletScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        debugPrint('🔵 WalletScreen initState called');
-
-        // Check if provider exists
         final provider = context.read<WalletProvider>();
-        debugPrint('🔵 WalletProvider found: $provider');
-
-        // Check token directly
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('auth_token');
-        debugPrint(
-          '🔵 Auth token: ${token != null ? "EXISTS: $token" : "NULL - THIS IS THE PROBLEM"}',
-        );
-
-        debugPrint('🔵 Calling fetchWalletSummary...');
-        final result = await provider.fetchWalletSummary();
-        debugPrint('🔵 fetchWalletSummary result: $result');
-        debugPrint('🔵 Error message: ${provider.errorMessage}');
-        debugPrint('🔵 Wallet summary: ${provider.walletSummary}');
+        debugPrint('Auth token: ${token != null ? 'exists' : 'null'}');
+        await provider.fetchWalletSummary();
       } catch (e, stack) {
-        debugPrint('🔴 CRITICAL ERROR in WalletScreen initState: $e');
-        debugPrint('🔴 Stack trace: $stack');
+        debugPrint('Error in WalletScreen initState: $e\n$stack');
       }
     });
   }
@@ -60,16 +49,14 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Consumer<WalletProvider>(
           builder: (context, walletProvider, child) {
             if (walletProvider.isLoading) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: Color(ConstColors.mainColor),
-                ),
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.kMainColor),
               );
             }
 
@@ -82,20 +69,18 @@ class _WalletScreenState extends State<WalletScreen> {
                   children: [
                     Icon(Icons.error_outline, size: 48.sp, color: Colors.grey),
                     SizedBox(height: 16.h),
-                    Text(
-                      'Failed to load wallet data',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                      ),
+                    MuvamTexts.bodyLarge16(
+                      context,
+                      text: 'Failed to load wallet data',
+                      isTextWidget: true,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
                     ),
                     SizedBox(height: 16.h),
                     ElevatedButton(
                       onPressed: () => walletProvider.fetchWalletSummary(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(ConstColors.mainColor),
+                        backgroundColor: AppColors.kMainColor,
                       ),
                       child: const Text('Retry'),
                     ),
@@ -114,9 +99,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          }
+                          if (context.canPop()) context.pop();
                         },
                         child: Image.asset(
                           ConstImages.back,
@@ -125,37 +108,23 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.push(
+                        onTap: () =>
+                            context.pushNamed(AppRoutes.howToFund.name),
+                        child: MuvamTexts.bodyLarge16(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const HowToFundScreen(),
-                          ),
-                        ),
-                        child: Text(
-                          'How to fund',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Color(ConstColors.mainColor),
-                          ),
+                          text: 'How to fund',
+                          isTextWidget: true,
+                          color: AppColors.kMainColor,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                   SizedBox(height: 20.h),
-                  Text(
-                    'Wallet',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 26.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.headlineSmall24(
+                    context,
+                    text: 'Wallet',
+                    isTextWidget: true,
                   ),
                   SizedBox(height: 20.h),
                   WalletCard(
@@ -170,29 +139,20 @@ class _WalletScreenState extends State<WalletScreen> {
                     onFundWallet: () => FundWalletSheet.show(context),
                   ),
                   SizedBox(height: 15.h),
-                  Center(
-                    child: Text(
-                      'Transfer to this account to instantly fund your Muvam wallet',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.0,
-                        letterSpacing: -0.32,
-                        color: Colors.black,
-                      ),
-                    ),
+                  MuvamTexts.bodySmall12(
+                    context,
+                    text:
+                        'Transfer to this account to instantly fund your Muvam wallet',
+                    center: true,
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w500,
                   ),
                   SizedBox(height: 30.h),
-                  Text(
-                    'Transaction History',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.titleMedium18(
+                    context,
+                    text: 'Transaction History',
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                   SizedBox(height: 20.h),
                   Expanded(
@@ -207,13 +167,11 @@ class _WalletScreenState extends State<WalletScreen> {
                                   color: Colors.grey.shade300,
                                 ),
                                 SizedBox(height: 16.h),
-                                Text(
-                                  'No transactions yet',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14.sp,
-                                    color: Colors.grey,
-                                  ),
+                                MuvamTexts.bodyMedium14(
+                                  context,
+                                  text: 'No transactions yet',
+                                  isTextWidget: true,
+                                  color: Colors.grey,
                                 ),
                               ],
                             ),
@@ -236,8 +194,8 @@ class _WalletScreenState extends State<WalletScreen> {
                                 ),
                                 status: transaction.status,
                                 statusColor: transaction.isSuccess
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? AppColors.kSuccessColor
+                                    : AppColors.kFailureColor,
                               );
                             },
                           ),

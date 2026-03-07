@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class AccountTextField extends StatelessWidget {
   final String label;
@@ -27,7 +27,7 @@ class AccountTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: ConstTextStyles.fieldLabel),
+        MuvamTexts.titleSmall14(context, text: label, isTextWidget: true),
         SizedBox(height: 8.h),
         Container(
           width: 353.w,
@@ -42,15 +42,16 @@ class AccountTextField extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   readOnly: isDateField,
-                  style: ConstTextStyles.inputText,
                   textCapitalization: TextCapitalization.words,
                   textAlignVertical: TextAlignVertical.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey.shade400,
+                  ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: hintText,
-                    hintStyle: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14.sp,
+                    hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w400,
                       color: Colors.grey.shade400,
                     ),

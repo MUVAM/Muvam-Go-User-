@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class EditProfileTextField extends StatelessWidget {
   final String label;
@@ -22,14 +24,11 @@ class EditProfileTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w400,
-            color: Colors.grey.shade500,
-          ),
+        MuvamTexts.bodyMedium14(
+          context,
+          text: label,
+          isTextWidget: true,
+          color: Colors.grey.shade500,
         ),
         SizedBox(height: 8.h),
         Container(
@@ -46,10 +45,9 @@ class EditProfileTextField extends StatelessWidget {
                   keyboardType: keyboardType,
                   readOnly: readOnly,
                   style: TextStyle(
-                    fontFamily: 'Inter',
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black,
+                    color: AppColors.kBlackColor,
                   ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -58,14 +56,11 @@ class EditProfileTextField extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                'Edit',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey.shade400,
-                ),
+              MuvamTexts.bodyMedium14(
+                context,
+                text: 'Edit',
+                isTextWidget: true,
+                color: Colors.grey.shade400,
               ),
             ],
           ),

@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
+import 'package:muvam/core/utils/extension.dart';
 import 'package:muvam/features/profile/presentation/widgets/app_lock_radio_option.dart';
+import 'package:muvam/features/profile/presentation/widgets/settings_card.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppLockSettingsScreen extends StatefulWidget {
@@ -41,7 +45,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
       _canCheckBiometrics = await auth.canCheckBiometrics;
       _availableBiometrics = await auth.getAvailableBiometrics();
       AppLogger.log(
-        'Biometric support check: canCheck=$_canCheckBiometrics, available=$_availableBiometrics',
+        'Biometric support: canCheck=$_canCheckBiometrics, available=$_availableBiometrics',
       );
     } on PlatformException catch (e) {
       AppLogger.log('Error checking biometric support: $e');
@@ -55,36 +59,22 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
       _lockTiming = _prefs.getString('lock_timing') ?? 'immediately';
       _isLoading = false;
     });
-    AppLogger.log(
-      'Loaded settings: biometric=$_isBiometricEnabled, timing=$_lockTiming',
-    );
   }
 
   Future<void> _saveSettings() async {
     await _prefs.setBool('biometric_enabled', _isBiometricEnabled);
     await _prefs.setString('lock_timing', _lockTiming);
-    AppLogger.log(
-      'Settings saved: biometric=$_isBiometricEnabled, timing=$_lockTiming',
-    );
-
-    // Verify the save
-    final savedBiometric = _prefs.getBool('biometric_enabled');
-    final savedTiming = _prefs.getString('lock_timing');
-    AppLogger.log(
-      'Verified saved settings: biometric=$savedBiometric, timing=$savedTiming',
-    );
   }
 
   Future<bool> _authenticate() async {
     try {
-      bool authenticated = await auth.authenticate(
+      return await auth.authenticate(
         localizedReason: 'Authenticate to enable app lock',
         options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: false,
         ),
       );
-      return authenticated;
     } on PlatformException catch (e) {
       AppLogger.log('Authentication error: $e');
       return false;
@@ -101,12 +91,9 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
     }
 
     if (value) {
-      // Enabling biometric - authenticate first
-      bool authenticated = await _authenticate();
+      final authenticated = await _authenticate();
       if (authenticated) {
-        setState(() {
-          _isBiometricEnabled = true;
-        });
+        setState(() => _isBiometricEnabled = true);
         await _saveSettings();
         if (mounted) {
           CustomFlushbar.showSuccess(
@@ -123,10 +110,7 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
         }
       }
     } else {
-      // Disabling biometric
-      setState(() {
-        _isBiometricEnabled = false;
-      });
+      setState(() => _isBiometricEnabled = false);
       await _saveSettings();
       if (mounted) {
         CustomFlushbar.showSuccess(
@@ -138,145 +122,97 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
   }
 
   void _setLockTiming(String value) {
-    setState(() {
-      _lockTiming = value;
-    });
+    setState(() => _lockTiming = value);
     _saveSettings();
   }
 
   String _getBiometricTypeText() {
-    if (_availableBiometrics.contains(BiometricType.face)) {
-      return 'Face ID';
-    } else if (_availableBiometrics.contains(BiometricType.fingerprint)) {
+    if (_availableBiometrics.contains(BiometricType.face)) return 'Face ID';
+    if (_availableBiometrics.contains(BiometricType.fingerprint))
       return 'Fingerprint';
-    } else if (_availableBiometrics.contains(BiometricType.iris)) {
-      return 'Iris';
-    }
+    if (_availableBiometrics.contains(BiometricType.iris)) return 'Iris';
     return 'Biometric';
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.white,
+      return AppScaffold(
+        backgroundColor: AppColors.kWhiteColor,
         body: Center(
-          child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
+          child: CircularProgressIndicator(color: AppColors.kMainColor),
         ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.kWhiteColor,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.only(left: 20),
           child: GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => context.pop(),
             child: Image.asset(ConstImages.back, width: 30.w, height: 30.h),
           ),
         ),
-        title: Text(
-          'App Lock Settings',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+        title: MuvamTexts.titleMedium18(
+          context,
+          text: 'App Lock Settings',
+          isTextWidget: true,
+          fontWeight: FontWeight.w600,
         ),
         centerTitle: true,
       ),
       body: ListView(
         padding: EdgeInsets.all(20.w),
         children: [
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: Colors.grey.shade200, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          SettingsCard(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Unlock with ${_getBiometricTypeText()}',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                          SizedBox(height: 8.h),
-                          Text(
-                            'When enabled, you will need to use ${_getBiometricTypeText().toLowerCase()}, face, or other unique identification to open Muvam.',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey.shade600,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MuvamTexts.bodyLarge16(
+                        context,
+                        text: 'Unlock with ${_getBiometricTypeText()}',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    SizedBox(width: 10.w),
-                    Switch(
-                      value: _isBiometricEnabled,
-                      onChanged: _toggleBiometric,
-                      activeThumbColor: const Color(ConstColors.mainColor),
-                    ),
-                  ],
+                      SizedBox(height: 8.h),
+                      MuvamTexts.bodySmall12(
+                        context,
+                        text:
+                            'When enabled, you will need to use ${_getBiometricTypeText().toLowerCase()}, face, or other unique identification to open Muvam.',
+                        isTextWidget: true,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Switch(
+                  value: _isBiometricEnabled,
+                  onChanged: _toggleBiometric,
+                  activeThumbColor: AppColors.kMainColor,
                 ),
               ],
             ),
           ),
           SizedBox(height: 20.h),
           if (_isBiometricEnabled) ...[
-            Container(
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(color: Colors.grey.shade200, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            SettingsCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Automatically Lock In',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
+                  MuvamTexts.bodyLarge16(
+                    context,
+                    text: 'Automatically Lock In',
+                    isTextWidget: true,
+                    fontWeight: FontWeight.w600,
                   ),
                   SizedBox(height: 16.h),
                   AppLockRadioOption(
@@ -321,14 +257,12 @@ class _AppLockSettingsScreenState extends State<AppLockSettingsScreen> {
                   ),
                   SizedBox(width: 12.w),
                   Expanded(
-                    child: Text(
-                      'Biometric authentication is not available on this device',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.orange.shade900,
-                      ),
+                    child: MuvamTexts.bodySmall12(
+                      context,
+                      text:
+                          'Biometric authentication is not available on this device',
+                      isTextWidget: true,
+                      color: Colors.orange.shade900,
                     ),
                   ),
                 ],

@@ -4,7 +4,7 @@ import 'package:muvam/core/constants/url_constants.dart';
 import 'package:muvam/core/services/api_client.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/features/home/data/models/ride_models.dart';
-import 'package:muvam/features/trips/data/models/ride_user.dart';
+import 'package:muvam/features/trips/models/ride_user.dart';
 
 class RideService {
   final _client = ApiClient();

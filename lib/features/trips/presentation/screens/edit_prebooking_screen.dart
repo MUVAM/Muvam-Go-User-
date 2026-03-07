@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/services/payment_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/services/ride_service.dart';
@@ -10,8 +13,13 @@ import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/activities/data/models/ride_data.dart';
 import 'package:muvam/features/activities/data/providers/rides_provider.dart';
 import 'package:muvam/features/home/presentation/screens/map_selection_screen.dart';
-import 'package:muvam/shared/presentation/screens/payment_webview_screen.dart';
-import 'package:muvam/features/promo/presentation/screens/promo_code_screen.dart';
+import 'package:muvam/features/trips/presentation/widgets/cancel_reason_sheet.dart';
+import 'package:muvam/features/trips/presentation/widgets/cancel_ride_dialog.dart';
+import 'package:muvam/features/trips/presentation/widgets/payment_method_sheet.dart';
+import 'package:muvam/features/trips/presentation/widgets/predictions_list.dart';
+import 'package:muvam/features/trips/presentation/widgets/vehicle_sheet.dart';
+import 'package:muvam/layouts/presentation/screens/payment_webview_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 import 'package:provider/provider.dart';
 
 class EditPrebookingScreen extends StatefulWidget {
@@ -35,6 +43,7 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
   final PlacesService _placesService = PlacesService();
   final PaymentService _paymentService = PaymentService();
   final RideService _rideService = RideService();
+
   int? _selectedCancelReason;
   List<PlacePrediction> _predictions = [];
   bool _showPredictions = false;
@@ -53,408 +62,8 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
   final List<String> _paymentMethods = [
     'Pay with wallet',
     'Pay with card',
-    // 'pay4me',
     'Pay in car',
   ];
-  void _showTripCanceledSheet() {
-    showModalBottomSheet(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.2),
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setCancelState) => Container(
-          height: 450.h,
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 69.w,
-                height: 5.h,
-                margin: EdgeInsets.only(bottom: 20.h),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2.5.r),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Trip Canceled',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              SizedBox(height: 10.h),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Help us improve by sharing why you are canceling',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              SizedBox(height: 30.h),
-              _buildCancelReason(
-                0,
-                'I am taking alternative transport',
-                setCancelState,
-              ),
-              SizedBox(height: 10.h),
-              _buildCancelReason(
-                1,
-                'It is taking too long to get a driver',
-                setCancelState,
-              ),
-              SizedBox(height: 10.h),
-              _buildCancelReason(
-                2,
-                'I have to attend to something',
-                setCancelState,
-              ),
-              SizedBox(height: 10.h),
-              _buildCancelReason(3, 'Others', setCancelState),
-              Spacer(),
-              GestureDetector(
-                onTap: _selectedCancelReason != null
-                    ? () {
-                        if (_selectedCancelReason == 3) {
-                          Navigator.pop(context);
-                          _showCancelRideDialog();
-                        } else {
-                          Navigator.pop(context);
-                          _showFeedbackSuccessSheet();
-                        }
-                      }
-                    : null,
-                child: Container(
-                  width: double.infinity,
-                  height: 48.h,
-                  decoration: BoxDecoration(
-                    color: _selectedCancelReason != null
-                        ? Color(ConstColors.mainColor)
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Submit',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCancelReason(
-    int index,
-    String reason,
-    StateSetter setCancelState,
-  ) {
-    final isSelected = _selectedCancelReason == index;
-    return GestureDetector(
-      onTap: () {
-        setCancelState(() {
-          _selectedCancelReason = index;
-        });
-        setState(() {
-          _selectedCancelReason = index;
-        });
-      },
-      child: Container(
-        width: double.infinity,
-        height: 40.h,
-        padding: EdgeInsets.all(10.w),
-        decoration: BoxDecoration(
-          color: isSelected ? Color(ConstColors.mainColor) : Colors.white,
-          border: Border.all(color: Color(ConstColors.mainColor)),
-          borderRadius: BorderRadius.circular(15.r),
-        ),
-        child: Center(
-          child: Text(
-            reason,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: isSelected ? Colors.white : Colors.black,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showCancelRideDialog() {
-    final TextEditingController reasonController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.r),
-          ),
-          title: Text(
-            'Cancel Ride',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 20.sp,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '⚠️ Please note that charges may apply if you cancel the ride now.',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  color: Colors.red[700],
-                ),
-              ),
-              SizedBox(height: 20.h),
-              Text(
-                'Please tell us why you want to cancel:',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              SizedBox(height: 12.h),
-              TextField(
-                controller: reasonController,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: 'Enter your reason here...',
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(
-                      color: Color(ConstColors.mainColor),
-                      width: 1.5,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                    borderSide: BorderSide(
-                      color: Color(ConstColors.mainColor),
-                      width: 2,
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 12.h,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                reasonController.dispose();
-              },
-              child: Text(
-                'Back',
-                style: TextStyle(color: Colors.grey[600], fontSize: 16.sp),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  CustomFlushbar.showError(
-                    context: context,
-                    message: 'Please provide a reason for cancellation',
-                  );
-                  return;
-                }
-                Navigator.of(dialogContext).pop();
-                await _executeCancelRide(reason);
-                reasonController.dispose();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(ConstColors.mainColor),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-              ),
-              child: Text(
-                'Submit',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showFeedbackSuccessSheet() {
-    final reasons = [
-      'I am taking alternative transport',
-      'It is taking too long to get a driver',
-      'I have to attend to something',
-      'Others',
-    ];
-    final reason = _selectedCancelReason != null
-        ? reasons[_selectedCancelReason!]
-        : 'Cancelled by passenger';
-
-    () async {
-      await _executeCancelRide(reason);
-    }();
-  }
-
-  Future<void> _executeCancelRide(String reason) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(
-        child: CircularProgressIndicator(color: Color(ConstColors.mainColor)),
-      ),
-    );
-
-    try {
-      final result = await _rideService.cancelRide(
-        rideId: widget.ride.id,
-        reason: reason,
-      );
-
-      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (result['success'] == true) {
-        if (!mounted) return;
-        // Show feedback success sheet
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          barrierColor: Colors.black.withOpacity(0.2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-          ),
-          builder: (context) => Container(
-            height: 400.h,
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 100.sp,
-                  height: 100.sp,
-                  decoration: BoxDecoration(
-                    color: Color(0xff34B869),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.check, color: Colors.white, size: 40.sp),
-                ),
-                SizedBox(height: 10.h),
-                Text(
-                  "Feedback Sent",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 28.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  "We've received your answer\nand we hope we see you next\ntime.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                SizedBox(height: 30.h),
-                GestureDetector(
-                  onTap: () {
-                    // Pop feedback sheet + edit screen + trip details screen
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: Color(ConstColors.mainColor),
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'GO HOME',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      } else {
-        if (mounted) {
-          CustomFlushbar.showError(
-            context: context,
-            message: result['message'] ?? 'Failed to cancel ride',
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      if (mounted) {
-        CustomFlushbar.showError(context: context, message: 'Error: $e');
-      }
-    }
-  }
 
   @override
   void initState() {
@@ -465,8 +74,6 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
     );
     _sessionToken = DateTime.now().millisecondsSinceEpoch.toString();
 
-    // Parse scheduled date
-    // Parse scheduled date — prefer passed-in initialScheduledAt
     try {
       final dt = DateTime.parse(
         widget.initialScheduledAt ??
@@ -475,27 +82,20 @@ class _EditPrebookingScreenState extends State<EditPrebookingScreen> {
       ).toLocal();
       _selectedDate = dt;
       _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
-      print('scheduledAt: ${widget.ride.scheduledAt}');
-print('initialScheduledAt: ${widget.initialScheduledAt}');
-print('resolved date: $_selectedDate');
-    } catch (e) {
-      _selectedDate = DateTime.now().add(Duration(days: 1));
+    } catch (_) {
+      _selectedDate = DateTime.now().add(const Duration(days: 1));
       _selectedTime = TimeOfDay.now();
     }
 
-    // Map payment method from ride data
     final pm = widget.ride.paymentMethod.toLowerCase();
     if (pm.contains('wallet')) {
       _selectedPaymentMethod = 'Pay with wallet';
     } else if (pm.contains('card')) {
       _selectedPaymentMethod = 'Pay with card';
-    } else if (pm.contains('pay4me')) {
-      _selectedPaymentMethod = 'pay4me';
     } else {
       _selectedPaymentMethod = 'Pay in car';
     }
 
-    // Map vehicle type
     final vt = widget.ride.vehicleType.toLowerCase();
     if (vt.contains('fancy')) {
       _selectedVehicleIndex = 1;
@@ -596,7 +196,7 @@ print('resolved date: $_selectedDate');
           _sessionToken = DateTime.now().millisecondsSinceEpoch.toString();
         });
       }
-    } catch (e) {
+    } catch (_) {
       CustomFlushbar.showError(
         context: context,
         message: 'Could not get location details',
@@ -607,137 +207,15 @@ print('resolved date: $_selectedDate');
   void _showPaymentMethodSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Color(ConstColors.mainColor),
+      backgroundColor: AppColors.kMainColor,
       barrierColor: Colors.black.withOpacity(0.2),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PromoCodeScreen(),
-                ),
-              );
-            },
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(ConstColors.mainColor),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Apply 20% off promo code>>',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: Colors.white),
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 69.w,
-                      height: 5.h,
-                      margin: EdgeInsets.only(bottom: 20.h),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2.5.r),
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Choose payment method',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Icon(Icons.close, size: 24.sp),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 20.h),
-                    ..._paymentMethods
-                        .map(
-                          (method) => Column(
-                            children: [
-                              _buildPaymentOption(method),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey.shade300,
-                              ),
-                            ],
-                          ),
-                        )
-                        .toList(),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentOption(String method) {
-    final isSelected = _selectedPaymentMethod == method;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedPaymentMethod = method);
-        Navigator.pop(context);
-      },
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 15.h),
-        child: Row(
-          children: [
-            Image.asset(
-              _getPaymentMethodIcon(method),
-              width: 55.w,
-              height: 30.h,
-              fit: BoxFit.cover,
-            ),
-            SizedBox(width: 15.w),
-            Expanded(
-              child: Text(
-                method,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: Colors.green, size: 20.sp),
-          ],
-        ),
+      builder: (context) => PaymentMethodSheet(
+        paymentMethods: _paymentMethods,
+        selectedPaymentMethod: _selectedPaymentMethod,
+        onMethodSelected: (method) {
+          setState(() => _selectedPaymentMethod = method);
+        },
+        getPaymentMethodIcon: _getPaymentMethodIcon,
       ),
     );
   }
@@ -749,88 +227,177 @@ print('resolved date: $_selectedDate');
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 69.w,
-              height: 5.h,
-              margin: EdgeInsets.only(bottom: 20.h),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2.5.r),
-              ),
-            ),
-            Text(
-              'Select Vehicle',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 20.h),
-            ..._vehicleTypes.asMap().entries.map((entry) {
-              final index = entry.key;
-              final type = entry.value;
-              final isSelected = _selectedVehicleIndex == index;
-              return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedVehicleIndex = index);
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 60.h,
-                  margin: EdgeInsets.only(bottom: 12.h),
-                  padding: EdgeInsets.symmetric(horizontal: 12.w),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Color(ConstColors.mainColor)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected
-                          ? Color(ConstColors.mainColor)
-                          : Colors.grey.shade300,
-                    ),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/car.png',
-                        width: 55.w,
-                        height: 26.h,
-                      ),
-                      SizedBox(width: 15.w),
-                      Expanded(
-                        child: Text(
-                          type,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ),
-                      if (isSelected)
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.white,
-                          size: 20.sp,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ],
-        ),
+      builder: (context) => VehicleSheet(
+        vehicleTypes: _vehicleTypes,
+        selectedVehicleIndex: _selectedVehicleIndex,
+        onVehicleSelected: (index) {
+          setState(() => _selectedVehicleIndex = index);
+        },
       ),
     );
+  }
+
+  void _showTripCanceledSheet() {
+    showModalBottomSheet(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.2),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (context) => CancelReasonSheet(
+        selectedCancelReason: _selectedCancelReason,
+        onReasonSelected: (index) {
+          setState(() => _selectedCancelReason = index);
+        },
+        onSubmit: () {
+          if (_selectedCancelReason == 3) {
+            context.pop();
+            _showCancelRideDialog();
+          } else {
+            context.pop();
+            _showFeedbackSuccessSheet();
+          }
+        },
+      ),
+    );
+  }
+
+  void _showCancelRideDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) => CancelRideDialog(
+        onConfirm: (reason) async {
+          await _executeCancelRide(reason);
+        },
+      ),
+    );
+  }
+
+  void _showFeedbackSuccessSheet() {
+    final reasons = [
+      'I am taking alternative transport',
+      'It is taking too long to get a driver',
+      'I have to attend to something',
+      'Others',
+    ];
+    final reason = _selectedCancelReason != null
+        ? reasons[_selectedCancelReason!]
+        : 'Cancelled by passenger';
+    () async {
+      await _executeCancelRide(reason);
+    }();
+  }
+
+  Future<void> _executeCancelRide(String reason) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          Center(child: CircularProgressIndicator(color: AppColors.kMainColor)),
+    );
+
+    try {
+      final result = await _rideService.cancelRide(
+        rideId: widget.ride.id,
+        reason: reason,
+      );
+
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (result['success'] == true) {
+        if (!mounted) return;
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          barrierColor: Colors.black.withOpacity(0.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+          ),
+          builder: (context) => Container(
+            height: 400.h,
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: AppColors.kWhiteColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100.sp,
+                  height: 100.sp,
+                  decoration: const BoxDecoration(
+                    color: Color(0xff34B869),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: AppColors.kWhiteColor,
+                    size: 40.sp,
+                  ),
+                ),
+                SizedBox(height: 10.h),
+                MuvamTexts.headlineMedium28(
+                  context,
+                  text: 'Feedback Sent',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.bold,
+                ),
+                MuvamTexts.titleMedium18(
+                  context,
+                  text:
+                      "We've received your answer\nand we hope we see you next\ntime.",
+                  isTextWidget: true,
+                  center: true,
+                ),
+                SizedBox(height: 30.h),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 47.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.kMainColor,
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Center(
+                      child: MuvamTexts.button16(
+                        context,
+                        text: 'GO HOME',
+                        isTextWidget: true,
+                        color: AppColors.kWhiteColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          CustomFlushbar.showError(
+            context: context,
+            message: result['message'] ?? 'Failed to cancel ride',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      if (mounted) {
+        CustomFlushbar.showError(context: context, message: 'Error: $e');
+      }
+    }
   }
 
   Future<void> _handleSavePrebooking() async {
@@ -848,18 +415,14 @@ print('resolved date: $_selectedDate');
       );
       return;
     }
-
-    final pickupCoords = _selectedPickupLocation;
-    final destCoords = _selectedDestinationLocation;
-
-    if (pickupCoords == null) {
+    if (_selectedPickupLocation == null) {
       CustomFlushbar.showError(
         context: context,
         message: 'Please select pickup from suggestions',
       );
       return;
     }
-    if (destCoords == null) {
+    if (_selectedDestinationLocation == null) {
       CustomFlushbar.showError(
         context: context,
         message: 'Please select destination from suggestions',
@@ -867,13 +430,8 @@ print('resolved date: $_selectedDate');
       return;
     }
 
-    final scheduledDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
-    );
+    final pickupCoords = _selectedPickupLocation!;
+    final destCoords = _selectedDestinationLocation!;
 
     final provider = context.read<RidesProvider>();
 
@@ -886,7 +444,6 @@ print('resolved date: $_selectedDate');
       paymentMethod: _selectedPaymentMethod,
       vehicleType: _vehicleTypes[_selectedVehicleIndex],
       serviceType: widget.ride.serviceType,
-      // scheduledAt: scheduledDateTime.toUtc().toIso8601String(),
     );
 
     if (!mounted) return;
@@ -899,7 +456,6 @@ print('resolved date: $_selectedDate');
       return;
     }
 
-    // Handle payment based on selected method
     if (_selectedPaymentMethod == 'Pay with card' ||
         _selectedPaymentMethod == 'Pay with wallet') {
       try {
@@ -912,15 +468,13 @@ print('resolved date: $_selectedDate');
 
         if (_selectedPaymentMethod == 'Pay with card' &&
             paymentData['authorization_url'] != null) {
-          final paymentResult = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentWebViewScreen(
-                authorizationUrl: paymentData['authorization_url'],
-                reference: paymentData['reference'],
-                onPaymentSuccess: () {},
-              ),
-            ),
+          final paymentResult = await context.push(
+            AppRoutes.paymentWebView.urlPath,
+            extra: {
+              'authorizationUrl': paymentData['authorization_url'],
+              'reference': paymentData['reference'],
+              'onPaymentSuccess': () {},
+            },
           );
           if (!mounted) return;
           if (paymentResult == true) {
@@ -938,7 +492,6 @@ print('resolved date: $_selectedDate');
           return;
         }
 
-        // Wallet
         if (paymentData['success'] == true || paymentData['status'] == true) {
           CustomFlushbar.showSuccess(
             context: context,
@@ -960,7 +513,6 @@ print('resolved date: $_selectedDate');
       return;
     }
 
-    // Pay in car / pay4me
     CustomFlushbar.showSuccess(
       context: context,
       message: 'Prebooking saved successfully!',
@@ -968,35 +520,10 @@ print('resolved date: $_selectedDate');
     Navigator.pop(context, true);
   }
 
-  Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 12.sp,
-        fontWeight: FontWeight.w500,
-        color: Colors.black,
-        letterSpacing: 0.5,
-      ),
-    );
-  }
-
-  Widget _buildFieldContainer({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 12.h),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: child,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Consumer<RidesProvider>(
           builder: (context, provider, child) {
@@ -1008,21 +535,18 @@ print('resolved date: $_selectedDate');
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Edit Prebooking',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 26.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
+                      MuvamTexts.headlineSmall24(
+                        context,
+                        text: 'Edit Prebooking',
+                        isTextWidget: true,
+                        fontWeight: FontWeight.w600,
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => context.pop(),
                         child: Icon(
                           Icons.close,
                           size: 24.sp,
-                          color: Colors.black,
+                          color: AppColors.kBlackColor,
                         ),
                       ),
                     ],
@@ -1033,13 +557,18 @@ print('resolved date: $_selectedDate');
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // PICK UP
-                          _buildLabel('PICK UP'),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text: 'PICK UP',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.kBlackColor,
+                          ),
                           SizedBox(height: 8.h),
                           Container(
                             height: 50.h,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: AppColors.kFormFieldColor,
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: TextField(
@@ -1061,16 +590,13 @@ print('resolved date: $_selectedDate');
                                 ),
                                 suffixIcon: GestureDetector(
                                   onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            MapSelectionScreen(
-                                              isFromField: true,
-                                              initialLocation:
-                                                  _selectedPickupLocation,
-                                            ),
-                                      ),
+                                    final result = await context.push(
+                                      AppRoutes.mapSelection.urlPath,
+                                      extra: {
+                                        'isFromField': true,
+                                        'initialLocation':
+                                            _selectedPickupLocation,
+                                      },
                                     );
                                     if (result != null &&
                                         result is Map<String, dynamic>) {
@@ -1087,7 +613,7 @@ print('resolved date: $_selectedDate');
                                     child: Icon(
                                       Icons.map,
                                       size: 20.sp,
-                                      color: Color(ConstColors.mainColor),
+                                      color: AppColors.kMainColor,
                                     ),
                                   ),
                                 ),
@@ -1101,16 +627,23 @@ print('resolved date: $_selectedDate');
                           if (_showPredictions &&
                               _predictions.isNotEmpty &&
                               _activeField == 'pickup')
-                            _buildPredictionsList(),
+                            PredictionsList(
+                              predictions: _predictions,
+                              onPredictionSelected: _selectPrediction,
+                            ),
                           SizedBox(height: 15.h),
-
-                          // DESTINATION
-                          _buildLabel('DESTINATION'),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text: 'DESTINATION',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.kBlackColor,
+                          ),
                           SizedBox(height: 8.h),
                           Container(
                             height: 50.h,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: AppColors.kFormFieldColor,
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: TextField(
@@ -1132,16 +665,13 @@ print('resolved date: $_selectedDate');
                                 ),
                                 suffixIcon: GestureDetector(
                                   onTap: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            MapSelectionScreen(
-                                              isFromField: false,
-                                              initialLocation:
-                                                  _selectedDestinationLocation,
-                                            ),
-                                      ),
+                                    final result = await context.push(
+                                      AppRoutes.mapSelection.urlPath,
+                                      extra: {
+                                        'isFromField': false,
+                                        'initialLocation':
+                                            _selectedDestinationLocation,
+                                      },
                                     );
                                     if (result != null &&
                                         result is Map<String, dynamic>) {
@@ -1158,7 +688,7 @@ print('resolved date: $_selectedDate');
                                     child: Icon(
                                       Icons.map,
                                       size: 20.sp,
-                                      color: Color(ConstColors.mainColor),
+                                      color: AppColors.kMainColor,
                                     ),
                                   ),
                                 ),
@@ -1172,11 +702,19 @@ print('resolved date: $_selectedDate');
                           if (_showPredictions &&
                               _predictions.isNotEmpty &&
                               _activeField == 'destination')
-                            _buildPredictionsList(),
+                            PredictionsList(
+                              predictions: _predictions,
+                              onPredictionSelected: _selectPrediction,
+                            ),
                           SizedBox(height: 15.h),
 
-                          // WHEN
-                          _buildLabel('WHEN'),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text: 'WHEN',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.kBlackColor,
+                          ),
                           SizedBox(height: 8.h),
                           GestureDetector(
                             onTap: () async {
@@ -1185,12 +723,12 @@ print('resolved date: $_selectedDate');
                                 initialDate: _selectedDate,
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime.now().add(
-                                  Duration(days: 365),
+                                  const Duration(days: 365),
                                 ),
                                 builder: (context, child) => Theme(
                                   data: Theme.of(context).copyWith(
-                                    colorScheme: ColorScheme.light(
-                                      primary: Color(ConstColors.mainColor),
+                                    colorScheme: const ColorScheme.light(
+                                      primary: AppColors.kMainColor,
                                     ),
                                   ),
                                   child: child!,
@@ -1203,10 +741,8 @@ print('resolved date: $_selectedDate');
                                       initialTime: _selectedTime,
                                       builder: (context, child) => Theme(
                                         data: Theme.of(context).copyWith(
-                                          colorScheme: ColorScheme.light(
-                                            primary: Color(
-                                              ConstColors.mainColor,
-                                            ),
+                                          colorScheme: const ColorScheme.light(
+                                            primary: AppColors.kMainColor,
                                           ),
                                         ),
                                         child: child!,
@@ -1220,19 +756,26 @@ print('resolved date: $_selectedDate');
                                 }
                               }
                             },
-                            child: _buildFieldContainer(
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 15.w,
+                                vertical: 12.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.kFormFieldColor,
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    '${_getMonth(_selectedDate.month)} ${_selectedDate.day}, ${_selectedDate.year} at ${_selectedTime.format(context)}',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
+                                  MuvamTexts.bodyMedium14(
+                                    context,
+                                    text:
+                                        '${_getMonth(_selectedDate.month)} ${_selectedDate.day}, ${_selectedDate.year} at ${_selectedTime.format(context)}',
+                                    isTextWidget: true,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   Icon(
                                     Icons.arrow_forward_ios,
@@ -1245,12 +788,26 @@ print('resolved date: $_selectedDate');
                           ),
                           SizedBox(height: 15.h),
 
-                          // PAYMENT METHOD
-                          _buildLabel('PAYMENT METHOD'),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text: 'PAYMENT METHOD',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.kBlackColor,
+                          ),
                           SizedBox(height: 8.h),
                           GestureDetector(
                             onTap: _showPaymentMethodSheet,
-                            child: _buildFieldContainer(
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 15.w,
+                                vertical: 12.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.kFormFieldColor,
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
                               child: Row(
                                 children: [
                                   Image.asset(
@@ -1263,14 +820,11 @@ print('resolved date: $_selectedDate');
                                   ),
                                   SizedBox(width: 12.w),
                                   Expanded(
-                                    child: Text(
-                                      _selectedPaymentMethod,
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
+                                    child: MuvamTexts.bodyMedium14(
+                                      context,
+                                      text: _selectedPaymentMethod,
+                                      isTextWidget: true,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   Icon(
@@ -1284,12 +838,26 @@ print('resolved date: $_selectedDate');
                           ),
                           SizedBox(height: 15.h),
 
-                          // VEHICLE
-                          _buildLabel('VEHICLE'),
+                          MuvamTexts.bodySmall12(
+                            context,
+                            text: 'VEHICLE',
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.kBlackColor,
+                          ),
                           SizedBox(height: 8.h),
                           GestureDetector(
                             onTap: _showVehicleSheet,
-                            child: _buildFieldContainer(
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 15.w,
+                                vertical: 12.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.kFormFieldColor,
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
                               child: Row(
                                 children: [
                                   Image.asset(
@@ -1304,23 +872,18 @@ print('resolved date: $_selectedDate');
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          _vehicleTypes[_selectedVehicleIndex],
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 14.sp,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black,
-                                          ),
+                                        MuvamTexts.bodyMedium14(
+                                          context,
+                                          text:
+                                              _vehicleTypes[_selectedVehicleIndex],
+                                          isTextWidget: true,
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        Text(
-                                          '4 Passengers',
-                                          style: TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 12.sp,
-                                            fontWeight: FontWeight.w400,
-                                            color: Colors.grey,
-                                          ),
+                                        MuvamTexts.bodySmall12(
+                                          context,
+                                          text: '4 Passengers',
+                                          isTextWidget: true,
+                                          color: Colors.grey,
                                         ),
                                       ],
                                     ),
@@ -1339,6 +902,7 @@ print('resolved date: $_selectedDate');
                       ),
                     ),
                   ),
+
                   Column(
                     children: [
                       GestureDetector(
@@ -1347,20 +911,18 @@ print('resolved date: $_selectedDate');
                             : _showTripCanceledSheet,
                         child: Container(
                           width: double.infinity,
-                          height: 48.h,
+                          height: 47.h,
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: Colors.red),
+                            color: AppColors.kWhiteColor,
+                            border: Border.all(color: AppColors.kError),
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: Center(
-                            child: Text(
-                              'Cancel prebooking',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: MuvamTexts.button16(
+                              context,
+                              text: 'Cancel prebooking',
+                              isTextWidget: true,
+                              color: AppColors.kError,
                             ),
                           ),
                         ),
@@ -1372,11 +934,11 @@ print('resolved date: $_selectedDate');
                             : _handleSavePrebooking,
                         child: Container(
                           width: double.infinity,
-                          height: 48.h,
+                          height: 47.h,
                           decoration: BoxDecoration(
                             color: provider.isUpdating
                                 ? Colors.grey
-                                : Color(ConstColors.mainColor),
+                                : AppColors.kMainColor,
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: Center(
@@ -1384,18 +946,16 @@ print('resolved date: $_selectedDate');
                                 ? SizedBox(
                                     width: 20.w,
                                     height: 20.h,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
+                                    child: const CircularProgressIndicator(
+                                      color: AppColors.kWhiteColor,
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : Text(
-                                    'Save prebooking',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                : MuvamTexts.button16(
+                                    context,
+                                    text: 'Save prebooking',
+                                    isTextWidget: true,
+                                    color: AppColors.kWhiteColor,
                                   ),
                           ),
                         ),
@@ -1407,42 +967,6 @@ print('resolved date: $_selectedDate');
             );
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildPredictionsList() {
-    return Container(
-      constraints: BoxConstraints(maxHeight: 200.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8.r),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        itemCount: _predictions.length,
-        separatorBuilder: (_, __) =>
-            Divider(height: 1, color: Colors.grey.shade200),
-        itemBuilder: (context, index) {
-          final prediction = _predictions[index];
-          return ListTile(
-            dense: true,
-            leading: Icon(Icons.location_on, size: 20.sp, color: Colors.grey),
-            title: Text(
-              prediction.mainText,
-              style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
-            ),
-            subtitle: prediction.secondaryText.isNotEmpty
-                ? Text(
-                    prediction.secondaryText,
-                    style: TextStyle(fontSize: 11.sp, color: Colors.grey[600]),
-                  )
-                : null,
-            onTap: () => _selectPrediction(prediction),
-          );
-        },
       ),
     );
   }

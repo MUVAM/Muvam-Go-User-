@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 
 class IncomingCallScreen extends StatefulWidget {
@@ -38,10 +39,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
   @override
   void initState() {
     super.initState();
-
-    // Setup pulse animation for accept button
     _pulseController = AnimationController(
-      duration: Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
 
@@ -49,7 +48,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Play system ringtone or custom ringtone
     _playRingtone();
   }
 
@@ -58,7 +56,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
       _isPlaying = true;
       await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
       await _ringtonePlayer.setVolume(1.0);
-      // Use custom ringtone or system default
       await _ringtonePlayer.play(AssetSource('sounds/calling.mp3'));
       AppLogger.log('Ringtone started playing', tag: 'INCOMING_CALL');
     } catch (e) {
@@ -74,7 +71,6 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
     if (_isPlaying) {
       await _ringtonePlayer.stop();
       _isPlaying = false;
-      AppLogger.log('Ringtone stopped', tag: 'INCOMING_CALL');
     }
   }
 
@@ -103,7 +99,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
       child: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -114,70 +110,62 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
           child: Column(
             children: [
               SizedBox(height: 80.h),
-              Text(
-                widget.callerName,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 28.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
-                textAlign: TextAlign.center,
+              MuvamTexts.headlineMedium28(
+                context,
+                text: widget.callerName,
+                isTextWidget: true,
+                fontWeight: FontWeight.w600,
+                color: AppColors.kWhiteColor,
+                center: true,
               ),
               SizedBox(height: 10.h),
-              Text(
-                'Incoming call...',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white70,
-                ),
+              MuvamTexts.bodyLarge16(
+                context,
+                text: 'Incoming call...',
+                isTextWidget: true,
+                color: Colors.white70,
               ),
-
               SizedBox(height: 60.h),
               Stack(
                 alignment: Alignment.center,
                 children: [
                   AnimatedBuilder(
                     animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Container(
-                        width: 220.w * _pulseAnimation.value,
-                        height: 220.h * _pulseAnimation.value,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 2,
-                          ),
+                    builder: (context, child) => Container(
+                      width: 220.w * _pulseAnimation.value,
+                      height: 220.h * _pulseAnimation.value,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.kWhiteColor.withOpacity(0.3),
+                          width: 2,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                   AnimatedBuilder(
                     animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Container(
-                        width: 200.w * (2.0 - _pulseAnimation.value),
-                        height: 200.h * (2.0 - _pulseAnimation.value),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
+                    builder: (context, child) => Container(
+                      width: 200.w * (2.0 - _pulseAnimation.value),
+                      height: 200.h * (2.0 - _pulseAnimation.value),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.kWhiteColor.withOpacity(0.2),
+                          width: 1,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                   Container(
                     width: 160.w,
                     height: 160.h,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
+                      border: Border.all(
+                        color: AppColors.kWhiteColor,
+                        width: 4,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.3),
@@ -193,19 +181,17 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                           ? Image.network(
                               widget.callerImage!,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  ConstImages.avatar,
-                                  fit: BoxFit.cover,
-                                );
-                              },
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                ConstImages.avatar,
+                                fit: BoxFit.cover,
+                              ),
                             )
                           : Image.asset(ConstImages.avatar, fit: BoxFit.cover),
                     ),
                   ),
                 ],
               ),
-              Spacer(),
+              const Spacer(),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 40.w),
                 child: Row(
@@ -231,68 +217,61 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                             ),
                             child: Icon(
                               Icons.call_end,
-                              color: Colors.white,
+                              color: AppColors.kWhiteColor,
                               size: 35.sp,
                             ),
                           ),
                         ),
                         SizedBox(height: 12.h),
-                        Text(
-                          'Decline',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
+                        MuvamTexts.bodyMedium14(
+                          context,
+                          text: 'Decline',
+                          isTextWidget: true,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.kWhiteColor,
                         ),
                       ],
                     ),
-
                     Column(
                       children: [
                         AnimatedBuilder(
                           animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: _pulseAnimation.value,
-                              child: GestureDetector(
-                                onTap: _handleAccept,
-                                child: Container(
-                                  width: 70.w,
-                                  height: 70.h,
-                                  decoration: BoxDecoration(
-                                    color: Color(ConstColors.mainColor),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Color(
-                                          ConstColors.mainColor,
-                                        ).withOpacity(0.6),
-                                        blurRadius: 20,
-                                        spreadRadius: 5,
+                          builder: (context, child) => Transform.scale(
+                            scale: _pulseAnimation.value,
+                            child: GestureDetector(
+                              onTap: _handleAccept,
+                              child: Container(
+                                width: 70.w,
+                                height: 70.h,
+                                decoration: BoxDecoration(
+                                  color: AppColors.kMainColor,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.kMainColor.withOpacity(
+                                        0.6,
                                       ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    Icons.call,
-                                    color: Colors.white,
-                                    size: 35.sp,
-                                  ),
+                                      blurRadius: 20,
+                                      spreadRadius: 5,
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.call,
+                                  color: AppColors.kWhiteColor,
+                                  size: 35.sp,
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
                         SizedBox(height: 12.h),
-                        Text(
-                          'Accept',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
+                        MuvamTexts.bodyMedium14(
+                          context,
+                          text: 'Accept',
+                          isTextWidget: true,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.kWhiteColor,
                         ),
                       ],
                     ),

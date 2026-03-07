@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 
 class StateSelectionScreen extends StatefulWidget {
   const StateSelectionScreen({super.key});
@@ -60,10 +63,6 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeStates();
-  }
-
-  void _initializeStates() {
     _filteredStates = List.from(_nigerianStates);
     _groupStates(_filteredStates);
   }
@@ -71,47 +70,29 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
   void _groupStates(List<String> states) {
     _groupedStates.clear();
     _groupHeaders.clear();
-
-    for (var state in states) {
-      String header;
-      if (state.isEmpty) {
-        header = '#';
-      } else {
-        final firstChar = state[0].toUpperCase();
-        if (RegExp(r'[0-9]').hasMatch(firstChar)) {
-          header = '#';
-        } else if (RegExp(r'[A-Z]').hasMatch(firstChar)) {
-          header = firstChar;
-        } else {
-          header = '#';
-        }
-      }
-
-      if (!_groupedStates.containsKey(header)) {
-        _groupedStates[header] = [];
+    for (final state in states) {
+      final firstChar = state.isEmpty ? '#' : state[0].toUpperCase();
+      final header = RegExp(r'[A-Z]').hasMatch(firstChar) ? firstChar : '#';
+      _groupedStates.putIfAbsent(header, () {
         _groupHeaders.add(header);
-      }
+        return [];
+      });
       _groupedStates[header]!.add(state);
     }
-
     _groupHeaders.sort((a, b) {
       if (a == '#') return -1;
       if (b == '#') return 1;
       return a.compareTo(b);
     });
-
     setState(() {});
   }
 
   void _filterStates(String query) {
-    if (query.isEmpty) {
-      _filteredStates = List.from(_nigerianStates);
-    } else {
-      _filteredStates = _nigerianStates
-          .where((state) => state.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    }
-
+    _filteredStates = query.isEmpty
+        ? List.from(_nigerianStates)
+        : _nigerianStates
+              .where((s) => s.toLowerCase().contains(query.toLowerCase()))
+              .toList();
     _groupStates(_filteredStates);
   }
 
@@ -123,8 +104,8 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -133,33 +114,29 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => context.pop(),
                     child: Image.asset(
                       ConstImages.back,
                       width: 33.w,
                       height: 33.h,
                     ),
                   ),
-                  Spacer(),
-                  Text(
-                    'Select State',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 20.sp,
-                      color: Colors.black,
-                    ),
+                  const Spacer(),
+                  MuvamTexts.headlineSmall24(
+                    context,
+                    text: 'Select State',
+                    isTextWidget: true,
                   ),
-                  Spacer(),
+                  const Spacer(),
                 ],
               ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Container(
-                height: 48.h,
+                height: 47.h,
                 decoration: BoxDecoration(
-                  color: Color(ConstColors.fieldColor).withOpacity(0.12),
+                  color: AppColors.kFieldColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: TextField(
@@ -168,7 +145,7 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14.sp,
-                    color: Colors.black,
+                    color: AppColors.kBlackColor,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Search state',
@@ -196,13 +173,10 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
             Expanded(
               child: _filteredStates.isEmpty
                   ? Center(
-                      child: Text(
-                        'No states found',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          color: Colors.black,
-                        ),
+                      child: MuvamTexts.bodyMedium14(
+                        context,
+                        text: 'No states found',
+                        isTextWidget: true,
                       ),
                     )
                   : ListView.builder(
@@ -211,7 +185,6 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                       itemBuilder: (context, index) {
                         final header = _groupHeaders[index];
                         final statesInGroup = _groupedStates[header] ?? [];
-
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -220,21 +193,16 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                                 top: index == 0 ? 0 : 24.h,
                                 bottom: 8.h,
                               ),
-                              child: Text(
-                                header,
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14.sp,
-                                  color: Colors.black,
-                                ),
+                              child: MuvamTexts.titleSmall14(
+                                context,
+                                text: header,
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            ...statesInGroup.map((state) {
-                              return GestureDetector(
-                                onTap: () {
-                                  Navigator.pop(context, state);
-                                },
+                            ...statesInGroup.map(
+                              (state) => GestureDetector(
+                                onTap: () => context.pop(state),
                                 child: Container(
                                   margin: EdgeInsets.only(bottom: 8.h),
                                   padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -246,18 +214,14 @@ class _StateSelectionScreenState extends State<StateSelectionScreen> {
                                       ),
                                     ),
                                   ),
-                                  child: Text(
-                                    state,
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.w400,
-                                      fontSize: 16.sp,
-                                      color: Colors.black,
-                                    ),
+                                  child: MuvamTexts.bodyLarge16(
+                                    context,
+                                    text: state,
+                                    isTextWidget: true,
                                   ),
                                 ),
-                              );
-                            }).toList(),
+                              ),
+                            ),
                           ],
                         );
                       },

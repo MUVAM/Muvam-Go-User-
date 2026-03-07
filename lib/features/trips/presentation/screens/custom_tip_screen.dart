@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
 import 'package:muvam/core/constants/images.dart';
-import 'package:muvam/core/constants/text_styles.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
 
 class CustomTipScreen extends StatefulWidget {
   const CustomTipScreen({super.key});
@@ -15,12 +18,18 @@ class _CustomTipScreenState extends State<CustomTipScreen> {
   final TextEditingController customTipController = TextEditingController();
 
   @override
+  void dispose() {
+    customTipController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AppScaffold(
+      backgroundColor: AppColors.kWhiteColor,
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacings.k20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -29,29 +38,38 @@ class _CustomTipScreenState extends State<CustomTipScreen> {
                 width: 45.w,
                 height: 45.h,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.kWhiteColor,
                   borderRadius: BorderRadius.circular(100.r),
                 ),
                 padding: EdgeInsets.all(10.w),
                 child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
+                  onTap: () => context.pop(),
                   child: Image.asset(ConstImages.back, fit: BoxFit.contain),
                 ),
               ),
               SizedBox(height: 30.h),
-              Text('Choose a custom tip', style: ConstTextStyles.tipTitle),
+              MuvamTexts.titleLarge22(
+                context,
+                text: 'Choose a custom tip',
+                isTextWidget: true,
+                fontWeight: FontWeight.w700,
+              ),
               SizedBox(height: 40.h),
               Container(
                 width: 353.w,
                 height: 50.h,
                 decoration: BoxDecoration(
-                  color: Color(ConstColors.fieldColor).withOpacity(0.12),
+                  color: AppColors.kFieldColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: TextField(
                   controller: customTipController,
                   keyboardType: TextInputType.number,
-                  style: ConstTextStyles.inputText,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Enter amount',
                     prefixText: '₦ ',
@@ -61,9 +79,7 @@ class _CustomTipScreenState extends State<CustomTipScreen> {
                       vertical: 15.h,
                     ),
                   ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               SizedBox(height: 40.h),
@@ -72,27 +88,25 @@ class _CustomTipScreenState extends State<CustomTipScreen> {
                   if (customTipController.text.isNotEmpty) {
                     final amount = int.tryParse(customTipController.text);
                     if (amount != null) {
-                      Navigator.pop(context, amount);
+                      context.pop(amount);
                     }
                   }
                 },
                 child: Container(
                   width: 353.w,
-                  height: 48.h,
+                  height: 47.h,
                   decoration: BoxDecoration(
                     color: customTipController.text.isNotEmpty
-                        ? Color(ConstColors.mainColor)
-                        : Color(ConstColors.fieldColor),
+                        ? AppColors.kMainColor
+                        : AppColors.kFieldColor,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Center(
-                    child: Text(
-                      'Save tip',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: MuvamTexts.button16(
+                      context,
+                      text: 'Save tip',
+                      isTextWidget: true,
+                      color: AppColors.kWhiteColor,
                     ),
                   ),
                 ),

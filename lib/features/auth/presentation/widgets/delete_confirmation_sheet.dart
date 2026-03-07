@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class DeleteConfirmationSheet {
   static void show(BuildContext context, VoidCallback onDelete) {
@@ -11,9 +15,9 @@ class DeleteConfirmationSheet {
       isDismissible: true,
       enableDrag: true,
       builder: (context) => _DeleteConfirmationContent(
-        onCancel: () => Navigator.pop(context),
+        onCancel: () => GoRouter.of(context).pop(),
         onDelete: () {
-          Navigator.pop(context); // Close bottom sheet
+          context.pop();
           onDelete();
         },
       ),
@@ -33,9 +37,9 @@ class _DeleteConfirmationContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20.w),
+      padding: EdgeInsets.all(AppSpacings.k20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.kWhiteColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       child: Column(
@@ -50,25 +54,19 @@ class _DeleteConfirmationContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(2.5.r),
             ),
           ),
-          Text(
-            'Delete Account',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
+          MuvamTexts.titleMedium18(
+            context,
+            text: 'Delete Account',
+            isTextWidget: true,
+            fontWeight: FontWeight.w600,
           ),
           SizedBox(height: 20.h),
-          Text(
-            'Are you sure you want to delete your account? This action cannot be undone.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: Colors.black,
-            ),
+          MuvamTexts.bodyMedium14(
+            context,
+            text:
+                'Are you sure you want to delete your account? This action cannot be undone.',
+            isTextWidget: true,
+            center: true,
           ),
           SizedBox(height: 30.h),
           Row(
@@ -77,7 +75,7 @@ class _DeleteConfirmationContent extends StatelessWidget {
                 child: Container(
                   height: 47.h,
                   decoration: BoxDecoration(
-                    color: Color(0xFFB1B1B1),
+                    color: AppColors.kGreyColor,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Material(
@@ -86,13 +84,11 @@ class _DeleteConfirmationContent extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8.r),
                       onTap: onCancel,
                       child: Center(
-                        child: Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Cancel',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                       ),
                     ),
@@ -113,13 +109,11 @@ class _DeleteConfirmationContent extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8.r),
                       onTap: onDelete,
                       child: Center(
-                        child: Text(
-                          'Delete account',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: MuvamTexts.button16(
+                          context,
+                          text: 'Delete account',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                       ),
                     ),

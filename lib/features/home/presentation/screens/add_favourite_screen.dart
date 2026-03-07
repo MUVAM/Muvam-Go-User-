@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
+import 'package:muvam/core/constants/app_spacings.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/core/services/favourite_location_service.dart';
 import 'package:muvam/core/services/places_service.dart';
 import 'package:muvam/core/utils/app_logger.dart';
 import 'package:muvam/core/utils/custom_flushbar.dart';
 import 'package:muvam/features/home/data/models/favourite_location_models.dart';
-import 'package:muvam/features/home/presentation/screens/map_selection_screen.dart';
+import 'package:muvam/layouts/presentation/shared/app_scaffold.dart';
+import 'package:muvam/layouts/presentation/shared/bottom_padding.dart';
 
 class AddFavouriteScreen extends StatefulWidget {
   const AddFavouriteScreen({super.key});
@@ -37,10 +42,8 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _userCurrentLocation = position;
-      });
+      final position = await Geolocator.getCurrentPosition();
+      setState(() => _userCurrentLocation = position);
     } catch (e) {
       AppLogger.log('Error getting location: $e');
     }
@@ -54,16 +57,13 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
       });
       return;
     }
-
     try {
       _sessionToken ??= DateTime.now().millisecondsSinceEpoch.toString();
-
       final predictions = await _placesService.getPlacePredictions(
         query,
         sessionToken: _sessionToken,
         currentLocation: _userCurrentLocation,
       );
-
       setState(() {
         _locationSuggestions = predictions;
         _showSuggestions = predictions.isNotEmpty;
@@ -82,7 +82,6 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
       prediction.placeId,
       sessionToken: _sessionToken,
     );
-
     setState(() {
       _locationController.text = prediction.description;
       _selectedLocation = placeDetails != null
@@ -102,7 +101,6 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
       );
       return;
     }
-
     if (_locationController.text.trim().isEmpty || _selectedLocation == null) {
       CustomFlushbar.showInfo(
         context: context,
@@ -110,11 +108,7 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
       );
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final request = FavouriteLocationRequest(
         destAddress: _locationController.text.trim(),
@@ -122,21 +116,12 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
             'POINT(${_selectedLocation!.latitude} ${_selectedLocation!.longitude})',
         name: _nameController.text.trim(),
       );
-
-      AppLogger.log('Saving favourite location:');
-      AppLogger.log('Name: ${request.name}');
-      AppLogger.log('Address: ${request.destAddress}');
-      AppLogger.log('Location: ${request.destLocation}');
-      AppLogger.log('Request JSON: ${request.toJson()}');
-
       await _favouriteService.addFavouriteLocation(request);
-
-      AppLogger.log('Favourite location saved successfully');
       CustomFlushbar.showSuccess(
         context: context,
         message: 'Favourite location added successfully',
       );
-      Navigator.pop(context, true);
+      context.pop(true);
     } catch (e) {
       AppLogger.log('Error saving favourite location: $e');
       CustomFlushbar.showError(
@@ -144,29 +129,29 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
         message: 'Failed to add favourite location: ${e.toString()}',
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showSuggestions = false;
-        });
-      },
-      child: Scaffold(
+      onTap: () => setState(() => _showSuggestions = false),
+      child: AppScaffold(
+        backgroundColor: AppColors.kWhiteColor,
         appBar: AppBar(
-          title: Text('Add Favourite Location'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          title: MuvamTexts.titleMedium18(
+            context,
+            text: 'Add Favourite Location',
+            isTextWidget: true,
+            fontWeight: FontWeight.w600,
+          ),
+          backgroundColor: AppColors.kWhiteColor,
+          foregroundColor: AppColors.kBlackColor,
           elevation: 0,
         ),
         body: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacings.k20),
           child: Column(
             children: [
               TextField(
@@ -176,13 +161,13 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.r),
                   ),
-                  prefixIcon: Icon(Icons.label_outline),
+                  prefixIcon: const Icon(Icons.label_outline),
                 ),
               ),
               SizedBox(height: 20.h),
               Container(
                 decoration: BoxDecoration(
-                  color: Color(ConstColors.fieldColor).withOpacity(0.12),
+                  color: AppColors.kFieldColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: TextField(
@@ -192,31 +177,26 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                     hintText: 'Location',
                     prefixIcon: GestureDetector(
                       onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MapSelectionScreen(
-                              isFromField: false,
-                              initialLocation: _userCurrentLocation != null
-                                  ? LatLng(
-                                      _userCurrentLocation!.latitude,
-                                      _userCurrentLocation!.longitude,
-                                    )
-                                  : LatLng(9.0765, 7.3986),
-                            ),
-                          ),
+                        final result = await context.push(
+                          AppRoutes.mapSelection.urlPath,
+                          extra: {
+                            'isFromField': false,
+                            'initialLocation': _userCurrentLocation != null
+                                ? LatLng(
+                                    _userCurrentLocation!.latitude,
+                                    _userCurrentLocation!.longitude,
+                                  )
+                                : const LatLng(9.0765, 7.3986),
+                          },
                         );
-                        if (result != null) {
+                        if (result != null && result is Map<String, dynamic>) {
                           setState(() {
                             _locationController.text = result['address'];
                             _selectedLocation = result['location'];
                           });
                         }
                       },
-                      child: Icon(
-                        Icons.map,
-                        color: Color(ConstColors.mainColor),
-                      ),
+                      child: Icon(Icons.map, color: AppColors.kMainColor),
                     ),
                     suffixIcon: _locationController.text.isNotEmpty
                         ? GestureDetector(
@@ -226,7 +206,7 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                                 _selectedLocation = null;
                               });
                             },
-                            child: Icon(Icons.clear, color: Colors.grey),
+                            child: const Icon(Icons.clear, color: Colors.grey),
                           )
                         : null,
                     border: InputBorder.none,
@@ -242,20 +222,20 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                   child: Container(
                     margin: EdgeInsets.only(top: 10.h),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.kWhiteColor,
                       borderRadius: BorderRadius.circular(8.r),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.grey.withOpacity(0.3),
                           spreadRadius: 1,
                           blurRadius: 5,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: ListView.separated(
                       itemCount: _locationSuggestions.length,
-                      separatorBuilder: (context, index) =>
+                      separatorBuilder: (_, __) =>
                           Divider(height: 1, color: Colors.grey.shade200),
                       itemBuilder: (context, index) {
                         final prediction = _locationSuggestions[index];
@@ -264,32 +244,29 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                           leading: Icon(
                             Icons.location_on,
                             size: 20.sp,
-                            color: Color(ConstColors.mainColor),
+                            color: AppColors.kMainColor,
                           ),
-                          title: Text(
-                            prediction.mainText,
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          title: MuvamTexts.bodyMedium14(
+                            context,
+                            text: prediction.mainText,
+                            isTextWidget: true,
+                            fontWeight: FontWeight.w600,
                           ),
                           subtitle: prediction.secondaryText.isNotEmpty
-                              ? Text(
-                                  prediction.secondaryText,
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    color: Colors.grey[600],
-                                  ),
+                              ? MuvamTexts.bodySmall12(
+                                  context,
+                                  text: prediction.secondaryText,
+                                  isTextWidget: true,
+                                  color: Colors.grey[600]!,
                                 )
                               : null,
                           trailing: prediction.distance != null
-                              ? Text(
-                                  prediction.distance!,
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              ? MuvamTexts.bodySmall12(
+                                  context,
+                                  text: prediction.distance!,
+                                  isTextWidget: true,
+                                  color: Colors.grey[600]!,
+                                  fontWeight: FontWeight.w500,
                                 )
                               : null,
                           onTap: () => _selectLocation(prediction),
@@ -298,30 +275,29 @@ class AddFavouriteScreenState extends State<AddFavouriteScreen> {
                     ),
                   ),
                 ),
-              if (!_showSuggestions) Spacer(),
+              if (!_showSuggestions) const Spacer(),
               SizedBox(
                 width: double.infinity,
-                height: 50.h,
+                height: 47.h,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveFavouriteLocation,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(ConstColors.mainColor),
+                    backgroundColor: AppColors.kMainColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                   ),
                   child: _isLoading
-                      ? CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          'Save Favourite Location',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      ? CircularProgressIndicator(color: AppColors.kWhiteColor)
+                      : MuvamTexts.button16(
+                          context,
+                          text: 'Save Favourite Location',
+                          isTextWidget: true,
+                          color: AppColors.kWhiteColor,
                         ),
                 ),
               ),
+              DeviceBottomPadding(),
             ],
           ),
         ),

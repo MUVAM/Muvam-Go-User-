@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/app_routes.dart';
 import 'package:muvam/core/constants/images.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/activities/data/providers/activities_tabs_provider.dart';
-import 'package:muvam/features/trips/presentation/screens/active_trip_screen.dart';
 import 'package:provider/provider.dart';
 
 class ActiveTab extends StatelessWidget {
@@ -15,8 +17,9 @@ class ActiveTab extends StatelessWidget {
   Widget build(BuildContext context) {
     String formatTime(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('h:mm a').format(dateTime);
+        return DateFormat(
+          'h:mm a',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -24,8 +27,9 @@ class ActiveTab extends StatelessWidget {
 
     String formatDate(String dateTimeStr) {
       try {
-        final dateTime = DateTime.parse(dateTimeStr).toLocal();
-        return DateFormat('MMMM d, yyyy').format(dateTime);
+        return DateFormat(
+          'MMMM d, yyyy',
+        ).format(DateTime.parse(dateTimeStr).toLocal());
       } catch (e) {
         return '';
       }
@@ -35,9 +39,7 @@ class ActiveTab extends StatelessWidget {
       builder: (context, provider, child) {
         if (provider.isLoading && !provider.hasData) {
           return Center(
-            child: CircularProgressIndicator(
-              color: Color(ConstColors.mainColor),
-            ),
+            child: CircularProgressIndicator(color: AppColors.kMainColor),
           );
         }
 
@@ -46,22 +48,19 @@ class ActiveTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 48.sp, color: Colors.red),
+                Icon(Icons.error_outline, size: 48.sp, color: AppColors.kError),
                 SizedBox(height: 16.h),
-                Text(
-                  provider.errorMessage ?? 'Failed to load rides',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text: provider.errorMessage ?? 'Failed to load rides',
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  center: true,
                 ),
                 SizedBox(height: 8.h),
                 TextButton(
                   onPressed: () => provider.fetchRides(),
-                  child: Text('Retry'),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
@@ -83,15 +82,14 @@ class ActiveTab extends StatelessWidget {
                   height: 120.h,
                 ),
                 SizedBox(height: 16.h),
-                Text(
-                  "Just chilling for now. Book a ride \nwhen you're ready",
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
+                MuvamTexts.bodyMedium14(
+                  context,
+                  text:
+                      "Just chilling for now. Book a ride \nwhen you're ready",
+                  isTextWidget: true,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey,
+                  center: true,
                 ),
                 if (provider.isRefreshing) ...[
                   SizedBox(height: 16.h),
@@ -100,7 +98,7 @@ class ActiveTab extends StatelessWidget {
                     height: 20.h,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(ConstColors.mainColor),
+                      color: AppColors.kMainColor,
                     ),
                   ),
                 ],
@@ -110,7 +108,7 @@ class ActiveTab extends StatelessWidget {
         }
 
         return ListView.builder(
-          physics: PageScrollPhysics(),
+          physics: const PageScrollPhysics(),
           shrinkWrap: true,
           itemCount: activeRides.length,
           itemBuilder: (context, index) {
@@ -119,20 +117,18 @@ class ActiveTab extends StatelessWidget {
               padding: EdgeInsets.only(bottom: 15.h),
               child: GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ActiveTripScreen(rideId: ride.id),
-                    ),
+                  context.pushNamed(
+                    AppRoutes.activeTrip.name,
+                    extra: {'rideId': ride.id},
                   );
                 },
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.kWhiteColor,
                     borderRadius: BorderRadius.circular(5.r),
                     border: Border.all(
-                      color: Color(0xFFB1B1B1).withOpacity(0.5),
+                      color: const Color(0xFFB1B1B1).withOpacity(0.5),
                       width: 0.5,
                     ),
                   ),
@@ -146,32 +142,24 @@ class ActiveTab extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                formatTime(ride.createdAt),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12.sp,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodySmall12(
+                                context,
+                                text: formatTime(ride.createdAt),
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
                               ),
-                              Text(
-                                formatDate(ride.createdAt),
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16.sp,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodyLarge16(
+                                context,
+                                text: formatDate(ride.createdAt),
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w600,
                               ),
                             ],
                           ),
                           Container(
                             width: 8.w,
                             height: 8.h,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
                             ),
@@ -186,24 +174,18 @@ class ActiveTab extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Destination',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12.sp,
-                                    color: Colors.black,
-                                  ),
+                                MuvamTexts.bodySmall12(
+                                  context,
+                                  text: 'Destination',
+                                  isTextWidget: true,
+                                  fontWeight: FontWeight.w500,
                                 ),
                                 SizedBox(height: 5.h),
-                                Text(
-                                  ride.destAddress,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14.sp,
-                                    color: Colors.black,
-                                  ),
+                                MuvamTexts.bodyMedium14(
+                                  context,
+                                  text: ride.destAddress,
+                                  isTextWidget: true,
+                                  fontWeight: FontWeight.w600,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -214,25 +196,17 @@ class ActiveTab extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                'Trip Id',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 12.sp,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodySmall12(
+                                context,
+                                text: 'Trip Id',
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w500,
                               ),
-                              Text(
-                                '#${ride.id}',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16.sp,
-                                  height: 1.0,
-                                  letterSpacing: -0.41,
-                                  color: Colors.black,
-                                ),
+                              MuvamTexts.bodyLarge16(
+                                context,
+                                text: '#${ride.id}',
+                                isTextWidget: true,
+                                fontWeight: FontWeight.w600,
                               ),
                             ],
                           ),

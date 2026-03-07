@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 import 'package:muvam/features/wallet/data/providers/wallet_provider.dart';
 
 class WalletCard extends StatelessWidget {
@@ -27,7 +28,7 @@ class WalletCard extends StatelessWidget {
           width: 353.w,
           height: 147.h,
           decoration: BoxDecoration(
-            color: const Color(ConstColors.mainColor),
+            color: AppColors.kMainColor,
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Padding(
@@ -39,26 +40,19 @@ class WalletCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Your balance',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        height: 1.0,
-                        letterSpacing: -0.32,
-                        color: Colors.white,
-                      ),
+                    MuvamTexts.titleSmall14(
+                      context,
+                      text: 'Your balance',
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.kWhiteColor,
                     ),
                     GestureDetector(
-                      // onTap: onFundWallet,
-                                          onTap: onCopyAccountNumber,
-
+                      onTap: onCopyAccountNumber,
                       child: Container(
                         width: 100.w,
                         height: 28.h,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.kWhiteColor,
                           borderRadius: BorderRadius.circular(8.r),
                         ),
                         child: Row(
@@ -67,17 +61,14 @@ class WalletCard extends StatelessWidget {
                             Icon(
                               Icons.add,
                               size: 14.sp,
-                              color: const Color(ConstColors.mainColor),
+                              color: AppColors.kMainColor,
                             ),
                             SizedBox(width: 3.w),
-                            Text(
-                              'Fund wallet',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(ConstColors.mainColor),
-                              ),
+                            MuvamTexts.bodySmall12(
+                              context,
+                              text: 'Fund wallet',
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.kMainColor,
                             ),
                           ],
                         ),
@@ -89,61 +80,46 @@ class WalletCard extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    walletProvider.formatAmount(walletSummary.balance),
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w600,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Colors.white,
-                    ),
+                  child: MuvamTexts.headlineSmall24(
+                    context,
+                    text: walletProvider.formatAmount(walletSummary.balance),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.kWhiteColor,
                   ),
                 ),
                 SizedBox(height: 8.h),
                 if (virtualAccount != null) ...[
-                  Text(
-                    virtualAccount.bankName,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      height: 1.0,
-                      letterSpacing: -0.32,
-                      color: Colors.white,
-                    ),
+                  MuvamTexts.bodySmall12(
+                    context,
+                    text: virtualAccount.bankName,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.kWhiteColor,
                   ),
                   SizedBox(height: 4.h),
                   GestureDetector(
                     onTap: onCopyAccountNumber,
                     child: Row(
                       children: [
-                        Text(
-                          virtualAccount.accountNumber,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                            letterSpacing: -0.32,
-                            color: Colors.white,
-                          ),
+                        MuvamTexts.titleMedium18(
+                          context,
+                          text: virtualAccount.accountNumber,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.kWhiteColor,
                         ),
                         SizedBox(width: 8.w),
-                        Icon(Icons.copy, size: 14.sp, color: Colors.white),
+                        Icon(
+                          Icons.copy,
+                          size: 14.sp,
+                          color: AppColors.kWhiteColor,
+                        ),
                       ],
                     ),
                   ),
                 ] else ...[
-                  Text(
-                    'No virtual account',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white70,
-                    ),
+                  MuvamTexts.bodySmall12(
+                    context,
+                    text: 'No virtual account',
+                    color: AppColors.kWhiteColor.withOpacity(0.7),
                   ),
                 ],
               ],
@@ -157,7 +133,7 @@ class WalletCard extends StatelessWidget {
             width: 103.w,
             height: 103.h,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: AppColors.kWhiteColor.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
           ),
@@ -169,7 +145,7 @@ class WalletCard extends StatelessWidget {
             width: 79.w,
             height: 79.h,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: AppColors.kWhiteColor.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
           ),
@@ -181,7 +157,7 @@ class WalletCard extends StatelessWidget {
             width: 79.w,
             height: 79.h,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: AppColors.kWhiteColor.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
           ),

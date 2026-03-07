@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class InAppNotification extends StatefulWidget {
   final String title;
@@ -73,7 +75,7 @@ class _InAppNotificationState extends State<InAppNotification>
                 child: Container(
                   padding: EdgeInsets.all(16.w),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.kWhiteColor,
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Row(
@@ -85,7 +87,11 @@ class _InAppNotificationState extends State<InAppNotification>
                           color: Colors.blue.shade100,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.message, color: Colors.blue, size: 20.sp),
+                        child: Icon(
+                          Icons.message,
+                          color: Colors.blue,
+                          size: 20.sp,
+                        ),
                       ),
                       SizedBox(width: 12.w),
                       Expanded(
@@ -93,26 +99,20 @@ class _InAppNotificationState extends State<InAppNotification>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              widget.title,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
+                            MuvamTexts.bodyMedium14(
+                              context,
+                              text: widget.title,
+                              isTextWidget: true,
+                              fontWeight: FontWeight.w600,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             SizedBox(height: 4.h),
-                            Text(
-                              widget.message,
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey.shade700,
-                              ),
+                            MuvamTexts.bodySmall12(
+                              context,
+                              text: widget.message,
+                              isTextWidget: true,
+                              color: Colors.grey.shade700,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),

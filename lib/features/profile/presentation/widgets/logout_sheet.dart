@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:muvam/core/constants/colors.dart';
+import 'package:muvam/core/constants/app_colors.dart';
+import 'package:muvam/core/constants/muvam_text.dart';
 
 class LogoutSheet extends StatelessWidget {
   final VoidCallback onLogout;
@@ -17,7 +18,7 @@ class LogoutSheet extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.kWhiteColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       child: Column(
@@ -32,25 +33,18 @@ class LogoutSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2.5.r),
             ),
           ),
-          Text(
-            'Log Out',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
+          MuvamTexts.titleMedium18(
+            context,
+            text: 'Log Out',
+            isTextWidget: true,
+            fontWeight: FontWeight.w600,
           ),
           SizedBox(height: 16.h),
-          Text(
-            'Are you sure you want to log out of your account?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w400,
-              color: Colors.black,
-            ),
+          MuvamTexts.bodyMedium14(
+            context,
+            text: 'Are you sure you want to log out of your account?',
+            isTextWidget: true,
+            center: true,
           ),
           SizedBox(height: 25.h),
           Row(
@@ -61,17 +55,15 @@ class LogoutSheet extends StatelessWidget {
                   width: 170.w,
                   height: 47.h,
                   decoration: BoxDecoration(
-                    color: Color(0xFFB1B1B1),
+                    color: const Color(0xFFB1B1B1),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Center(
-                    child: Text(
-                      'Log out',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: MuvamTexts.button16(
+                      context,
+                      text: 'Log out',
+                      isTextWidget: true,
+                      color: AppColors.kWhiteColor,
                     ),
                   ),
                 ),
@@ -83,17 +75,15 @@ class LogoutSheet extends StatelessWidget {
                   width: 170.w,
                   height: 47.h,
                   decoration: BoxDecoration(
-                    color: Color(ConstColors.mainColor),
+                    color: AppColors.kMainColor,
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Center(
-                    child: Text(
-                      'Go Back',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: MuvamTexts.button16(
+                      context,
+                      text: 'Go Back',
+                      isTextWidget: true,
+                      color: AppColors.kWhiteColor,
                     ),
                   ),
                 ),

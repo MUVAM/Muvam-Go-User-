@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:muvam/core/services/ride_service.dart';
-import 'package:muvam/features/trips/data/models/ride_user.dart';
+import 'package:muvam/features/trips/models/ride_user.dart';
 
 class RidesProvider with ChangeNotifier {
   final RideService _ridesService = RideService();

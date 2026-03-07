@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:muvam/shared/providers/connectivity_provider.dart';
+import 'package:muvam/layouts/providers/connectivity_provider.dart';
 import 'package:provider/provider.dart';
 
 class ConnectivityService {
